@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "8VcRJPzJtu8oYYRCHHPJXxkCtK9NKPRA0f2G99y36WQ=",
+  "Source": "pk-bridge-service",
+  "BasePath": "_content/pk-bridge-service",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

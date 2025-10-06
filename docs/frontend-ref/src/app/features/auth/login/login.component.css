@@ -1,0 +1,240 @@
+/* Login Component Specific Styles */
+
+
+/* Login-specific enhancements - Clean focus states */
+.login-form-container input:focus-visible,
+.login-form-container button:focus-visible {
+  outline: none;
+}
+
+/* Login form field enhancements - Single clean amber focus effect */
+.login-form-container .nwfth-input:focus,
+.login-form-container .nwfth-input:focus-visible {
+  border-color: hsl(var(--color-brand-amber-hsl));
+  box-shadow: 0 0 0 2px hsl(var(--color-brand-amber-hsl) / 0.3);
+  outline: none;
+  transform: none; /* Remove transform to avoid layout shift */
+}
+
+/* Login button enhancements */
+.login-form-container .nwfth-button-primary:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 8px 20px hsl(var(--color-primary) / 0.3);
+}
+
+.login-form-container .nwfth-button-primary:active:not(:disabled) {
+  transform: translateY(0) scale(1);
+}
+
+/* Input field styling - connection status removed from borders */
+/* Backend connection status now only affects the status indicator below the form */
+
+/* Form validation - use error messages instead of border colors */
+.nwfth-input.ng-invalid.ng-touched {
+  /* Form validation errors shown via text messages, not border colors */
+}
+
+.nwfth-input.ng-valid.ng-touched {
+  /* Valid state uses default styling, no special border colors */
+}
+
+/* Login card enhancements */
+.login-form-container.nwfth-card {
+  backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 20px 40px hsl(var(--color-primary) / 0.1),
+    0 10px 20px hsl(var(--color-primary) / 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Logo circle styling */
+.login-form-container .bg-nwfth-brown {
+  background: linear-gradient(135deg, var(--color-brand-brown), #6B4423);
+  box-shadow: 0 4px 15px hsl(var(--color-primary) / 0.3);
+}
+
+/* Connection status styling enhancements */
+.nwfth-status-connected {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.nwfth-status-disconnected {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+.nwfth-status-connecting {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+/* Status indicator pulse animation for connecting - uses global @keyframes pulse from animations.css */
+.nwfth-indicator-connecting {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Error alert styling */
+[role="alert"] {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile warning specific styling */
+@media (max-width: 1023px) {
+  .mobile-warning {
+    animation: slideDown 0.5s ease-out;
+    z-index: 1000;
+  }
+}
+
+/* Enhanced animations for reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .nwfth-input:focus-visible,
+  .nwfth-button-primary:hover:not(:disabled) {
+    transform: none;
+  }
+
+  [role="alert"],
+  .mobile-warning {
+    animation: none;
+  }
+}
+
+/* High contrast mode adjustments */
+@media (prefers-contrast: high) {
+  .nwfth-card {
+    background: white;
+    border: 2px solid black;
+  }
+
+  .nwfth-input {
+    border: 2px solid black;
+  }
+
+  .nwfth-button-primary {
+    border: 2px solid black;
+    background: black;
+    color: white;
+  }
+}
+
+/* Print styles (hide decorative elements) */
+@media print {
+  .tw-animate-gradient-morph,
+  .tw-animate-particles-layer-1,
+  .tw-animate-particles-layer-2,
+  .tw-animate-particles-layer-3,
+  .tw-animate-floating-orbs,
+  .tw-animate-wave-pattern {
+    display: none;
+  }
+
+  .nwfth-card {
+    background: white;
+    box-shadow: none;
+  }
+}
+
+/* Touch device optimizations */
+@media (pointer: coarse) {
+  .nwfth-input,
+  .nwfth-button-primary {
+    min-height: 48px; /* Larger touch targets */
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+}
+
+/* Dark mode support (if needed in future) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: 222.2 84% 4.9%;
+    --color-foreground: 210 40% 98%;
+    --color-muted: 217.2 32.6% 17.5%;
+    --color-muted-foreground: 215 20.2% 65.1%;
+    --color-border: 217.2 32.6% 17.5%;
+  }
+}
+
+/* Focus trap for keyboard navigation */
+.login-form-container:focus-within {
+  outline: none;
+}
+
+/* Loading spinner enhancement - uses global @keyframes spin from animations.css */
+.tw-animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Screen reader improvements */
+.tw-sr-only:focus,
+.tw-sr-only:active {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0.5rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Authentication info box styling */
+.nwfth-info-box {
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 2px solid #0284c7;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.1);
+}
+
+.nwfth-info-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #0c4a6e;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nwfth-auth-methods {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nwfth-auth-methods li {
+  font-size: 0.8rem;
+  color: #075985;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nwfth-info-note {
+  font-size: 0.75rem;
+  color: #0369a1;
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+  line-height: 1.4;
+  font-style: italic;
+}

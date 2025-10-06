@@ -1,0 +1,307 @@
+<Page x:Class="PK.BridgeService.ConfigWizard.Pages.ServiceManagementPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      Title="Service Management"
+      d:DesignHeight="600"
+      d:DesignWidth="800">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="PK Bridge Service Management"
+                      FontSize="24"
+                      FontWeight="Bold"
+                      Foreground="#8B4513"/>
+            <TextBlock Text="Monitor and control the bridge service for weight scale integration"
+                      FontSize="12"
+                      Foreground="#666"
+                      Margin="0,5,0,0"/>
+        </StackPanel>
+
+        <!-- Service Status Card -->
+        <Border Grid.Row="1"
+                Background="White"
+                BorderBrush="#DDD"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="20"
+                Margin="0,0,0,20">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Service Status -->
+                <StackPanel Grid.Row="0" Grid.Column="0">
+                    <TextBlock Text="Service Status"
+                              FontSize="14"
+                              FontWeight="SemiBold"
+                              Foreground="#333"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                        <Ellipse x:Name="StatusIndicator"
+                                Width="12"
+                                Height="12"
+                                Fill="#999"
+                                Margin="0,0,8,0"/>
+                        <TextBlock x:Name="StatusText"
+                                  Text="Unknown"
+                                  FontSize="16"
+                                  FontWeight="SemiBold"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Control Buttons -->
+                <StackPanel Grid.Row="0"
+                           Grid.Column="1"
+                           Orientation="Horizontal"
+                           VerticalAlignment="Center">
+                    <Button x:Name="StartButton"
+                           Content="▶ Start"
+                           Width="100"
+                           Height="35"
+                           Background="#4CAF50"
+                           Foreground="White"
+                           BorderThickness="0"
+                           Margin="0,0,10,0"
+                           Click="StartButton_Click"
+                           Style="{StaticResource ModernButtonStyle}"/>
+                    <Button x:Name="StopButton"
+                           Content="⏹ Stop"
+                           Width="100"
+                           Height="35"
+                           Background="#F44336"
+                           Foreground="White"
+                           BorderThickness="0"
+                           Margin="0,0,10,0"
+                           Click="StopButton_Click"
+                           Style="{StaticResource ModernButtonStyle}"/>
+                    <Button x:Name="RestartButton"
+                           Content="🔄 Restart"
+                           Width="100"
+                           Height="35"
+                           Background="#FF9800"
+                           Foreground="White"
+                           BorderThickness="0"
+                           Click="RestartButton_Click"
+                           Style="{StaticResource ModernButtonStyle}"/>
+                </StackPanel>
+
+                <!-- Service Details -->
+                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,15,0,0">
+                    <TextBlock x:Name="ServiceDetailsText"
+                              Text="Service Name: PKBridgeService | Start Type: Automatic"
+                              FontSize="12"
+                              Foreground="#666"/>
+                </StackPanel>
+
+                <!-- Status Message -->
+                <TextBlock x:Name="StatusMessage"
+                          Grid.Row="2"
+                          Grid.Column="0"
+                          Grid.ColumnSpan="2"
+                          Text=""
+                          FontSize="12"
+                          Foreground="#2196F3"
+                          Margin="0,10,0,0"
+                          TextWrapping="Wrap"/>
+            </Grid>
+        </Border>
+
+        <!-- Scale Status and Configuration -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="20"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Scale Status Card -->
+            <Border Grid.Column="0"
+                    Background="White"
+                    BorderBrush="#DDD"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20">
+                <StackPanel>
+                    <TextBlock Text="Scale Status"
+                              FontSize="16"
+                              FontWeight="SemiBold"
+                              Foreground="#333"
+                              Margin="0,0,0,15"/>
+
+                    <!-- SMALL Scale -->
+                    <Border Background="#F5F5F5"
+                           BorderBrush="#DDD"
+                           BorderThickness="1"
+                           CornerRadius="4"
+                           Padding="12"
+                           Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                <TextBlock Text="SMALL"
+                                          FontSize="14"
+                                          FontWeight="Bold"
+                                          Foreground="#8B4513"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock x:Name="SmallScalePortText"
+                                          Text=""
+                                          FontSize="12"
+                                          Foreground="#333"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                    <Ellipse x:Name="SmallScaleIndicator"
+                                            Width="8"
+                                            Height="8"
+                                            Fill="#999"
+                                            Margin="0,0,5,0"/>
+                                    <TextBlock x:Name="SmallScaleStatusText"
+                                              Text="Unknown"
+                                              FontSize="11"
+                                              Foreground="#666"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- BIG Scale -->
+                    <Border Background="#F5F5F5"
+                           BorderBrush="#DDD"
+                           BorderThickness="1"
+                           CornerRadius="4"
+                           Padding="12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                <TextBlock Text="BIG"
+                                          FontSize="14"
+                                          FontWeight="Bold"
+                                          Foreground="#8B4513"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock x:Name="BigScalePortText"
+                                          Text=""
+                                          FontSize="12"
+                                          Foreground="#333"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                    <Ellipse x:Name="BigScaleIndicator"
+                                            Width="8"
+                                            Height="8"
+                                            Fill="#999"
+                                            Margin="0,0,5,0"/>
+                                    <TextBlock x:Name="BigScaleStatusText"
+                                              Text="Unknown"
+                                              FontSize="11"
+                                              Foreground="#666"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Button x:Name="RefreshStatusButton"
+                           Content="🔄 Refresh Status"
+                           Width="150"
+                           Height="35"
+                           Background="#2196F3"
+                           Foreground="White"
+                           BorderThickness="0"
+                           Margin="0,15,0,0"
+                           Click="RefreshStatusButton_Click"
+                           Style="{StaticResource ModernButtonStyle}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Configuration Card -->
+            <Border Grid.Column="2"
+                    Background="White"
+                    BorderBrush="#DDD"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20">
+                <StackPanel>
+                    <TextBlock Text="Configuration"
+                              FontSize="16"
+                              FontWeight="SemiBold"
+                              Foreground="#333"
+                              Margin="0,0,0,15"/>
+
+                    <TextBlock x:Name="WorkstationNameText"
+                              Text="Workstation: NB-DEACHAWAT"
+                              FontSize="12"
+                              Foreground="#666"
+                              Margin="0,0,0,8"/>
+
+                    <TextBlock x:Name="DatabaseServerText"
+                              Text="Database: 192.168.0.86:49381"
+                              FontSize="12"
+                              Foreground="#666"
+                              Margin="0,0,0,8"/>
+
+                    <TextBlock x:Name="BridgePortText"
+                              Text="Bridge Port: 5000"
+                              FontSize="12"
+                              Foreground="#666"
+                              Margin="0,0,0,20"/>
+
+                    <Button x:Name="UpdateConfigButton"
+                           Content="⚙ Update Configuration"
+                           Width="220"
+                           Height="35"
+                           Background="#9C27B0"
+                           Foreground="White"
+                           BorderThickness="0"
+                           Margin="0,0,0,10"
+                           Click="UpdateConfigButton_Click"
+                           Style="{StaticResource ModernButtonStyle}"/>
+
+                    <Button x:Name="UninstallButton"
+                           Content="🗑 Uninstall Service"
+                           Width="220"
+                           Height="35"
+                           Background="#D32F2F"
+                           Foreground="White"
+                           BorderThickness="0"
+                           Click="UninstallButton_Click"
+                           Style="{StaticResource ModernButtonStyle}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Bottom Actions -->
+        <StackPanel Grid.Row="3"
+                   Orientation="Horizontal"
+                   HorizontalAlignment="Right"
+                   Margin="0,20,0,0">
+            <Button Content="✖ Close"
+                   Width="120"
+                   Height="35"
+                   Background="#666"
+                   Foreground="White"
+                   BorderThickness="0"
+                   Click="CloseButton_Click"
+                   Style="{StaticResource ModernButtonStyle}"/>
+        </StackPanel>
+    </Grid>
+</Page>

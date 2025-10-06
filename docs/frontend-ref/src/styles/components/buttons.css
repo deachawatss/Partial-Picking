@@ -1,0 +1,248 @@
+/* =================================================================== */
+/* Button Components - NWFTH Design System                          */
+/* Accessible, warehouse-optimized button designs                   */
+/* =================================================================== */
+
+/* Base Button Styles */
+.nwfth-button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  border-radius: 0.75rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  transition: all var(--animation-duration-fast) var(--animation-easing);
+  cursor: pointer;
+  border: 1px solid transparent;
+
+  /* Accessibility */
+  outline: none;
+
+  /* Touch optimization for warehouse tablets */
+  min-height: 44px;
+  padding: 0.75rem 1.5rem;
+}
+
+/* Focus styles handled by global focus system in globals.css */
+.nwfth-button-base:focus-visible {
+  outline: none; /* Global :focus-visible will apply */
+}
+
+.nwfth-button-base:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Primary Button - NWFTH Brown */
+.nwfth-button-primary {
+  background-color: var(--color-brand-brown);
+  color: var(--color-brand-cream);
+  font-weight: 600;
+  border: 1px solid var(--color-brand-brown);
+}
+
+.nwfth-button-primary:hover:not(:disabled) {
+  background-color: hsl(var(--color-primary) / 0.9);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium);
+}
+
+.nwfth-button-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Primary button focus handled by global focus system with accent color */
+
+/* Secondary Button - Muted with Amber Hover */
+.nwfth-button-secondary {
+  background-color: hsl(var(--color-muted));
+  color: hsl(var(--color-foreground));
+  border: 1px solid hsl(var(--color-border));
+  font-weight: 500;
+}
+
+.nwfth-button-secondary:hover:not(:disabled) {
+  background-color: var(--color-brand-amber);
+  color: hsl(var(--color-foreground));
+  border-color: var(--color-brand-amber);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.nwfth-button-secondary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Outline Button */
+.nwfth-button-outline {
+  background-color: transparent;
+  color: var(--color-brand-brown);
+  border: 2px solid var(--color-brand-brown);
+  font-weight: 500;
+}
+
+.nwfth-button-outline:hover:not(:disabled) {
+  background-color: var(--color-brand-brown);
+  color: var(--color-brand-cream);
+}
+
+/* Ghost Button */
+.nwfth-button-ghost {
+  background-color: transparent;
+  color: hsl(var(--color-foreground));
+  border: 1px solid transparent;
+}
+
+.nwfth-button-ghost:hover:not(:disabled) {
+  background-color: hsl(var(--color-muted));
+  border-color: hsl(var(--color-border));
+}
+
+/* Danger Button - Using semantic colors */
+.nwfth-button-danger {
+  background-color: hsl(var(--color-danger));
+  color: white;
+  border: 1px solid hsl(var(--color-danger));
+}
+
+.nwfth-button-danger:hover:not(:disabled) {
+  background-color: hsl(var(--color-danger-foreground));
+  border-color: hsl(var(--color-danger-foreground));
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium);
+}
+
+/* Success Button - Using semantic colors */
+.nwfth-button-success {
+  background-color: hsl(var(--color-success));
+  color: white;
+  border: 1px solid hsl(var(--color-success));
+}
+
+.nwfth-button-success:hover:not(:disabled) {
+  background-color: hsl(var(--color-success-foreground));
+  border-color: hsl(var(--color-success-foreground));
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium);
+}
+
+/* Button Sizes */
+.nwfth-button-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  min-height: 36px;
+}
+
+.nwfth-button-lg {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  min-height: 48px;
+}
+
+.nwfth-button-xl {
+  padding: 1.25rem 2.5rem;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  min-height: 56px;
+}
+
+/* Button Groups */
+.nwfth-button-group {
+  display: inline-flex;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+
+.nwfth-button-group .nwfth-button-base {
+  border-radius: 0;
+  border-right-width: 0;
+}
+
+.nwfth-button-group .nwfth-button-base:first-child {
+  border-top-left-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
+}
+
+.nwfth-button-group .nwfth-button-base:last-child {
+  border-top-right-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+  border-right-width: 1px;
+}
+
+/* Icon Buttons */
+.nwfth-button-icon {
+  padding: 0.75rem;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.nwfth-button-icon-sm {
+  padding: 0.5rem;
+  min-width: 36px;
+  min-height: 36px;
+}
+
+/* Loading State */
+.nwfth-button-loading {
+  position: relative;
+  color: transparent;
+}
+
+.nwfth-button-loading::after {
+  content: '';
+  position: absolute;
+  width: 1rem;
+  height: 1rem;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+
+/* Touch Optimization for Warehouse Displays */
+@media (min-width: 1024px) {
+  /* Desktop/Tablet - Larger targets for better usability */
+  .nwfth-button-base {
+    min-height: 44px;
+  }
+
+  .nwfth-button-sm {
+    min-height: 36px;
+  }
+
+  .nwfth-button-lg {
+    min-height: 48px;
+  }
+
+  .nwfth-button-xl {
+    min-height: 56px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .nwfth-button-primary,
+  .nwfth-button-secondary,
+  .nwfth-button-outline {
+    border-width: 2px;
+  }
+
+  .nwfth-button-primary:focus-visible,
+  .nwfth-button-secondary:focus-visible {
+    box-shadow: 0 0 0 3px hsl(var(--color-accent) / 0.8);
+  }
+}
+
+/* Touch-specific improvements */
+.min-h-touch {
+  min-height: 44px;
+}

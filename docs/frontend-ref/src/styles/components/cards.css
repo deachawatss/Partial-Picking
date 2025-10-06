@@ -1,0 +1,98 @@
+/* =================================================================== */
+/* Card Components - NWFTH Design System                            */
+/* Clean, accessible card designs for warehouse applications         */
+/* =================================================================== */
+
+.nwfth-card {
+  background-color: hsl(var(--color-background));
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--color-border));
+  box-shadow: var(--shadow-soft);
+  transition: all var(--animation-duration-normal) var(--animation-easing);
+}
+
+.nwfth-card:hover {
+  box-shadow: var(--shadow-medium);
+  transform: translateY(-2px);
+}
+
+/* Login Form Container - Specialized card for authentication */
+.login-form-container {
+  background-color: hsl(var(--color-background));
+  border: 1px solid hsl(var(--color-border) / 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Card Variants */
+.nwfth-card-elevated {
+  box-shadow: var(--shadow-large);
+  border: none;
+}
+
+.nwfth-card-flat {
+  box-shadow: none;
+  border: 1px solid hsl(var(--color-border));
+}
+
+.nwfth-card-outline {
+  background-color: transparent;
+  border: 2px solid hsl(var(--color-border));
+  box-shadow: none;
+}
+
+/* Interactive Card States */
+.nwfth-card-interactive {
+  cursor: pointer;
+  transition: all var(--animation-duration-fast) var(--animation-easing);
+}
+
+.nwfth-card-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium);
+}
+
+.nwfth-card-interactive:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Card Header */
+.nwfth-card-header {
+  padding: 1rem 1rem 0.5rem 1rem;
+  border-bottom: 1px solid hsl(var(--color-border));
+}
+
+/* Card Content */
+.nwfth-card-content {
+  padding: 1rem;
+}
+
+/* Card Footer */
+.nwfth-card-footer {
+  padding: 0.5rem 1rem 1rem 1rem;
+  border-top: 1px solid hsl(var(--color-border));
+  background-color: hsl(var(--color-muted) / 0.3);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+/* Status Cards */
+.nwfth-card-success {
+  border-left: 4px solid #22c55e;
+  background-color: #f0fdf4;
+}
+
+.nwfth-card-warning {
+  border-left: 4px solid #f59e0b;
+  background-color: #fefce8;
+}
+
+.nwfth-card-error {
+  border-left: 4px solid #ef4444;
+  background-color: #fef2f2;
+}
+
+.nwfth-card-info {
+  border-left: 4px solid var(--color-brand-amber);
+  background-color: hsl(var(--color-muted) / 0.5);
+}

@@ -1,0 +1,254 @@
+<Page x:Class="PK.BridgeService.ConfigWizard.Pages.InstallPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      Title="Install"
+      d:DesignHeight="450"
+      d:DesignWidth="800">
+
+    <Grid Margin="40">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,30">
+            <TextBlock Style="{StaticResource TitleText}"
+                      Text="Install &amp; Start Service"/>
+            <TextBlock Text="Installing PK Bridge Service as Windows Service..."
+                      FontSize="12"
+                      Foreground="#666"
+                      Margin="0,5,0,0"/>
+        </StackPanel>
+
+        <!-- Installation Steps -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,20">
+            <!-- Step 1: Deploy Files -->
+            <Border Background="White"
+                   BorderBrush="#DDD"
+                   BorderThickness="1"
+                   CornerRadius="4"
+                   Padding="15"
+                   Margin="0,0,0,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                              Text="1."
+                              FontSize="14"
+                              FontWeight="Bold"
+                              Foreground="#8B4513"
+                              Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1"
+                              Text="Deploy service files to Program Files"
+                              FontSize="14"
+                              VerticalAlignment="Center"/>
+                    <TextBlock x:Name="Step1Status"
+                              Grid.Column="2"
+                              Text="⏳ Pending"
+                              FontSize="12"
+                              Foreground="#666"/>
+                </Grid>
+            </Border>
+
+            <!-- Step 2: Create Configuration -->
+            <Border Background="White"
+                   BorderBrush="#DDD"
+                   BorderThickness="1"
+                   CornerRadius="4"
+                   Padding="15"
+                   Margin="0,0,0,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                              Text="2."
+                              FontSize="14"
+                              FontWeight="Bold"
+                              Foreground="#8B4513"
+                              Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1"
+                              Text="Create service configuration file"
+                              FontSize="14"
+                              VerticalAlignment="Center"/>
+                    <TextBlock x:Name="Step2Status"
+                              Grid.Column="2"
+                              Text="⏳ Pending"
+                              FontSize="12"
+                              Foreground="#666"/>
+                </Grid>
+            </Border>
+
+            <!-- Step 3: Install Windows Service -->
+            <Border Background="White"
+                   BorderBrush="#DDD"
+                   BorderThickness="1"
+                   CornerRadius="4"
+                   Padding="15"
+                   Margin="0,0,0,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                              Text="3."
+                              FontSize="14"
+                              FontWeight="Bold"
+                              Foreground="#8B4513"
+                              Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1"
+                              Text="Install as Windows Service"
+                              FontSize="14"
+                              VerticalAlignment="Center"/>
+                    <TextBlock x:Name="Step3Status"
+                              Grid.Column="2"
+                              Text="⏳ Pending"
+                              FontSize="12"
+                              Foreground="#666"/>
+                </Grid>
+            </Border>
+
+            <!-- Step 4: Register Workstation -->
+            <Border Background="White"
+                   BorderBrush="#DDD"
+                   BorderThickness="1"
+                   CornerRadius="4"
+                   Padding="15"
+                   Margin="0,0,0,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                              Text="4."
+                              FontSize="14"
+                              FontWeight="Bold"
+                              Foreground="#8B4513"
+                              Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1"
+                              Text="Register workstation in database"
+                              FontSize="14"
+                              VerticalAlignment="Center"/>
+                    <TextBlock x:Name="Step4Status"
+                              Grid.Column="2"
+                              Text="⏳ Pending"
+                              FontSize="12"
+                              Foreground="#666"/>
+                </Grid>
+            </Border>
+
+            <!-- Step 5: Start Service -->
+            <Border Background="White"
+                   BorderBrush="#DDD"
+                   BorderThickness="1"
+                   CornerRadius="4"
+                   Padding="15">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                              Text="5."
+                              FontSize="14"
+                              FontWeight="Bold"
+                              Foreground="#8B4513"
+                              Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1"
+                              Text="Start bridge service"
+                              FontSize="14"
+                              VerticalAlignment="Center"/>
+                    <TextBlock x:Name="Step5Status"
+                              Grid.Column="2"
+                              Text="⏳ Pending"
+                              FontSize="12"
+                              Foreground="#666"/>
+                </Grid>
+            </Border>
+
+            <!-- Progress Bar -->
+            <ProgressBar x:Name="InstallProgressBar"
+                        Height="8"
+                        Margin="0,20,0,10"
+                        Minimum="0"
+                        Maximum="100"
+                        Value="0"/>
+
+            <!-- Status Message -->
+            <TextBlock x:Name="StatusMessage"
+                      Text="Ready to install..."
+                      FontSize="12"
+                      Foreground="#2196F3"
+                      TextAlignment="Center"
+                      Margin="0,10,0,0"/>
+
+            <!-- Error Message -->
+            <Border x:Name="ErrorPanel"
+                   Background="#FFEBEE"
+                   BorderBrush="#F44336"
+                   BorderThickness="1"
+                   CornerRadius="4"
+                   Padding="15"
+                   Margin="0,20,0,0"
+                   Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock Text="❌ Installation Error"
+                              FontSize="14"
+                              FontWeight="SemiBold"
+                              Foreground="#D32F2F"
+                              Margin="0,0,0,5"/>
+                    <TextBlock x:Name="ErrorMessage"
+                              Text=""
+                              FontSize="12"
+                              Foreground="#666"
+                              TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Success Panel -->
+            <Border x:Name="SuccessPanel"
+                   Background="#E8F5E9"
+                   BorderBrush="#4CAF50"
+                   BorderThickness="1"
+                   CornerRadius="4"
+                   Padding="15"
+                   Margin="0,20,0,0"
+                   Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock Text="✅ Installation Complete"
+                              FontSize="14"
+                              FontWeight="SemiBold"
+                              Foreground="#2E7D32"
+                              Margin="0,0,0,5"/>
+                    <TextBlock Text="The bridge service has been installed and started successfully. Click 'Finish' to open the management dashboard."
+                              FontSize="12"
+                              Foreground="#666"
+                              TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Bottom Note -->
+        <TextBlock Grid.Row="2"
+                  Text="⚠ This requires administrator privileges. Please accept UAC prompts if shown."
+                  FontSize="11"
+                  Foreground="#FF9800"
+                  TextAlignment="Center"
+                  Margin="0,10,0,0"/>
+    </Grid>
+</Page>
