@@ -1,0 +1,88 @@
+[package]
+name = "partial-picking-backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Web framework
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# Database
+tiberius = "0.12"
+bb8 = "0.8"
+bb8-tiberius = "0.15"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["compat"] }
+
+# Authentication
+jsonwebtoken = "9"
+bcrypt = "0.15"
+ldap3 = "0.11"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Environment & Configuration
+dotenvy = "0.15"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+thiserror = "1"
+anyhow = "1"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID generation
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Decimal precision (for unit tests)
+rust_decimal = "1"
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"
+reqwest = { version = "0.11", features = ["json"] }
+
+# Contract test targets
+[[test]]
+name = "auth_contract_test"
+path = "tests/contract/auth_contract_test.rs"
+
+[[test]]
+name = "runs_contract_test"
+path = "tests/contract/runs_contract_test.rs"
+
+[[test]]
+name = "picking_contract_test"
+path = "tests/contract/picking_contract_test.rs"
+
+[[test]]
+name = "lots_contract_test"
+path = "tests/contract/lots_contract_test.rs"
+
+# Unit test targets
+[[test]]
+name = "fefo_tests"
+path = "tests/unit/fefo_tests.rs"
+
+[[test]]
+name = "validation_tests"
+path = "tests/unit/validation_tests.rs"
+
+[[test]]
+name = "transaction_tests"
+path = "tests/unit/transaction_tests.rs"
+
+# Performance test targets
+[[test]]
+name = "api_performance_test"
+path = "tests/performance/api_performance_test.rs"

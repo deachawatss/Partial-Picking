@@ -1,0 +1,1244 @@
+openapi: 3.0.3
+info:
+  title: Partial Picking System API
+  description: |
+    RESTful API for the Partial Picking System PWA - Production-ready endpoints for warehouse
+    partial picking operations with real-time weight integration, FEFO lot management, and
+    4-phase atomic transactions.
+
+    **Key Features**:
+    - Dual authentication (LDAP + SQL fallback)
+    - Real-time weight scale integration via WebSocket bridge
+    - FEFO (First Expired, First Out) lot selection
+    - 4-phase atomic picking transactions
+    - TFC1 PARTIAL bin filtering (511 bins)
+    - Audit trail preservation
+
+    **Database**: TFCPILOT3 @ 192.168.0.86:49381
+    **Constitutional Compliance**: v1.0.0
+  version: 1.0.0
+  contact:
+    name: Partial Picking System Team
+    email: support@nwfth.com
+  license:
+    name: Proprietary
+    url: https://nwfth.com/license
+
+servers:
+  - url: http://localhost:7075/api
+    description: Development server (backend port from .env)
+  - url: http://192.168.0.86:7075/api
+    description: Production server (warehouse network)
+
+tags:
+  - name: Authentication
+    description: Dual LDAP/SQL authentication with JWT tokens
+  - name: Runs
+    description: Production run management with auto-population
+  - name: Picking
+    description: Picking operations with weight validation
+  - name: Lots
+    description: Lot management with FEFO algorithm
+  - name: Bins
+    description: Bin operations (TFC1 PARTIAL bins only)
+  - name: Sequences
+    description: Sequence number generation (PT for pallets)
+  - name: Workstations
+    description: Workstation configuration with dual scale assignment
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ============================================================================
+  # AUTHENTICATION ENDPOINTS
+  # ============================================================================
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate user with LDAP or SQL credentials
+      description: |
+        Dual authentication endpoint supporting both LDAP (Active Directory) and SQL (tbl_user)
+        credentials. Returns JWT token with 168-hour expiration.
+
+        **Authentication Flow**:
+        1. Attempt LDAP authentication against LDAP_URL
+        2. If LDAP fails/unreachable, fallback to SQL authentication
+        3. Return JWT token with user details
+      operationId: login
+      security: []  # No auth required for login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              ldap:
+                summary: LDAP Authentication
+                value:
+                  username: dechawat
+                  password: P@ssw0rd123
+              sql:
+                summary: SQL Authentication
+                value:
+                  username: warehouse_user
+                  password: SecurePassword456
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                user:
+                  userid: 42
+                  username: dechawat
+                  firstName: Dechawat
+                  lastName: Wongsirasawat
+                  department: Warehouse
+                  authSource: LDAP
+                  permissions: ["putaway", "picking", "partial-picking"]
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh JWT token
+      description: Refresh an existing JWT token before expiration
+      operationId: refreshToken
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: New JWT token
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get current user details
+      description: Retrieve authenticated user information from JWT token
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: User details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ============================================================================
+  # PRODUCTION RUN ENDPOINTS
+  # ============================================================================
+
+  /runs/{runNo}:
+    get:
+      tags: [Runs]
+      summary: Get run details with auto-population
+      description: |
+        Retrieve production run details for auto-populating UI fields:
+        - FG Item Key (from FormulaId)
+        - FG Description (from FormulaDesc)
+        - Batch Numbers (all RowNum values)
+        - Production Date (from RecDate)
+        - Batches count (from NoOfBatches)
+      operationId: getRunDetails
+      parameters:
+        - $ref: '#/components/parameters/RunNo'
+      responses:
+        '200':
+          description: Run details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunDetailsResponse'
+              example:
+                runNo: 6000037
+                fgItemKey: TSM2285A
+                fgDescription: Marinade, Savory
+                batches: [1, 2]
+                productionDate: "2025-10-06"
+                status: NEW
+                noOfBatches: 2
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /runs/{runNo}/batches/{rowNum}/items:
+    get:
+      tags: [Runs]
+      summary: Get items for batch with weight range
+      description: |
+        Retrieve all items for a specific batch with calculated weight ranges:
+        - Weight Range Low = ToPickedPartialQty - INMAST.User9
+        - Weight Range High = ToPickedPartialQty + INMAST.User9
+        - Remaining Qty = ToPickedPartialQty - PickedPartialQty
+      operationId: getBatchItems
+      parameters:
+        - $ref: '#/components/parameters/RunNo'
+        - $ref: '#/components/parameters/RowNum'
+      responses:
+        '200':
+          description: Batch items retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchItemsResponse'
+              example:
+                items:
+                  - itemKey: INRICF05
+                    description: Rice Flour (RF-0010)
+                    totalNeeded: 14.24
+                    pickedQty: 0
+                    remainingQty: 14.24
+                    weightRangeLow: 14.215
+                    weightRangeHigh: 14.265
+                    toleranceKG: 0.025
+                    allergen: ""
+                    status: null
+                  - itemKey: INSALT02
+                    description: Salt Medium without anticaking
+                    totalNeeded: 20.00
+                    pickedQty: 20.025
+                    remainingQty: 0
+                    weightRangeLow: 19.975
+                    weightRangeHigh: 20.025
+                    toleranceKG: 0.025
+                    allergen: ""
+                    status: Allocated
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /runs/{runNo}/complete:
+    post:
+      tags: [Runs]
+      summary: Complete run and assign pallet
+      description: |
+        Execute run completion workflow when all items in all batches are picked:
+        1. Get next PT sequence number
+        2. Update run status from NEW to PRINT
+        3. Create pallet record (Cust_PartialPalletLotPicked)
+        4. Trigger batch summary label printing
+      operationId: completeRun
+      parameters:
+        - $ref: '#/components/parameters/RunNo'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                workstationId:
+                  type: string
+                  description: Workstation identifier (e.g., WS3)
+                  example: WS3
+              required: [workstationId]
+      responses:
+        '200':
+          description: Run completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runNo:
+                    type: integer
+                    example: 213935
+                  palletId:
+                    type: string
+                    description: Assigned pallet ID from PT sequence
+                    example: "623524"
+                  status:
+                    type: string
+                    enum: [PRINT]
+                    example: PRINT
+                  completedAt:
+                    type: string
+                    format: date-time
+                    example: "2025-05-29T12:00:04Z"
+        '400':
+          description: Bad request - not all items picked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: BUSINESS_RUN_NOT_COMPLETE
+                  message: Cannot complete run - not all items are allocated
+                  correlationId: abc123-xyz789
+                  details:
+                    totalItems: 12
+                    pickedItems: 10
+                    unpickedItems: [INSALT02, INRICF05]
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ============================================================================
+  # PICKING ENDPOINTS
+  # ============================================================================
+
+  /picks:
+    post:
+      tags: [Picking]
+      summary: Execute 4-phase atomic picking transaction
+      description: |
+        Save picked item with 4-phase atomic transaction:
+
+        **Phase 1**: Lot allocation (Cust_PartialLotPicked record creation)
+        **Phase 2**: Weight update (cust_PartialPicked.PickedPartialQty, ItemBatchStatus, PickingDate, ModifiedBy)
+        **Phase 3**: Transaction recording (LotTransaction with TransactionType=5)
+        **Phase 4**: Inventory commitment (LotMaster.QtyCommitSales increment)
+
+        All phases execute atomically with rollback on failure.
+      operationId: savePickedItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickRequest'
+            example:
+              runNo: 213996
+              rowNum: 1
+              lineId: 1
+              lotNo: "2510403-1"
+              binNo: PWBB-12
+              weight: 20.025
+              workstationId: WS3
+      responses:
+        '201':
+          description: Pick saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickResponse'
+              example:
+                runNo: 213996
+                rowNum: 1
+                lineId: 1
+                itemKey: INSALT02
+                lotNo: "2510403-1"
+                binNo: PWBB-12
+                pickedQty: 20.025
+                targetQty: 20.00
+                status: Allocated
+                pickingDate: "2025-10-06T10:15:30Z"
+                lotTranNo: 17282850
+        '400':
+          description: Bad request - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                outOfTolerance:
+                  summary: Weight out of tolerance
+                  value:
+                    error:
+                      code: VALIDATION_WEIGHT_OUT_OF_TOLERANCE
+                      message: Weight 20.5 is outside acceptable range (19.975 - 20.025 KG)
+                      correlationId: abc123-xyz789
+                      details:
+                        weight: 20.5
+                        targetQty: 20.0
+                        toleranceKG: 0.025
+                        weightRangeLow: 19.975
+                        weightRangeHigh: 20.025
+                duplicatePick:
+                  summary: Item already picked
+                  value:
+                    error:
+                      code: BUSINESS_ITEM_ALREADY_PICKED
+                      message: Item INSALT02 already picked for this batch
+                      correlationId: abc123-xyz789
+                      details:
+                        itemKey: INSALT02
+                        currentStatus: Allocated
+                        pickingDate: "2025-10-06T09:30:00Z"
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /picks/{runNo}/{rowNum}/{lineId}:
+    delete:
+      tags: [Picking]
+      summary: Unpick item (reset to 0 while preserving audit trail)
+      description: |
+        Execute unpick workflow atomically:
+        1. Reset PickedPartialQty to 0
+        2. Delete Cust_PartialLotPicked records
+        3. Delete LotTransaction records
+        4. Decrement LotMaster.QtyCommitSales
+
+        **Audit trail preserved**: ItemBatchStatus, PickingDate, ModifiedBy remain unchanged
+      operationId: unpickItem
+      parameters:
+        - $ref: '#/components/parameters/RunNo'
+        - $ref: '#/components/parameters/RowNum'
+        - $ref: '#/components/parameters/LineId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                workstationId:
+                  type: string
+                  example: WS3
+              required: [workstationId]
+      responses:
+        '200':
+          description: Item unpicked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runNo:
+                    type: integer
+                  rowNum:
+                    type: integer
+                  lineId:
+                    type: integer
+                  itemKey:
+                    type: string
+                  pickedQty:
+                    type: number
+                    description: Reset to 0
+                    example: 0
+                  status:
+                    type: string
+                    enum: [Allocated]
+                    description: Preserved for audit trail
+                  unpickedAt:
+                    type: string
+                    format: date-time
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ============================================================================
+  # LOT MANAGEMENT ENDPOINTS
+  # ============================================================================
+
+  /lots/available:
+    get:
+      tags: [Lots]
+      summary: Get available lots for item (FEFO sorted, TFC1 PARTIAL bins only)
+      description: |
+        Retrieve available lots for picking with FEFO algorithm:
+        - Filter: Location='TFC1', User1='WHTFC1', User4='PARTIAL' (511 bins)
+        - Available Qty = QtyOnHand - QtyCommitSales > 0
+        - Sort: DateExpiry ASC, then LocationKey ASC (FEFO)
+
+        Returns only lots with available quantity in TFC1 PARTIAL bins.
+      operationId: getAvailableLots
+      parameters:
+        - name: itemKey
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Item key/SKU
+          example: INSALT02
+        - name: minQty
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+            minimum: 0
+          description: Minimum available quantity required
+          example: 5.0
+      responses:
+        '200':
+          description: Available lots retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lots:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LotAvailabilityDTO'
+              example:
+                lots:
+                  - lotNo: "2510403-1"
+                    itemKey: INSALT02
+                    binNo: PWBB-12
+                    locationKey: TFC1
+                    qtyOnHand: 4284.73
+                    qtyCommitSales: 3715.81
+                    availableQty: 568.92
+                    expiryDate: "2027-12-16"
+                    lotStatus: P
+                    aisle: PW
+                    row: B
+                    rack: "12"
+                  - lotNo: "2510591-2"
+                    itemKey: INSALT02
+                    binNo: PWBA-01
+                    qtyOnHand: 1250.0
+                    qtyCommitSales: 0
+                    availableQty: 1250.0
+                    expiryDate: "2028-01-05"
+                    lotStatus: P
+
+  # ============================================================================
+  # BIN MANAGEMENT ENDPOINTS
+  # ============================================================================
+
+  /bins:
+    get:
+      tags: [Bins]
+      summary: List TFC1 PARTIAL bins
+      description: |
+        Retrieve all bins matching project scope:
+        - Location = 'TFC1'
+        - User1 = 'WHTFC1'
+        - User4 = 'PARTIAL'
+
+        Returns 511 bins total (all other bins excluded).
+      operationId: listBins
+      parameters:
+        - name: aisle
+          in: query
+          schema:
+            type: string
+          example: PW
+        - name: row
+          in: query
+          schema:
+            type: string
+          example: B
+        - name: rack
+          in: query
+          schema:
+            type: string
+          example: "12"
+      responses:
+        '200':
+          description: Bins retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bins:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BinDTO'
+              example:
+                bins:
+                  - location: TFC1
+                    binNo: PWBB-12
+                    description: PW Racking : Replenishment area
+                    aisle: PW
+                    row: B
+                    rack: "12"
+                    user1: WHTFC1
+                    user4: PARTIAL
+
+  /bins/{location}/{binNo}/contents:
+    get:
+      tags: [Bins]
+      summary: Get bin contents (lots)
+      description: Retrieve all lots in specified bin (TFC1 PARTIAL bins only)
+      operationId: getBinContents
+      parameters:
+        - name: location
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [TFC1]
+          example: TFC1
+        - name: binNo
+          in: path
+          required: true
+          schema:
+            type: string
+          example: PWBB-12
+      responses:
+        '200':
+          description: Bin contents retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BinContentsDTO'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ============================================================================
+  # SEQUENCE NUMBER ENDPOINTS
+  # ============================================================================
+
+  /sequences/{seqName}/next:
+    post:
+      tags: [Sequences]
+      summary: Get and increment sequence number
+      description: |
+        Atomically increment sequence and return new value.
+
+        **Used Sequences**:
+        - PT: Pallet ID generation (Cust_PartialPalletLotPicked.PalletID)
+      operationId: getNextSequence
+      parameters:
+        - name: seqName
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [PT]
+          description: Sequence name
+          example: PT
+      responses:
+        '200':
+          description: Next sequence number retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  seqName:
+                    type: string
+                    example: PT
+                  seqNum:
+                    type: integer
+                    description: New sequence number (already incremented)
+                    example: 623957
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ============================================================================
+  # WORKSTATION CONFIGURATION ENDPOINTS
+  # ============================================================================
+
+  /workstations:
+    get:
+      tags: [Workstations]
+      summary: List all workstations
+      description: Retrieve all workstations with scale assignments
+      operationId: listWorkstations
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [Active, Inactive]
+          description: Filter by status
+      responses:
+        '200':
+          description: Workstations retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workstations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkstationDTO'
+              example:
+                workstations:
+                  - workstationId: WS-001
+                    workstationName: WS3
+                    smallScaleId: SCALE-SMALL-01
+                    bigScaleId: SCALE-BIG-02
+                    status: Active
+                    smallScale:
+                      scaleId: SCALE-SMALL-01
+                      scaleType: SMALL
+                      comPort: COM3
+                      baudRate: 9600
+                      status: Active
+                    bigScale:
+                      scaleId: SCALE-BIG-02
+                      scaleType: BIG
+                      comPort: COM4
+                      baudRate: 9600
+                      status: Active
+
+  /workstations/{workstationId}:
+    get:
+      tags: [Workstations]
+      summary: Get workstation details with scale configuration
+      description: Retrieve workstation configuration including dual scale assignments
+      operationId: getWorkstation
+      parameters:
+        - name: workstationId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: WS-001
+      responses:
+        '200':
+          description: Workstation details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkstationDTO'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+# ============================================================================
+# COMPONENTS
+# ============================================================================
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from /auth/login (168-hour expiration)
+
+  parameters:
+    RunNo:
+      name: runNo
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Production run number
+      example: 6000037
+
+    RowNum:
+      name: rowNum
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Batch number (row number)
+      example: 1
+
+    LineId:
+      name: lineId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Item line identifier
+      example: 1
+
+  schemas:
+    # ========================================================================
+    # REQUEST SCHEMAS
+    # ========================================================================
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          description: Username (LDAP or SQL)
+          example: dechawat
+        password:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Password (plain text, will be validated against bcrypt hash for SQL auth)
+          format: password
+          example: P@ssw0rd123
+
+    PickRequest:
+      type: object
+      required: [runNo, rowNum, lineId, lotNo, binNo, weight, workstationId]
+      properties:
+        runNo:
+          type: integer
+          minimum: 1
+          example: 213996
+        rowNum:
+          type: integer
+          minimum: 1
+          example: 1
+        lineId:
+          type: integer
+          minimum: 1
+          example: 1
+        lotNo:
+          type: string
+          maxLength: 50
+          description: Selected lot number (from FEFO algorithm)
+          example: "2510403-1"
+        binNo:
+          type: string
+          maxLength: 50
+          description: Source bin (must be TFC1 PARTIAL bin)
+          example: PWBB-12
+        weight:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+          description: Actual weight from scale (must be within tolerance)
+          example: 20.025
+        workstationId:
+          type: string
+          maxLength: 50
+          description: Workstation identifier (e.g., WS3)
+          example: WS3
+
+    # ========================================================================
+    # RESPONSE SCHEMAS
+    # ========================================================================
+
+    LoginResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+          description: JWT token (168-hour expiration)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          $ref: '#/components/schemas/UserDTO'
+
+    UserDTO:
+      type: object
+      required: [userid, username, authSource]
+      properties:
+        userid:
+          type: integer
+          example: 42
+        username:
+          type: string
+          example: dechawat
+        firstName:
+          type: string
+          nullable: true
+          example: Dechawat
+        lastName:
+          type: string
+          nullable: true
+          example: Wongsirasawat
+        department:
+          type: string
+          nullable: true
+          example: Warehouse
+        authSource:
+          type: string
+          enum: [LOCAL, LDAP]
+          example: LDAP
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["putaway", "picking", "partial-picking"]
+
+    RunDetailsResponse:
+      type: object
+      required: [runNo, fgItemKey, fgDescription, batches, productionDate, status, noOfBatches]
+      properties:
+        runNo:
+          type: integer
+          example: 6000037
+        fgItemKey:
+          type: string
+          description: FG Item Key (from FormulaId)
+          example: TSM2285A
+        fgDescription:
+          type: string
+          description: FG Description (from FormulaDesc)
+          example: Marinade, Savory
+        batches:
+          type: array
+          items:
+            type: integer
+          description: All RowNum values (batch numbers)
+          example: [1, 2]
+        productionDate:
+          type: string
+          format: date
+          description: Production date (from RecDate)
+          example: "2025-10-06"
+        status:
+          type: string
+          enum: [NEW, PRINT]
+          example: NEW
+        noOfBatches:
+          type: integer
+          minimum: 1
+          example: 2
+
+    BatchItemsResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchItemDTO'
+
+    BatchItemDTO:
+      type: object
+      required: [itemKey, description, totalNeeded, pickedQty, remainingQty, weightRangeLow, weightRangeHigh, toleranceKG]
+      properties:
+        itemKey:
+          type: string
+          example: INRICF05
+        description:
+          type: string
+          description: From INMAST.Desc1
+          example: Rice Flour (RF-0010)
+        totalNeeded:
+          type: number
+          format: double
+          description: Target quantity (ToPickedPartialQty)
+          example: 14.24
+        pickedQty:
+          type: number
+          format: double
+          description: Actual picked quantity (PickedPartialQty)
+          example: 0
+        remainingQty:
+          type: number
+          format: double
+          description: ToPickedPartialQty - PickedPartialQty
+          example: 14.24
+        weightRangeLow:
+          type: number
+          format: double
+          description: ToPickedPartialQty - INMAST.User9
+          example: 14.215
+        weightRangeHigh:
+          type: number
+          format: double
+          description: ToPickedPartialQty + INMAST.User9
+          example: 14.265
+        toleranceKG:
+          type: number
+          format: double
+          description: Absolute tolerance (INMAST.User9)
+          example: 0.025
+        allergen:
+          type: string
+          description: Allergen code (W=Wheat, empty=None)
+          example: ""
+        status:
+          type: string
+          enum: [Allocated]
+          nullable: true
+          description: ItemBatchStatus (null=unpicked, Allocated=picked)
+
+    PickResponse:
+      type: object
+      required: [runNo, rowNum, lineId, itemKey, lotNo, binNo, pickedQty, targetQty, status, pickingDate, lotTranNo]
+      properties:
+        runNo:
+          type: integer
+          example: 213996
+        rowNum:
+          type: integer
+          example: 1
+        lineId:
+          type: integer
+          example: 1
+        itemKey:
+          type: string
+          example: INSALT02
+        lotNo:
+          type: string
+          example: "2510403-1"
+        binNo:
+          type: string
+          example: PWBB-12
+        pickedQty:
+          type: number
+          format: double
+          example: 20.025
+        targetQty:
+          type: number
+          format: double
+          example: 20.00
+        status:
+          type: string
+          enum: [Allocated]
+          example: Allocated
+        pickingDate:
+          type: string
+          format: date-time
+          example: "2025-10-06T10:15:30Z"
+        lotTranNo:
+          type: integer
+          description: LotTransaction record number
+          example: 17282850
+
+    LotAvailabilityDTO:
+      type: object
+      required: [lotNo, itemKey, binNo, locationKey, qtyOnHand, qtyCommitSales, availableQty, expiryDate, lotStatus]
+      properties:
+        lotNo:
+          type: string
+          example: "2510403-1"
+        itemKey:
+          type: string
+          example: INSALT02
+        binNo:
+          type: string
+          example: PWBB-12
+        locationKey:
+          type: string
+          enum: [TFC1]
+          example: TFC1
+        qtyOnHand:
+          type: number
+          format: double
+          example: 4284.73
+        qtyCommitSales:
+          type: number
+          format: double
+          description: Committed for picking
+          example: 3715.81
+        availableQty:
+          type: number
+          format: double
+          description: QtyOnHand - QtyCommitSales
+          example: 568.92
+        expiryDate:
+          type: string
+          format: date
+          description: FEFO sort key
+          example: "2027-12-16"
+        lotStatus:
+          type: string
+          enum: [P, H, C]
+          description: P=Pass, H=Hold, C=Other
+          example: P
+        aisle:
+          type: string
+          nullable: true
+          example: PW
+        row:
+          type: string
+          nullable: true
+          example: B
+        rack:
+          type: string
+          nullable: true
+          example: "12"
+
+    BinDTO:
+      type: object
+      required: [location, binNo, user1, user4]
+      properties:
+        location:
+          type: string
+          enum: [TFC1]
+          example: TFC1
+        binNo:
+          type: string
+          example: PWBB-12
+        description:
+          type: string
+          nullable: true
+          example: PW Racking : Replenishment area
+        aisle:
+          type: string
+          nullable: true
+          example: PW
+        row:
+          type: string
+          nullable: true
+          example: B
+        rack:
+          type: string
+          nullable: true
+          example: "12"
+        user1:
+          type: string
+          enum: [WHTFC1]
+          description: Warehouse identifier (required filter)
+          example: WHTFC1
+        user4:
+          type: string
+          enum: [PARTIAL]
+          description: Bin type identifier (required filter)
+          example: PARTIAL
+
+    BinContentsDTO:
+      type: object
+      required: [bin, lots]
+      properties:
+        bin:
+          $ref: '#/components/schemas/BinDTO'
+        lots:
+          type: array
+          items:
+            type: object
+            properties:
+              lotNo:
+                type: string
+              itemKey:
+                type: string
+              qtyOnHand:
+                type: number
+                format: double
+              expiryDate:
+                type: string
+                format: date
+
+    WorkstationDTO:
+      type: object
+      required: [workstationId, workstationName, status]
+      properties:
+        workstationId:
+          type: string
+          example: WS-001
+        workstationName:
+          type: string
+          description: Display name (WS1-WS4)
+          example: WS3
+        smallScaleId:
+          type: string
+          nullable: true
+          example: SCALE-SMALL-01
+        bigScaleId:
+          type: string
+          nullable: true
+          example: SCALE-BIG-02
+        status:
+          type: string
+          enum: [Active, Inactive]
+          example: Active
+        smallScale:
+          $ref: '#/components/schemas/WeightScaleDTO'
+        bigScale:
+          $ref: '#/components/schemas/WeightScaleDTO'
+
+    WeightScaleDTO:
+      type: object
+      required: [scaleId, scaleType, comPort, baudRate, status]
+      properties:
+        scaleId:
+          type: string
+          example: SCALE-SMALL-01
+        scaleType:
+          type: string
+          enum: [SMALL, BIG]
+          example: SMALL
+        comPort:
+          type: string
+          pattern: '^COM\d+$'
+          example: COM3
+        baudRate:
+          type: integer
+          enum: [9600, 19200, 38400, 115200]
+          example: 9600
+        capacity:
+          type: number
+          format: double
+          nullable: true
+          description: Max capacity in kg (informational)
+          example: 30.0
+        precision:
+          type: number
+          format: double
+          nullable: true
+          description: Precision in kg (informational)
+          example: 0.001
+        status:
+          type: string
+          enum: [Active, Inactive]
+          example: Active
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, correlationId]
+          properties:
+            code:
+              type: string
+              description: Error code (AUTH_*, DB_*, VALIDATION_*, BUSINESS_*, HARDWARE_*)
+              example: VALIDATION_WEIGHT_OUT_OF_TOLERANCE
+            message:
+              type: string
+              description: User-friendly error message
+              example: Weight 20.5 is outside acceptable range (19.975 - 20.025 KG)
+            correlationId:
+              type: string
+              description: Correlation ID for troubleshooting
+              example: abc123-xyz789
+            details:
+              type: object
+              description: Additional error context
+              additionalProperties: true
+              example:
+                weight: 20.5
+                targetQty: 20.0
+                toleranceKG: 0.025
+
+  # ==========================================================================
+  # COMMON RESPONSES
+  # ==========================================================================
+
+  responses:
+    UnauthorizedError:
+      description: Unauthorized - Invalid or missing JWT token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: AUTH_INVALID_TOKEN
+              message: Invalid or expired JWT token
+              correlationId: abc123-xyz789
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: DB_RECORD_NOT_FOUND
+              message: Run No 9999999 not found
+              correlationId: abc123-xyz789
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: DB_TRANSACTION_FAILED
+              message: Failed to execute 4-phase atomic transaction
+              correlationId: abc123-xyz789
+              details:
+                failedPhase: 3
+                rollbackSuccess: true

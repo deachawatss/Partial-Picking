@@ -1,0 +1,135 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║           PARTIAL PICKING SYSTEM - 10 VALIDATION SCENARIOS                   ║
+║                      Quick Reference Card                                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ AUTOMATED TESTS (5 minutes) - Run: ./scripts/validate-all-scenarios.sh      │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+✅ Scenario 1: Backend API Health Check
+   Command: curl http://localhost:7075/api/health
+   Expected: {"status":"healthy","database":"connected"}
+   Constitutional: N/A
+
+✅ Scenario 2: LDAP Authentication
+   Command: curl -X POST http://localhost:7075/api/auth/login -d '{"username":"dechawat",...}'
+   Expected: JWT token with "authSource":"LDAP"
+   Constitutional: Principle #6 (Security by Default)
+
+✅ Scenario 3: SQL Authentication Fallback
+   Command: curl -X POST http://localhost:7075/api/auth/login -d '{"username":"warehouse_user",...}'
+   Expected: JWT token with "authSource":"LOCAL"
+   Constitutional: Principle #6 (bcrypt hashing)
+
+✅ Scenario 4: Run Details Auto-Population
+   Command: curl http://localhost:7075/api/runs/6000037 -H "Authorization: Bearer $TOKEN"
+   Expected: fgItemKey, fgDescription, batches populated
+   Constitutional: Principle #1 (Database Schema Fidelity), #8 (Composite Keys)
+
+✅ Scenario 5: Batch Items with Weight Range
+   Command: curl http://localhost:7075/api/runs/6000037/batches/1/items -H "Auth: Bearer $TOKEN"
+   Expected: weightRangeLow = totalNeeded - User9, weightRangeHigh = totalNeeded + User9
+   Constitutional: Principle #1 (INMAST.User9 tolerance)
+
+✅ Scenario 6: FEFO Lot Selection
+   Command: curl "http://localhost:7075/api/lots/available?itemKey=INSALT02" -H "Auth: Bearer $TOKEN"
+   Expected: Lots sorted by expiryDate ASC (earliest first)
+   Constitutional: Principle #2 (FEFO Compliance - CRITICAL)
+
+✅ Scenario 7: 4-Phase Atomic Pick Transaction
+   Command: curl -X POST http://localhost:7075/api/picks -H "Auth: Bearer $TOKEN" -d '{...}'
+   Expected: Status 201, all 4 phases execute atomically
+   SQL Verify: scripts/verify-scenario7-sql.sql
+   Constitutional: Principle #3 (4-Phase Atomicity), #7 (Audit Trail), #8 (Composite Keys)
+
+✅ Scenario 8: Weight Tolerance Validation
+   Command: curl -X POST http://localhost:7075/api/picks -d '{"weight": 20.5,...}' (out of range)
+   Expected: Status 400, error code "VALIDATION_WEIGHT_OUT_OF_TOLERANCE"
+   Constitutional: Principle #6 (Production Quality)
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ WEBSOCKET TEST (5 seconds) - Run: node scripts/test-websocket-scenario9.js  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+✅ Scenario 9: WebSocket Weight Stream
+   Command: node scripts/test-websocket-scenario9.js
+   Expected: <200ms latency, weight updates every ~100ms
+   Constitutional: Principle #4 (Real-Time Weight <200ms - CRITICAL)
+   Note: Bridge service (Windows only) - Manual weight input fallback available
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ MANUAL E2E TEST (15-20 min) - Guide: scripts/SCENARIO_10_E2E_GUIDE.md       │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+✅ Scenario 10: Frontend End-to-End Flow
+   Steps: 16 total (Login → Workstation → Run → Batch → Items → Lots → Pick → Complete)
+   Browser: http://localhost:6060
+   Resolution: 1280x1024
+   Credentials: dechawat / TestPassword123
+   Constitutional: All 8 principles validated in complete workflow
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ CONSTITUTIONAL COMPLIANCE MATRIX                                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+1. Database Schema Fidelity        → Scenarios 4, 5, 6, 10
+2. FEFO Compliance                 → Scenarios 6, 10 (CRITICAL)
+3. 4-Phase Atomicity               → Scenarios 7, 10 (CRITICAL)
+4. Real-Time Weight <200ms         → Scenarios 9, 10 (CRITICAL)
+5. Audit Trail Preservation        → Scenario 7 SQL verification
+6. Security by Default             → Scenarios 2, 3, 10
+7. Production Quality              → Scenarios 8, 10
+8. No Artificial Keys              → Scenarios 4, 7, 10
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ QUICK START                                                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+1. Start Services:
+   Terminal 1: cd backend && cargo run
+   Terminal 2: cd frontend && npm run dev
+   Terminal 3: cd bridge && dotnet run  (optional - Windows only)
+
+2. Run All Tests:
+   ./scripts/validate-all-scenarios.sh              (5 min)
+   node scripts/test-websocket-scenario9.js         (5 sec)
+   Follow: scripts/SCENARIO_10_E2E_GUIDE.md         (15-20 min)
+
+3. Expected Result:
+   ✅ 10/10 scenarios pass
+   ✅ All 8 constitutional principles verified
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ DOCUMENTATION                                                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Master Script:        scripts/validate-all-scenarios.sh
+WebSocket Test:       scripts/test-websocket-scenario9.js
+SQL Verification:     scripts/verify-scenario7-sql.sql
+E2E Guide:           scripts/SCENARIO_10_E2E_GUIDE.md
+Detailed Report:     QUICKSTART_VALIDATION_REPORT.md
+Quick Reference:     QUICKSTART_TEST_EXECUTION.md
+Completion Report:   PHASE_3.9_STEP_4_COMPLETE.md
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ SUCCESS CRITERIA                                                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+✅ Backend Health: 200 OK, database connected
+✅ LDAP Auth: JWT token, authSource=LDAP
+✅ SQL Auth: JWT token, authSource=LOCAL
+✅ Run Details: FG fields populated
+✅ Batch Items: Weight ranges calculated (±User9)
+✅ FEFO Lots: Earliest expiry first (DateExpiry ASC)
+✅ 4-Phase Pick: Status 201, all phases execute/rollback atomically
+✅ Weight Tolerance: Status 400, error code correct
+✅ WebSocket: <200ms latency, continuous mode active
+✅ E2E Flow: All 16 steps pass, PWA functional
+
+═════════════════════════════════════════════════════════════════════════════════
+Status: INFRASTRUCTURE COMPLETE ✅ - Ready for Execution when services available
+Phase: 3.9 - Step 4 (T093)
+Date: 2025-10-07
+QA Engineer: Claude Code Agent
+═════════════════════════════════════════════════════════════════════════════════
