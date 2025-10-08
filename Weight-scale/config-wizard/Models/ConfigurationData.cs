@@ -26,7 +26,7 @@ public class ConfigurationData
     public string DefaultScale { get; set; } = "BIG";
 
     // Advanced Settings
-    public int PollingIntervalMs { get; set; } = 400;
+    public int PollingIntervalMs { get; set; } = 100;
     public int ReadTimeoutMs { get; set; } = 500;
     public bool VerboseLogging { get; set; } = false;
     public string LogLevel { get; set; } = "Information";

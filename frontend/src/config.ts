@@ -5,6 +5,77 @@
  * Provides type-safe access to configuration values
  */
 
+function normalizeBaseUrl(url: string): string {
+  if (!url) {
+    return url
+  }
+  return url.replace(/\/+$/, '')
+}
+
+function joinUrl(base: string, path: string): string {
+  const normalizedBase = normalizeBaseUrl(base)
+  const normalizedPath = path.replace(/^\/+/, '')
+  return `${normalizedBase}/${normalizedPath}`
+}
+
+function detectIsWsl2Host(): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  const hostname = window?.location?.hostname
+  if (!hostname || hostname === 'localhost' || hostname === '127.0.0.1') {
+    return false
+  }
+
+  // Detect WSL2 IP range (172.16.0.0/12)
+  return /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+}
+
+function resolveBridgeBaseUrl(): string {
+  const explicitUrl = import.meta.env.VITE_BRIDGE_WS_URL?.trim()
+  if (explicitUrl) {
+    return normalizeBaseUrl(explicitUrl)
+  }
+
+  const protocol = import.meta.env.VITE_BRIDGE_PROTOCOL || 'ws'
+  const port = (import.meta.env.VITE_BRIDGE_PORT || '5000').toString().trim()
+
+  const isWsl2 = detectIsWsl2Host()
+  const defaultHost = isWsl2 ? '10.255.255.254' : 'localhost'
+  const hostOverride = isWsl2
+    ? import.meta.env.VITE_BRIDGE_WSL_HOST?.trim()
+    : import.meta.env.VITE_BRIDGE_HOST?.trim()
+
+  const host = hostOverride && hostOverride.length > 0 ? hostOverride : defaultHost
+  const portSegment = port.length > 0 ? `:${port.replace(/^:/, '')}` : ''
+
+  return `${protocol}://${host}${portSegment}`
+}
+
+const bridgeBaseUrl = resolveBridgeBaseUrl()
+
+let resolvedBridgeProtocol = 'ws'
+let resolvedBridgeHost = 'localhost'
+let resolvedBridgePort = 5000
+
+try {
+  const bridgeUrl = new URL(bridgeBaseUrl.startsWith('ws') ? bridgeBaseUrl : `ws://${bridgeBaseUrl}`)
+  resolvedBridgeProtocol = bridgeUrl.protocol.replace(':', '') || 'ws'
+  resolvedBridgeHost = bridgeUrl.hostname || 'localhost'
+  const portValue = bridgeUrl.port
+  if (portValue) {
+    const parsedPort = Number.parseInt(portValue, 10)
+    if (!Number.isNaN(parsedPort)) {
+      resolvedBridgePort = parsedPort
+    }
+  } else {
+    resolvedBridgePort = resolvedBridgeProtocol === 'wss' ? 443 : 80
+  }
+} catch (error) {
+  console.warn('[config] Failed to parse bridge URL, using defaults:', error)
+}
+
 export const config = {
   // Environment
   env: import.meta.env.VITE_APP_ENV || 'development',
@@ -22,14 +93,13 @@ export const config = {
 
   // Bridge Service (WebSocket for Weight Scales)
   bridge: {
-    protocol: import.meta.env.VITE_BRIDGE_PROTOCOL || 'ws',
-    host: import.meta.env.VITE_BRIDGE_HOST || 'localhost',
-    port: parseInt(import.meta.env.VITE_BRIDGE_PORT || '5000'),
-    wsUrl: import.meta.env.VITE_BRIDGE_WS_URL || 'ws://localhost:5000',
+    protocol: resolvedBridgeProtocol,
+    host: resolvedBridgeHost,
+    port: resolvedBridgePort,
+    wsUrl: bridgeBaseUrl,
 
     // WebSocket endpoints
-    getScaleUrl: (scaleType: 'small' | 'big') =>
-      `${import.meta.env.VITE_BRIDGE_WS_URL || 'ws://localhost:5000'}/ws/scale/${scaleType}`,
+    getScaleUrl: (scaleType: 'small' | 'big') => joinUrl(bridgeBaseUrl, `/ws/scale/${scaleType}`),
   },
 
   // Authentication
@@ -46,9 +116,9 @@ export const config = {
     company: import.meta.env.VITE_COMPANY_NAME || 'Newly Weds Foods Thailand',
   },
 
-  // Weight Scale Configuration
+  // WebSocket Configuration
+  // NOTE: Weight polling speed is controlled by Bridge Service (default 100ms)
   scale: {
-    weightUpdateDebounceMs: parseInt(import.meta.env.VITE_WEIGHT_UPDATE_DEBOUNCE_MS || '50'),
     websocketReconnectIntervalMs: parseInt(
       import.meta.env.VITE_WEBSOCKET_RECONNECT_INTERVAL_MS || '3000'
     ),

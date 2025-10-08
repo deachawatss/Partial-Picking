@@ -193,7 +193,7 @@ var options = new ScaleServiceOptions
         ?? Environment.GetEnvironmentVariable("DATABASE_PASSWORD")
         ?? throw new InvalidOperationException("DATABASE_PASSWORD not configured"),
     DefaultBaudRate = defaultBaudRate,
-    PollingIntervalMilliseconds = GetInt(GetConfig("Scale:PollingIntervalMs", "WEIGHT_POLLING_INTERVAL_MS"), 400),
+    PollingIntervalMilliseconds = GetInt(GetConfig("Scale:PollingIntervalMs", "WEIGHT_POLLING_INTERVAL_MS"), 100),
     SerialReadTimeoutMilliseconds = GetInt(GetConfig("Scale:ReadTimeoutMs", "SCALE_READ_TIMEOUT_MS"), 500),
     DefaultUnit = GetConfig("Scale:DefaultUnit", "SCALE_DEFAULT_UNIT") ?? "KG",
     VerboseLogging = GetBool(Environment.GetEnvironmentVariable("VERBOSE_LOGGING"), false),

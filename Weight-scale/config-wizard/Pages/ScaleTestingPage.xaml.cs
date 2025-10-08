@@ -63,6 +63,9 @@ public partial class ScaleTestingPage : Page, IValidatable
                 BigScalePort.Text = "Port: Not configured";
                 TestBigScaleButton.IsEnabled = false;
             }
+
+            // Initialize polling interval input
+            PollingIntervalInput.Text = _config.PollingIntervalMs.ToString();
         }
         catch (Exception ex)
         {
@@ -355,5 +358,13 @@ public partial class ScaleTestingPage : Page, IValidatable
         }
 
         return new string(filtered);
+    }
+
+    private void PollingIntervalInput_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (int.TryParse(PollingIntervalInput.Text, out int value) && value >= 50 && value <= 1000)
+        {
+            _config.PollingIntervalMs = value;
+        }
     }
 }

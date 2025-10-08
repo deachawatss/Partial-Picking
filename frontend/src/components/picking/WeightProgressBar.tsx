@@ -108,7 +108,13 @@ export function WeightProgressBar({
 
   const containerClass = containerAccentByState[weightState] ?? containerAccentByState.idle
   const fillClass = progressFillByState[weightState] ?? progressFillByState.idle
-  const toleranceBorderColor = isInRange ? 'rgba(69, 178, 107, 0.9)' : 'rgba(255, 111, 97, 0.9)'
+  const toleranceBorderColor = isInRange ? '#4ade80' : '#fbbf24'
+  const toleranceBackgroundColor = isInRange
+    ? 'rgba(74, 222, 128, 0.25)'
+    : 'rgba(251, 191, 36, 0.25)'
+  const toleranceGlowEffect = isInRange
+    ? '0 0 16px rgba(74, 222, 128, 0.5), inset 0 0 12px rgba(74, 222, 128, 0.2)'
+    : '0 0 16px rgba(251, 191, 36, 0.5), inset 0 0 12px rgba(251, 191, 36, 0.2)'
 
   const renderScaleButton = (scale: ScaleKey, label: string) => {
     const isActive = selectedScale === scale
@@ -185,23 +191,14 @@ export function WeightProgressBar({
               style={{ left: '50%' }}
             />
             <div
-              className="pointer-events-none absolute top-1/2 h-14 -translate-y-1/2 border-l-[3px] border-r-[3px]"
+              className="pointer-events-none absolute top-1/2 h-14 -translate-y-1/2 rounded border-l-[6px] border-r-[6px]"
               style={{
                 left: `${toleranceStart}%`,
                 width: `${toleranceSpanClamped}%`,
                 borderColor: toleranceBorderColor,
+                backgroundColor: toleranceBackgroundColor,
+                boxShadow: toleranceGlowEffect,
               }}
-            />
-            {/* Tolerance Markers - Two vertical lines at min/max boundaries */}
-            <div
-              className="pointer-events-none absolute top-0 z-10 h-16 w-0.5 bg-black"
-              style={{ left: `${toleranceMinPosition}%` }}
-              aria-hidden="true"
-            />
-            <div
-              className="pointer-events-none absolute top-0 z-10 h-16 w-0.5 bg-black"
-              style={{ left: `${toleranceMaxPosition}%` }}
-              aria-hidden="true"
             />
           </div>
         </div>

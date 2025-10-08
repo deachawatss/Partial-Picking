@@ -5,7 +5,7 @@
  * - Weight progress bar with real-time scale updates and tolerance markers
  * - Horizontal header rows for Run/Batch/Item selection
  * - FEFO lot selection with auto-population
- * - Save/Add Lot/View Lots/Print/Exit operations
+ * - Save/Add Lot/View Lots/Print/Logout operations
  * - Complete Run workflow
  *
  * Optimized for 1280x1024 (no scroll) and 1920x1080 (responsive)
@@ -13,7 +13,9 @@
  */
 
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { usePicking } from '@/contexts/PickingContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { useWeightScale } from '@/hooks/useWeightScale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,6 +28,10 @@ import { BinSelectionModal } from '@/components/picking/BinSelectionModal'
 import { BatchTicketGrid } from '@/components/picking/BatchTicketGrid'
 
 export function PartialPickingPage() {
+  // Navigation and auth
+  const navigate = useNavigate()
+  const { logout } = useAuth()
+
   // Picking context with real API integration
   const {
     currentRun,
@@ -55,8 +61,8 @@ export function PartialPickingPage() {
 
   // Dual scale WebSocket integration
   const [selectedScale, setSelectedScale] = useState<'small' | 'big'>('small')
-  const smallScale = useWeightScale('small')
-  const bigScale = useWeightScale('big')
+  const smallScale = useWeightScale('small', { debug: true })
+  const bigScale = useWeightScale('big', { debug: true })
 
   // Get current scale based on selection
   const currentScale = selectedScale === 'small' ? smallScale : bigScale
@@ -119,12 +125,12 @@ export function PartialPickingPage() {
   }
 
   /**
-   * Handle Exit button
+   * Handle Logout button
    */
-  const handleExit = () => {
-    if (confirm('Are you sure you want to exit?')) {
-      // TODO: Navigate to home or logout
-      console.log('[PartialPickingPage] Exit clicked')
+  const handleLogout = () => {
+    if (confirm('Are you sure you want to logout?')) {
+      logout()
+      navigate('/login')
     }
   }
 
@@ -188,7 +194,7 @@ export function PartialPickingPage() {
 
   const formatQuantity = (value?: number | null) => Number(value ?? 0).toFixed(4)
   // Improved label styling - better readability
-  const labelClass = 'text-[13px] font-semibold uppercase tracking-[0.18em] text-mocha min-w-[120px]'
+  const labelClass = 'text-[15px] font-semibold uppercase tracking-[0.16em] text-mocha min-w-[120px]'
   // Enhanced button styles with better shadows and hover effects
   const lookupButtonClass =
     'h-12 min-w-[52px] rounded-full bg-[#ffc107] px-4 text-sm font-bold uppercase tracking-[0.20em] text-coffee shadow-button transition-smooth hover:bg-[#ffa000] hover:shadow-button-hover hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#ffc107] focus-visible:ring-offset-2 disabled:bg-[#f6d9a9]/60 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100'
@@ -415,21 +421,11 @@ export function PartialPickingPage() {
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-2xl border-2 border-sand/80 bg-[#f9f3ec] px-4 py-3 shadow-soft">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.20em] text-mocha/60">
-                      SOH
-                    </span>
-                    <p className="text-[15px] font-bold text-coffee">{availableQtyDisplay} KG</p>
-                  </div>
-                  <div className="rounded-2xl border-2 border-sand/80 bg-[#f9f3ec] px-4 py-3 shadow-soft">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.20em] text-mocha/60">
-                      Expiry
-                    </span>
-                    <p className="text-[15px] font-bold text-coffee">
-                      {selectedLot?.expiryDate || '—'}
-                    </p>
-                  </div>
+                <div className="rounded-2xl border-2 border-sand/80 bg-[#f9f3ec] px-4 py-3 shadow-soft">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.20em] text-mocha/60">
+                    SOH
+                  </span>
+                  <p className="text-[15px] font-bold text-coffee">{availableQtyDisplay} KG</p>
                 </div>
               </div>
 
@@ -564,11 +560,11 @@ export function PartialPickingPage() {
               </div>
               <Button
                 type="button"
-                onClick={handleExit}
+                onClick={handleLogout}
                 disabled={isLoading}
                 className={dangerButtonClass}
               >
-                Exit
+                Logout
               </Button>
             </div>
           </div>

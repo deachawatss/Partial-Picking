@@ -21,6 +21,39 @@
                       FontSize="12"
                       Foreground="#666"
                       Margin="0,5,0,0"/>
+
+            <!-- Polling Interval Setting -->
+            <Border Background="#FFF8DC"
+                    BorderBrush="#DAA520"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="15"
+                    Margin="0,15,0,0">
+                <StackPanel>
+                    <TextBlock Text="⚙️ Update Speed (Polling Interval)"
+                              FontSize="14"
+                              FontWeight="SemiBold"
+                              Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox x:Name="PollingIntervalInput"
+                                Width="120"
+                                Height="32"
+                                VerticalContentAlignment="Center"
+                                FontSize="14"
+                                Padding="8,0"
+                                TextChanged="PollingIntervalInput_TextChanged"
+                                Margin="0,0,10,0"/>
+                        <TextBlock Text="ms (100 = very fast, 400 = normal)"
+                                  VerticalAlignment="Center"
+                                  FontSize="12"
+                                  Foreground="#666"/>
+                    </StackPanel>
+                    <TextBlock Text="Lower values = faster updates but more CPU usage. Recommended: 100ms"
+                              FontSize="11"
+                              Foreground="#666"
+                              Margin="0,5,0,0"/>
+                </StackPanel>
+            </Border>
         </StackPanel>
 
         <!-- Testing Cards -->

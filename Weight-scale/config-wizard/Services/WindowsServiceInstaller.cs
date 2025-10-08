@@ -213,7 +213,7 @@ public class WindowsServiceInstaller
             Scale = new
             {
                 DefaultBaudRate = 9600,
-                PollingIntervalMs = 400,
+                PollingIntervalMs = 100,
                 ReadTimeoutMs = 500,
                 DefaultUnit = "KG",
                 ContinuousMode = true  // No "P" command - scale streams data automatically

@@ -19,59 +19,50 @@
  */
 
 import { useState, useEffect, useTransition, useCallback, useRef } from 'react'
+import { config as appConfig } from '@/config'
 
 /**
  * WebSocket message types from bridge service
  */
-type WebSocketMessageType =
-  | 'weightUpdate'
-  | 'scaleOffline'
-  | 'scaleOnline'
-  | 'error'
-  | 'continuousStarted'
-  | 'continuousStopped'
-  | 'pong'
+type WebSocketMessageType = 'weight' | 'status' | 'error'
 
 interface BaseMessage {
   type: WebSocketMessageType
-  timestamp: string
+  data?: unknown
 }
 
-interface WeightUpdateMessage extends BaseMessage {
-  type: 'weightUpdate'
-  weight: number
-  unit: 'KG'
-  stable: boolean
-  scaleId: string
-  scaleType: 'SMALL' | 'BIG'
+interface WeightMessage extends BaseMessage {
+  type: 'weight'
+  data: {
+    scaleId: string
+    weight: number
+    unit: string
+    stable: boolean
+    timestamp: number
+  }
 }
 
-interface ScaleOfflineMessage extends BaseMessage {
-  type: 'scaleOffline'
-  scaleId: string
-  reason: string
-}
-
-interface ScaleOnlineMessage extends BaseMessage {
-  type: 'scaleOnline'
-  scaleId: string
-  comPort: string
+interface StatusMessage extends BaseMessage {
+  type: 'status'
+  data: {
+    scaleId: string
+    connected: boolean
+    port?: string
+    error?: string | null
+  }
 }
 
 interface ErrorMessage extends BaseMessage {
   type: 'error'
-  code: string
-  message: string
-  scaleId?: string
-  details?: Record<string, unknown>
+  data?: {
+    code?: string
+    message?: string
+    scaleId?: string
+    details?: Record<string, unknown>
+  }
 }
 
-type WebSocketMessage =
-  | WeightUpdateMessage
-  | ScaleOfflineMessage
-  | ScaleOnlineMessage
-  | ErrorMessage
-  | BaseMessage
+type WebSocketMessage = WeightMessage | StatusMessage | ErrorMessage | BaseMessage
 
 /**
  * Hook configuration
@@ -117,9 +108,9 @@ interface UseWeightScaleReturn {
  */
 export function useWeightScale(
   scaleType: 'small' | 'big',
-  config: UseWeightScaleConfig = {}
+  hookConfig: UseWeightScaleConfig = {}
 ): UseWeightScaleReturn {
-  const { autoReconnect = true, maxReconnectAttempts = 10, debug = false } = config
+  const { autoReconnect = true, maxReconnectAttempts = 10, debug = false } = hookConfig
 
   // State
   const [weight, setWeight] = useState<number>(0)
@@ -180,8 +171,14 @@ export function useWeightScale(
     }
 
     // Get bridge URL from environment
-    const bridgeUrl = import.meta.env.VITE_BRIDGE_WS_URL || 'ws://localhost:5000'
-    const wsUrl = `${bridgeUrl}/ws/scale/${scaleType}`
+
+    const fallbackBaseUrl =
+      import.meta.env.VITE_BRIDGE_WS_URL || `${appConfig.bridge.protocol}://${appConfig.bridge.host}:${appConfig.bridge.port}`
+
+    const wsUrl =
+      appConfig.bridge && typeof appConfig.bridge.getScaleUrl === 'function'
+        ? appConfig.bridge.getScaleUrl(scaleType)
+        : `${fallbackBaseUrl.replace(/\/+$/, '')}/ws/scale/${scaleType}`
 
     log('Connecting to bridge service:', wsUrl)
 
@@ -193,8 +190,16 @@ export function useWeightScale(
        * Connection opened
        */
       ws.onopen = () => {
+        // Guard 1: Don't execute if component unmounted during connection
         if (!mountedRef.current) {
+          log('Component unmounted during connection, closing WebSocket')
           ws.close()
+          return
+        }
+
+        // Guard 2: Verify WebSocket is actually open (prevent StrictMode race condition)
+        if (ws.readyState !== WebSocket.OPEN) {
+          log('WebSocket not in OPEN state during onopen callback, skipping initialization')
           return
         }
 
@@ -218,35 +223,36 @@ export function useWeightScale(
         try {
           const message: WebSocketMessage = JSON.parse(event.data)
 
-          // Calculate latency for performance monitoring
-          const receiveTime = Date.now()
-          const sendTime = new Date(message.timestamp).getTime()
-          const latency = receiveTime - sendTime
-
-          if (latency > 200) {
-            console.warn(
-              `[useWeightScale:${scaleType}] High latency detected: ${latency}ms (threshold: 200ms)`
-            )
-          }
-
           // Handle message types
           switch (message.type) {
-            case 'weightUpdate': {
-              const weightMsg = message as WeightUpdateMessage
+            case 'weight': {
+              const weightMsg = message as WeightMessage
+
+              // Calculate latency for performance monitoring
+              const receiveTime = Date.now()
+              const latency = receiveTime - weightMsg.data.timestamp
+
+              // Only warn about high latency for recent messages (< 5 seconds old)
+              // Initial cached messages may have old timestamps
+              if (latency > 200 && latency < 5000) {
+                console.warn(
+                  `[useWeightScale:${scaleType}] High latency detected: ${latency}ms (threshold: 200ms)`
+                )
+              }
 
               // React 19: Use startTransition for concurrent, non-blocking update
               // This ensures <200ms latency even with 10+ updates/second
               startTransition(() => {
-                setWeight(weightMsg.weight)
-                setStable(weightMsg.stable)
+                setWeight(weightMsg.data.weight)
+                setStable(weightMsg.data.stable)
               })
 
               log(
                 'Weight update:',
-                weightMsg.weight,
-                'KG',
+                weightMsg.data.weight,
+                weightMsg.data.unit,
                 'stable:',
-                weightMsg.stable,
+                weightMsg.data.stable,
                 'latency:',
                 latency,
                 'ms'
@@ -254,36 +260,30 @@ export function useWeightScale(
               break
             }
 
-            case 'scaleOffline': {
-              const offlineMsg = message as ScaleOfflineMessage
-              log('Scale offline:', offlineMsg.reason)
-              setOnline(false)
-              setError(`Scale offline: ${offlineMsg.reason}`)
-              break
-            }
+            case 'status': {
+              const statusMsg = message as StatusMessage
 
-            case 'scaleOnline': {
-              const onlineMsg = message as ScaleOnlineMessage
-              log('Scale online:', onlineMsg.comPort)
-              setOnline(true)
-              setError(null)
+              if (statusMsg.data.connected) {
+                log('Scale online:', statusMsg.data.port)
+                setOnline(true)
+                setError(null)
+              } else {
+                const reason = statusMsg.data.error || 'Unknown reason'
+                log('Scale offline:', reason)
+                setOnline(false)
+                setError(`Scale offline: ${reason}`)
+              }
               break
             }
 
             case 'error': {
               const errorMsg = message as ErrorMessage
-              log('Bridge error:', errorMsg.code, errorMsg.message)
-              setError(`${errorMsg.code}: ${errorMsg.message}`)
+              const errorCode = errorMsg.data?.code || 'ERROR'
+              const errorMessage = errorMsg.data?.message || 'Unknown error'
+              log('Bridge error:', errorCode, errorMessage)
+              setError(`${errorCode}: ${errorMessage}`)
               break
             }
-
-            case 'continuousStarted':
-              log('Continuous mode started')
-              break
-
-            case 'pong':
-              log('Pong received')
-              break
 
             default:
               log('Unknown message type:', message.type)
@@ -380,11 +380,24 @@ export function useWeightScale(
      * Cleanup on unmount
      */
     return () => {
+      // Set unmounted flag FIRST to prevent callbacks from executing
       mountedRef.current = false
 
-      // Close WebSocket
+      // Close WebSocket only if OPEN (not CONNECTING)
+      // This prevents "WebSocket is closed before connection is established" error
+      // that occurs during React StrictMode double-invocation in development
       if (wsRef.current) {
-        wsRef.current.close()
+        const readyState = wsRef.current.readyState
+
+        // Only close if OPEN (1) - let CONNECTING finish or fail naturally
+        // CLOSING (2) or CLOSED (3) - already closing/closed, skip
+        if (readyState === WebSocket.OPEN) {
+          log('Closing WebSocket (readyState: OPEN)')
+          wsRef.current.close()
+        } else {
+          log('Skipping WebSocket close (readyState:', readyState, '- will handle naturally)')
+        }
+
         wsRef.current = null
       }
 

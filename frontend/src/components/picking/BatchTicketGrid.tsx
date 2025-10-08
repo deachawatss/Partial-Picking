@@ -56,10 +56,7 @@ export function BatchTicketGrid({
             <tr className="bg-[#3d2817] text-cream">
               <th colSpan={6} className="px-6 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/65">
-                      Batch overview
-                    </span>
+                  <div>
                     <p className="text-lg font-bold tracking-[0.08em]">Batch Ticket Items</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
