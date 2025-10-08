@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition, FormEvent } from 'react'
+import { useState, useEffect, useTransition, FormEvent, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,9 @@ export function LoginPage() {
   >('unknown')
   const [touched, setTouched] = useState({ username: false, password: false })
 
+  // Ref to track retry interval to prevent multiple intervals
+  const retryIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
   // Validation
   const isUsernameValid = username.trim().length >= 2
   const isPasswordValid = password.trim().length >= 1
@@ -35,14 +38,8 @@ export function LoginPage() {
 
   // Test backend connection on mount
   useEffect(() => {
+    // Initial connection test
     testConnection()
-
-    // Auto-retry connection every 10 seconds if disconnected
-    const connectionRetryInterval = setInterval(() => {
-      if (connectionStatus === 'disconnected') {
-        testConnection()
-      }
-    }, 10000)
 
     // Auto-focus username field
     const usernameField = document.getElementById('username')
@@ -50,8 +47,14 @@ export function LoginPage() {
       usernameField.focus()
     }
 
-    return () => clearInterval(connectionRetryInterval)
-  }, [connectionStatus])
+    // Cleanup interval on unmount
+    return () => {
+      if (retryIntervalRef.current) {
+        clearInterval(retryIntervalRef.current)
+        retryIntervalRef.current = null
+      }
+    }
+  }, [])
 
   const testConnection = async () => {
     setConnectionStatus('unknown')
@@ -71,6 +74,12 @@ export function LoginPage() {
           setConnectionStatus('connected')
           setLoginError('')
         })
+
+        // Clear retry interval if connection successful
+        if (retryIntervalRef.current) {
+          clearInterval(retryIntervalRef.current)
+          retryIntervalRef.current = null
+        }
       } else {
         throw new Error('Backend health check failed')
       }
@@ -81,6 +90,13 @@ export function LoginPage() {
           'Backend server is not reachable. Start all services with `npm run dev` or verify the Rust backend on port 7075.'
         )
       })
+
+      // Start retry interval if not already running (30 seconds)
+      if (!retryIntervalRef.current) {
+        retryIntervalRef.current = setInterval(() => {
+          testConnection()
+        }, 30000)
+      }
     }
   }
 
