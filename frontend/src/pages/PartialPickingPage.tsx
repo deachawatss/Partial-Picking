@@ -431,7 +431,7 @@ export function PartialPickingPage() {
                   <span className="text-xs font-semibold uppercase tracking-wider text-text-primary/60">
                     SOH
                   </span>
-                  <p className="font-mono text-base font-bold text-text-primary">{availableQtyDisplay} KG</p>
+                  <p className="font-body text-base font-semibold tabular-nums text-text-primary">{availableQtyDisplay} KG</p>
                 </div>
               </div>
 
@@ -462,7 +462,7 @@ export function PartialPickingPage() {
                 <Input
                   value={formatQuantity(currentWeight)}
                   readOnly
-                  className={`h-12 rounded-lg border-2 bg-surface font-mono text-xl font-bold tracking-wider transition-smooth ${weightFieldClass}`}
+                  className={`h-12 rounded-lg border-2 bg-surface font-body text-xl font-semibold tabular-nums tracking-tight transition-smooth ${weightFieldClass}`}
                 />
                 <Button
                   type="button"
@@ -481,7 +481,7 @@ export function PartialPickingPage() {
                   <Input
                     value={formatQuantity(weightRangeLow)}
                     readOnly
-                    className="h-12 flex-1 rounded-lg border-2 border-border-main bg-surface font-mono text-base font-semibold text-text-primary"
+                    className="h-12 flex-1 rounded-lg border-2 border-border-main bg-surface font-body text-base font-medium tabular-nums text-text-primary"
                   />
                   <span className="text-sm font-semibold uppercase tracking-wide text-text-primary/60">
                     to
@@ -489,7 +489,7 @@ export function PartialPickingPage() {
                   <Input
                     value={formatQuantity(weightRangeHigh)}
                     readOnly
-                    className="h-12 flex-1 rounded-lg border-2 border-border-main bg-surface font-mono text-base font-semibold text-text-primary"
+                    className="h-12 flex-1 rounded-lg border-2 border-border-main bg-surface font-body text-base font-medium tabular-nums text-text-primary"
                   />
                 </div>
               </div>
@@ -500,7 +500,7 @@ export function PartialPickingPage() {
                 <Input
                   value={formatQuantity(currentItem?.totalNeeded)}
                   readOnly
-                  className="h-12 rounded-lg border-2 border-border-main bg-surface font-mono text-base font-semibold text-text-primary"
+                  className="h-12 rounded-lg border-2 border-border-main bg-surface font-body text-base font-medium tabular-nums text-text-primary"
                 />
               </div>
 
@@ -510,7 +510,7 @@ export function PartialPickingPage() {
                 <Input
                   value={formatQuantity(currentItem?.remainingQty)}
                   readOnly
-                  className="h-12 rounded-lg border-2 border-border-main bg-surface font-mono text-base font-semibold text-text-primary"
+                  className="h-12 rounded-lg border-2 border-border-main bg-surface font-body text-base font-medium tabular-nums text-text-primary"
                 />
               </div>
             </div>

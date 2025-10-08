@@ -144,17 +144,17 @@ export function BatchTicketGrid({
                     <td className="px-5 py-4 text-center text-base font-bold tracking-wide text-text-primary">
                       {item.batchNo}
                     </td>
-                    <td className="px-5 py-4 text-right font-mono text-base font-semibold">
+                    <td className="px-5 py-4 text-right font-body text-base font-medium tabular-nums">
                       {formatQty(item.targetQty)}
                     </td>
-                    <td className="px-5 py-4 text-right font-mono text-base font-bold">
+                    <td className="px-5 py-4 text-right font-body text-base font-semibold tabular-nums">
                       {item.pickedQty > 0 ? (
                         <span className="text-accent-green">{formatQty(item.pickedQty)}</span>
                       ) : (
                         <span className="text-text-primary/30">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-4 text-right font-mono text-base font-bold">
+                    <td className="px-5 py-4 text-right font-body text-base font-semibold tabular-nums">
                       {item.pickedQty > 0 ? (
                         <span className={item.balance > 0.1 ? 'text-danger' : 'text-accent-green'}>
                           {formatQty(item.balance)}
