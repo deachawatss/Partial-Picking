@@ -194,19 +194,19 @@ export function PartialPickingPage() {
 
   const formatQuantity = (value?: number | null) => Number(value ?? 0).toFixed(4)
   // Elegant Industrial label styling - Poppins SemiBold
-  const labelClass = 'font-heading text-base font-semibold uppercase tracking-wider text-text-primary min-w-[120px]'
+  const labelClass = 'font-heading text-lg font-semibold uppercase tracking-wider text-text-primary min-w-[120px]'
   // Enhanced button styles with new accent green and refined shadows
   const lookupButtonClass =
-    'h-12 min-w-[52px] rounded-lg bg-highlight px-4 text-sm font-semibold uppercase tracking-wide text-text-primary shadow-button btn-scale-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 disabled:bg-border-main disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100'
+    'h-12 min-w-[52px] rounded-lg bg-brand-primary hover:bg-accent-gold px-4 text-sm font-semibold uppercase tracking-wide text-white shadow-button btn-scale-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-gold focus-visible:ring-offset-2 disabled:bg-border-main disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100'
   const lookupButtonInsideInputClass =
-    'absolute right-[1px] top-1/2 -translate-y-1/2 h-[47px] w-[47px] rounded-md bg-highlight text-base font-semibold text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-1 disabled:bg-border-main disabled:text-text-primary/40 disabled:cursor-not-allowed'
+    'absolute right-[1px] top-1/2 -translate-y-1/2 h-[47px] w-[47px] rounded-md bg-brand-primary hover:bg-accent-gold text-base font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-gold focus-visible:ring-offset-1 disabled:bg-border-main disabled:text-text-primary/40 disabled:cursor-not-allowed'
   const fetchButtonClass =
-    'h-12 min-w-[160px] rounded-lg bg-accent-green px-6 text-sm font-semibold uppercase tracking-wide text-white shadow-button-green btn-scale-hover button-pulse-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-green focus-visible:ring-offset-2 disabled:bg-border-main disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100'
+    'h-12 min-w-[160px] rounded-lg bg-brand-primary hover:bg-accent-gold px-6 text-sm font-semibold uppercase tracking-wide text-white shadow-button btn-scale-hover button-pulse-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-gold focus-visible:ring-offset-2 disabled:bg-border-main disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100'
   const actionButtonBase =
     'inline-flex h-12 w-full items-center justify-center rounded-lg text-sm font-semibold uppercase tracking-wide btn-scale-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'
-  const primaryButtonClass = `${actionButtonBase} bg-accent-green text-white shadow-button-green hover:bg-[#388E3C] hover:shadow-button-green-hover focus-visible:ring-accent-green disabled:bg-border-main disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100`
-  const secondaryButtonClass = `${actionButtonBase} bg-surface text-text-primary border-2 border-border-main shadow-soft hover:bg-white hover:border-brand-primary/30 focus-visible:ring-brand-primary disabled:bg-surface/50 disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100`
-  const dangerButtonClass = `${actionButtonBase} bg-danger text-white shadow-button-danger hover:bg-[#d32f2f] hover:shadow-button-danger-hover focus-visible:ring-danger disabled:bg-border-main disabled:text-white/70 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100`
+  const primaryButtonClass = `${actionButtonBase} bg-brand-primary hover:bg-accent-gold text-white shadow-button focus-visible:ring-accent-gold disabled:bg-border-main disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100`
+  const secondaryButtonClass = `${actionButtonBase} bg-brand-primary hover:bg-accent-gold text-white shadow-button focus-visible:ring-accent-gold disabled:bg-border-main disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100`
+  const dangerButtonClass = `${actionButtonBase} bg-danger text-white shadow-button-danger hover:bg-[#A01F1F] hover:shadow-button-danger-hover focus-visible:ring-danger disabled:bg-border-main disabled:text-white/70 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100`
   const weightRangeLow = currentItem?.weightRangeLow ?? 0
   const weightRangeHigh = currentItem?.weightRangeHigh ?? 0
   const toleranceValue =
@@ -215,9 +215,9 @@ export function PartialPickingPage() {
   const weightInRange =
     currentWeight > 0 && currentWeight >= weightRangeLow && currentWeight <= weightRangeHigh
   const weightFieldClass = weightInRange
-    ? 'border-accent-green bg-accent-green/5 text-accent-green shadow-[0_0_0_3px_rgba(67,160,71,0.12)]'
+    ? 'border-accent-green bg-accent-green/5 text-accent-green shadow-[0_0_0_3px_rgba(63,125,62,0.12)]'
     : currentWeight > 0
-      ? 'border-danger bg-danger/5 text-danger shadow-[0_0_0_3px_rgba(229,57,53,0.12)]'
+      ? 'border-danger bg-danger/5 text-danger shadow-[0_0_0_3px_rgba(198,40,40,0.12)]'
       : 'border-border-main text-text-primary'
   const baseBatchItems = currentBatchItems.map((item, index) => ({
     lineId: index + 1,
@@ -256,19 +256,19 @@ export function PartialPickingPage() {
               </div>
             )}
             {errorMessage && (
-              <div className="flex items-center justify-between rounded-lg border-2 border-danger/30 bg-gradient-to-br from-[#ffebee] to-[#ffd9d4] px-6 py-4 text-sm font-semibold tracking-wide text-danger shadow-card">
+              <div className="flex items-center justify-between rounded-lg border-2 border-danger/30 bg-gradient-to-br from-[#FFEBE9] to-[#FFDAD6] px-6 py-4 text-sm font-semibold tracking-wide text-danger shadow-card">
                 <span>{errorMessage}</span>
                 <button
                   onClick={clearError}
                   aria-label="Clear error"
-                  className="ml-4 text-xl font-bold text-danger transition-smooth hover:scale-110 hover:text-[#c62828]"
+                  className="ml-4 text-xl font-bold text-danger transition-smooth hover:scale-110 hover:text-[#A01F1F]"
                 >
                   ×
                 </button>
               </div>
             )}
             {isLoading && (
-              <div className="rounded-lg border-2 border-highlight/30 bg-gradient-to-br from-[#fff8e1] to-[#ffeaa7] px-6 py-4 text-sm font-semibold tracking-wide text-brand-primary shadow-card">
+              <div className="rounded-lg border-2 border-accent-gold/30 bg-gradient-to-br from-[#FFF9EC] to-[#FFEDC4] px-6 py-4 text-sm font-semibold tracking-wide text-brand-primary shadow-card">
                 Loading…
               </div>
             )}
@@ -379,7 +379,7 @@ export function PartialPickingPage() {
                     value={currentItem?.itemKey || ''}
                     placeholder="Select item"
                     readOnly
-                    className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary transition-smooth focus-within:border-accent-green input-glow-focus"
+                    className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary transition-smooth focus-within:border-accent-gold input-glow-focus"
                   />
                   <Button
                     type="button"
@@ -516,7 +516,7 @@ export function PartialPickingPage() {
             </div>
 
             {selectedLot && (
-              <div className="mt-6 rounded-lg border-2 border-highlight/40 bg-gradient-to-br from-[#fff8e1] to-[#ffeaa7] px-6 py-4 text-sm font-semibold uppercase tracking-wide text-text-primary shadow-soft">
+              <div className="mt-6 rounded-lg border-2 border-accent-gold/40 bg-gradient-to-br from-[#FFF9EC] to-[#FFEDC4] px-6 py-4 text-sm font-semibold uppercase tracking-wide text-text-primary shadow-soft">
                 Lot {selectedLot.lotNo} · Bin {selectedLot.binNo || '—'} · Available{' '}
                 {availableQtyDisplay} KG
               </div>

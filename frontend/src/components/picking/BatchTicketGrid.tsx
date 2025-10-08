@@ -57,7 +57,7 @@ export function BatchTicketGrid({
               <th colSpan={6} className="px-6 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <p className="text-lg font-bold tracking-[0.08em]">Batch Ticket Items</p>
+                    <p className="text-2xl font-bold tracking-[0.08em]">Batch Partial</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {filterOptions.map(option => {
@@ -102,7 +102,7 @@ export function BatchTicketGrid({
                 </div>
               </th>
             </tr>
-            <tr className="bg-bg-main text-xs font-bold uppercase tracking-wider text-text-primary">
+            <tr className="bg-bg-main text-sm font-bold uppercase tracking-wider text-text-primary">
               <th className="px-5 py-3.5 text-left">Item</th>
               <th className="px-5 py-3.5 text-center">Batch no.</th>
               <th className="px-5 py-3.5 text-right">Partial (kg)</th>
@@ -134,27 +134,27 @@ export function BatchTicketGrid({
                     className={`border-b border-border-main ${rowHighlight} ${clickable}`}
                   >
                     <td className="px-5 py-4">
-                      <div className="text-base font-bold tracking-wide text-text-primary">
+                      <div className="text-lg font-bold tracking-wide text-text-primary">
                         {item.itemKey}
                       </div>
-                      <div className="text-xs uppercase tracking-wider text-text-primary/60">
+                      <div className="text-sm uppercase tracking-wider text-text-primary/60">
                         {item.description || '—'}
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-center text-base font-bold tracking-wide text-text-primary">
+                    <td className="px-5 py-4 text-center text-lg font-bold tracking-wide text-text-primary">
                       {item.batchNo}
                     </td>
-                    <td className="px-5 py-4 text-right font-body text-base font-medium tabular-nums">
+                    <td className="px-5 py-4 text-right font-body text-lg font-medium tabular-nums">
                       {formatQty(item.targetQty)}
                     </td>
-                    <td className="px-5 py-4 text-right font-body text-base font-semibold tabular-nums">
+                    <td className="px-5 py-4 text-right font-body text-lg font-semibold tabular-nums">
                       {item.pickedQty > 0 ? (
                         <span className="text-accent-green">{formatQty(item.pickedQty)}</span>
                       ) : (
                         <span className="text-text-primary/30">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-4 text-right font-body text-base font-semibold tabular-nums">
+                    <td className="px-5 py-4 text-right font-body text-lg font-semibold tabular-nums">
                       {item.pickedQty > 0 ? (
                         <span className={item.balance > 0.1 ? 'text-danger' : 'text-accent-green'}>
                           {formatQty(item.balance)}
