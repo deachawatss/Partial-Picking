@@ -49,11 +49,11 @@ export function BatchTicketGrid({
     'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-coffee'
 
   return (
-    <section className="flex h-full flex-col overflow-hidden rounded-[28px] border border-sand bg-gradient-to-br from-[#fdf7ef] via-[#f9f1e6] to-[#f5e9db] shadow-panel">
+    <section className="flex h-full flex-col overflow-hidden rounded-[28px] border-2 border-sand/80 bg-gradient-to-br from-[#fdfaf7] via-[#f9f3ec] to-[#f5ebe0] shadow-card">
       <div className="flex-1 overflow-hidden">
-        <table className="w-full border-separate border-spacing-0 text-base text-mocha">
+        <table className="w-full border-separate border-spacing-0 text-[15px] text-mocha">
           <thead>
-            <tr className="bg-coffee text-cream">
+            <tr className="bg-[#3d2817] text-cream">
               <th colSpan={6} className="px-6 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="space-y-1">
@@ -105,17 +105,17 @@ export function BatchTicketGrid({
                 </div>
               </th>
             </tr>
-            <tr className="bg-[#f4e5d6] text-[11px] font-semibold uppercase tracking-[0.22em] text-mocha/75">
-              <th className="px-4 py-3 text-left">Item</th>
-              <th className="px-4 py-3 text-center">Batch no.</th>
-              <th className="px-4 py-3 text-right">Partial (kg)</th>
-              <th className="px-4 py-3 text-right">Weighted (kg)</th>
-              <th className="px-4 py-3 text-right">Balance (kg)</th>
-              <th className="px-4 py-3 text-left">Allergens</th>
+            <tr className="bg-[#efe1d1] text-[12px] font-bold uppercase tracking-[0.18em] text-mocha">
+              <th className="px-5 py-3.5 text-left">Item</th>
+              <th className="px-5 py-3.5 text-center">Batch no.</th>
+              <th className="px-5 py-3.5 text-right">Partial (kg)</th>
+              <th className="px-5 py-3.5 text-right">Weighted (kg)</th>
+              <th className="px-5 py-3.5 text-right">Balance (kg)</th>
+              <th className="px-5 py-3.5 text-left">Allergens</th>
             </tr>
           </thead>
 
-          <tbody className="bg-white">
+          <tbody className="bg-white/98">
             {items.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-12 text-center text-sm text-mocha/40">
@@ -125,52 +125,54 @@ export function BatchTicketGrid({
             ) : (
               items.map(item => {
                 const isPicked = item.status === 'picked'
-                const rowHighlight = isPicked ? 'bg-[#f1fff4] text-mocha' : 'bg-white text-mocha'
-                const clickable = onItemClick ? 'cursor-pointer hover:bg-[#fcecd2]' : ''
+                const rowHighlight = isPicked ? 'bg-[#f0fff3] text-mocha' : 'bg-white/95 text-mocha'
+                const clickable = onItemClick
+                  ? 'cursor-pointer hover:bg-[#fff8ed] hover:shadow-[0_2px_8px_rgba(61,40,23,0.08)] transition-all duration-200'
+                  : ''
 
                 return (
                   <tr
                     key={`${item.lineId}-${item.itemKey}`}
                     onClick={() => onItemClick?.(item)}
-                    className={`border-b border-sand/60 transition-colors ${rowHighlight} ${clickable}`}
+                    className={`border-b border-sand/40 ${rowHighlight} ${clickable}`}
                   >
-                    <td className="px-5 py-5">
-                      <div className="text-base font-semibold tracking-wide text-coffee">
+                    <td className="px-5 py-4">
+                      <div className="text-[15px] font-bold tracking-wide text-coffee">
                         {item.itemKey}
                       </div>
-                      <div className="text-[11px] uppercase tracking-[0.24em] text-mocha/55">
+                      <div className="text-[12px] uppercase tracking-[0.18em] text-mocha/65">
                         {item.description || '—'}
                       </div>
                     </td>
-                    <td className="px-5 py-5 text-center font-semibold tracking-wide text-coffee">
+                    <td className="px-5 py-4 text-center text-[15px] font-bold tracking-wide text-coffee">
                       {item.batchNo}
                     </td>
-                    <td className="px-5 py-5 text-right font-mono text-base font-semibold">
+                    <td className="px-5 py-4 text-right font-mono text-[15px] font-semibold">
                       {formatQty(item.targetQty)}
                     </td>
-                    <td className="px-5 py-5 text-right font-mono text-base font-semibold">
+                    <td className="px-5 py-4 text-right font-mono text-[15px] font-bold">
                       {item.pickedQty > 0 ? (
-                        <span className="text-[#2f7a52]">{formatQty(item.pickedQty)}</span>
+                        <span className="text-[#2f9151]">{formatQty(item.pickedQty)}</span>
                       ) : (
-                        <span className="text-mocha/40">—</span>
+                        <span className="text-mocha/35">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-5 text-right font-mono text-base font-semibold">
+                    <td className="px-5 py-4 text-right font-mono text-[15px] font-bold">
                       {item.pickedQty > 0 ? (
-                        <span className={item.balance > 0.1 ? 'text-[#d04b3b]' : 'text-[#2f7a52]'}>
+                        <span className={item.balance > 0.1 ? 'text-[#dc3545]' : 'text-[#2f9151]'}>
                           {formatQty(item.balance)}
                         </span>
                       ) : (
-                        <span className="text-mocha/40">—</span>
+                        <span className="text-mocha/35">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-5">
+                    <td className="px-5 py-4">
                       {item.allergens ? (
-                        <span className="inline-flex rounded-full bg-[#f7d9b8] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-coffee">
+                        <span className="inline-flex rounded-2xl border-2 border-[#f0b429]/30 bg-gradient-to-b from-[#ffeaa7] to-[#f7d794] px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-coffee shadow-soft">
                           {item.allergens}
                         </span>
                       ) : (
-                        <span className="text-[11px] uppercase tracking-[0.2em] text-mocha/40">
+                        <span className="text-[12px] uppercase tracking-[0.16em] text-mocha/35">
                           None
                         </span>
                       )}

@@ -187,16 +187,18 @@ export function PartialPickingPage() {
   }
 
   const formatQuantity = (value?: number | null) => Number(value ?? 0).toFixed(4)
-  const labelClass = 'text-[11px] font-semibold uppercase tracking-[0.26em] text-mocha/70'
+  // Improved label styling - better readability
+  const labelClass = 'text-[13px] font-semibold uppercase tracking-[0.18em] text-mocha min-w-[120px]'
+  // Enhanced button styles with better shadows and hover effects
   const lookupButtonClass =
-    'h-11 min-w-[48px] rounded-full bg-[#f0b429] px-4 text-sm font-bold uppercase tracking-[0.22em] text-coffee shadow-[0_12px_24px_rgba(240,180,41,0.28)] transition hover:bg-[#e7a718] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#f0b429] disabled:bg-[#f6d9a9]/60 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed'
+    'h-12 min-w-[52px] rounded-full bg-[#ffc107] px-4 text-sm font-bold uppercase tracking-[0.20em] text-coffee shadow-button transition-smooth hover:bg-[#ffa000] hover:shadow-button-hover hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#ffc107] focus-visible:ring-offset-2 disabled:bg-[#f6d9a9]/60 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100'
   const fetchButtonClass =
-    'h-11 min-w-[150px] rounded-full bg-[#f0b429] px-6 text-[11px] font-extrabold uppercase tracking-[0.28em] text-coffee shadow-[0_14px_28px_rgba(240,180,41,0.3)] transition hover:bg-[#e7a718] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#f0b429] disabled:bg-[#f6d9a9]/60 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed'
+    'h-12 min-w-[160px] rounded-full bg-[#ffc107] px-6 text-[12px] font-extrabold uppercase tracking-[0.24em] text-coffee shadow-button transition-smooth hover:bg-[#ffa000] hover:shadow-button-hover hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#ffc107] focus-visible:ring-offset-2 disabled:bg-[#f6d9a9]/60 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100'
   const actionButtonBase =
-    'inline-flex h-12 w-full items-center justify-center rounded-full text-sm font-extrabold uppercase tracking-[0.24em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'
-  const primaryButtonClass = `${actionButtonBase} bg-[#f0b429] text-coffee shadow-[0_16px_36px_rgba(240,180,41,0.3)] hover:bg-[#e7a718] focus-visible:ring-[#f0b429] disabled:bg-[#f6d9a9]/60 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed`
-  const secondaryButtonClass = `${actionButtonBase} bg-white/10 text-coffee border-2 border-sand shadow-[0_12px_24px_rgba(184,134,95,0.2)] hover:bg-white/20 focus-visible:ring-sand disabled:bg-white/5 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed`
-  const dangerButtonClass = `${actionButtonBase} bg-[#d04b3b] text-white shadow-[0_16px_36px_rgba(208,75,59,0.3)] hover:bg-[#b23b2f] focus-visible:ring-[#d04b3b] disabled:bg-[#f4c5bf] disabled:text-white/70 disabled:shadow-none disabled:cursor-not-allowed`
+    'inline-flex h-12 w-full items-center justify-center rounded-full text-[13px] font-extrabold uppercase tracking-[0.20em] transition-smooth focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-offset-2'
+  const primaryButtonClass = `${actionButtonBase} bg-[#ffc107] text-coffee shadow-button hover:bg-[#ffa000] hover:shadow-button-hover hover:scale-[1.02] focus-visible:ring-[#ffc107] disabled:bg-[#f6d9a9]/60 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100`
+  const secondaryButtonClass = `${actionButtonBase} bg-gradient-to-b from-white/15 to-white/5 text-coffee border-2 border-sand/80 shadow-card hover:from-white/25 hover:to-white/15 hover:border-sand hover:scale-[1.01] focus-visible:ring-sand disabled:bg-white/5 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100`
+  const dangerButtonClass = `${actionButtonBase} bg-[#dc3545] text-white shadow-[0_8px_16px_-6px_rgba(220,53,69,0.40)] hover:bg-[#c82333] hover:shadow-[0_12px_24px_-8px_rgba(220,53,69,0.50)] hover:scale-[1.02] focus-visible:ring-[#dc3545] disabled:bg-[#f4c5bf] disabled:text-white/70 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100`
   const weightRangeLow = currentItem?.weightRangeLow ?? 0
   const weightRangeHigh = currentItem?.weightRangeHigh ?? 0
   const toleranceValue =
@@ -237,49 +239,51 @@ export function PartialPickingPage() {
   return (
     <div className="min-h-screen bg-[#f6efe5] px-4 py-4 font-rounded">
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4">
-        {/* Weight Progress Bar with tolerance markers and scale selector */}
-        <WeightProgressBar
-          weight={currentWeight}
-          targetWeight={currentItem?.totalNeeded ?? 0}
-          tolerance={toleranceValue}
-          selectedScale={selectedScale}
-          onScaleChange={handleScaleSelection}
-          scaleStatuses={scaleStatuses}
-          workstationLabel={workstationId || undefined}
-        />
-
         {/* Notifications */}
         {(successMessage || errorMessage || isLoading) && (
           <div className="grid gap-3">
             {successMessage && (
-              <div className="rounded-3xl border border-[#2f7a52]/40 bg-[#2f7a52]/10 px-6 py-3 text-sm font-semibold text-[#2f7a52] shadow-soft">
+              <div className="rounded-3xl border-2 border-[#2f7a52]/50 bg-gradient-to-br from-[#e8f5e9] to-[#c8f1d6] px-6 py-4 text-[13px] font-bold uppercase tracking-[0.16em] text-[#2f7a52] shadow-card">
                 {successMessage}
               </div>
             )}
             {errorMessage && (
-              <div className="flex items-center justify-between rounded-3xl border border-[#d04b3b]/50 bg-[#d04b3b]/10 px-6 py-3 text-sm font-semibold text-[#d04b3b] shadow-soft">
+              <div className="flex items-center justify-between rounded-3xl border-2 border-[#dc3545]/50 bg-gradient-to-br from-[#ffebee] to-[#ffd9d4] px-6 py-4 text-[13px] font-bold uppercase tracking-[0.16em] text-[#dc3545] shadow-card">
                 <span>{errorMessage}</span>
                 <button
                   onClick={clearError}
                   aria-label="Clear error"
-                  className="text-[#d04b3b] transition hover:text-[#b23b2f]"
+                  className="ml-4 text-[20px] font-bold text-[#dc3545] transition-smooth hover:scale-110 hover:text-[#b71c1c]"
                 >
                   ×
                 </button>
               </div>
             )}
             {isLoading && (
-              <div className="rounded-3xl border border-[#f0b429]/40 bg-[#f0b429]/12 px-6 py-3 text-sm font-semibold text-[#b6811d] shadow-soft">
+              <div className="rounded-3xl border-2 border-[#ffc107]/50 bg-gradient-to-br from-[#fff8e1] to-[#ffeaa7] px-6 py-4 text-[13px] font-bold uppercase tracking-[0.16em] text-[#d99a2f] shadow-card">
                 Loading…
               </div>
             )}
           </div>
         )}
 
-        {/* Unified Section: Header + Form + Table */}
-        <section className="grid grid-cols-1 gap-5 rounded-[32px] border border-sand bg-white/95 shadow-panel lg:grid-cols-[480px_1fr]">
+        {/* Unified Section: Weight Progress + Header + Form + Table */}
+        <section className="grid grid-cols-1 gap-5 rounded-[32px] border-2 border-sand/80 bg-white/95 shadow-panel-enhanced lg:grid-cols-[480px_1fr]">
+          {/* Weight Progress Bar with tolerance markers and scale selector */}
+          <div className="p-4 lg:col-span-2">
+            <WeightProgressBar
+              weight={currentWeight}
+              targetWeight={currentItem?.totalNeeded ?? 0}
+              tolerance={toleranceValue}
+              selectedScale={selectedScale}
+              onScaleChange={handleScaleSelection}
+              scaleStatuses={scaleStatuses}
+              workstationLabel={workstationId || undefined}
+            />
+          </div>
+
           {/* Header Row 1: Run No + FG ItemKey + Description (Full Width) */}
-          <div className="border-b border-sand p-4 lg:col-span-2">
+          <div className="px-4 pt-4 pb-2 lg:col-span-2">
             <div className="grid grid-cols-1 items-center gap-3 md:grid-cols-[auto_200px_auto_minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-4">
               <label className={labelClass}>Run No</label>
               <div className="flex items-center gap-2">
@@ -287,7 +291,7 @@ export function PartialPickingPage() {
                   value={runNumberDisplay}
                   placeholder="Select run"
                   readOnly
-                  className="h-11 flex-1 rounded-full border border-[#e7d7c6] bg-cream/50 text-sm font-semibold uppercase tracking-[0.18em] text-coffee"
+                  className="h-12 flex-1 rounded-2xl border-2 border-[#d4c4b3] bg-[#fdfaf7] text-[15px] font-semibold uppercase tracking-[0.16em] text-coffee"
                 />
                 <Button
                   type="button"
@@ -305,7 +309,7 @@ export function PartialPickingPage() {
                 value={currentRun?.fgItemKey || ''}
                 readOnly
                 placeholder="Item key"
-                className="h-11 rounded-full border border-[#e7d7c6] bg-cream/40 text-sm font-semibold uppercase tracking-[0.18em] text-coffee"
+                className="h-12 rounded-2xl border-2 border-[#d4c4b3] bg-[#fdfaf7] text-[15px] font-semibold uppercase tracking-[0.16em] text-coffee"
               />
 
               <label className={labelClass}>Description</label>
@@ -313,13 +317,13 @@ export function PartialPickingPage() {
                 value={currentRun?.fgDescription || ''}
                 readOnly
                 placeholder="Description"
-                className="h-11 rounded-full border border-[#e7d7c6] bg-cream/40 text-sm font-semibold text-coffee"
+                className="h-12 rounded-2xl border-2 border-[#d4c4b3] bg-[#fdfaf7] text-[15px] font-medium text-coffee"
               />
             </div>
           </div>
 
           {/* Header Row 2: Batch No + Batches + Production Date (Full Width) */}
-          <div className="border-b border-sand p-4 lg:col-span-2">
+          <div className="border-b-2 border-sand/60 px-4 pt-2 pb-4 lg:col-span-2">
             <div className="grid grid-cols-1 items-center gap-3 md:grid-cols-[auto_200px_auto_120px_auto_minmax(0,1fr)] md:gap-x-4">
               <label className={labelClass}>Batch No</label>
               <div className="flex items-center gap-2">
@@ -327,7 +331,7 @@ export function PartialPickingPage() {
                   value={batchNumberDisplay}
                   placeholder="Select batch"
                   readOnly
-                  className="h-11 flex-1 rounded-full border border-[#e7d7c6] bg-cream/40 text-sm font-semibold uppercase tracking-[0.18em] text-coffee"
+                  className="h-12 flex-1 rounded-2xl border-2 border-[#d4c4b3] bg-[#fdfaf7] text-[15px] font-semibold uppercase tracking-[0.16em] text-coffee"
                 />
                 <Button
                   type="button"
@@ -341,15 +345,15 @@ export function PartialPickingPage() {
               </div>
 
               <label className={labelClass}>Batches</label>
-              <div className="flex h-11 items-center rounded-full bg-[#fdf3e3] px-4">
-                <span className="text-base font-semibold text-coffee">
+              <div className="flex h-12 items-center rounded-2xl border-2 border-sand/80 bg-[#f9f3ec] px-4 shadow-soft">
+                <span className="text-[15px] font-bold text-coffee">
                   {currentRun?.batches.length ?? 0}
                 </span>
               </div>
 
               <label className={labelClass}>Production date</label>
-              <div className="flex h-11 items-center rounded-full bg-[#fdf3e3] px-4">
-                <span className="text-base font-semibold text-coffee">
+              <div className="flex h-12 items-center rounded-2xl border-2 border-sand/80 bg-[#f9f3ec] px-4 shadow-soft">
+                <span className="text-[15px] font-bold text-coffee">
                   {productionDateDisplay || '—'}
                 </span>
               </div>
@@ -358,104 +362,104 @@ export function PartialPickingPage() {
 
           {/* Form Section (Left Column) */}
           <div className="flex flex-col p-5">
-            <div className="space-y-5">
-              <div>
-                <span className={labelClass}>Item key</span>
-                <div className="mt-2 flex items-center gap-3">
-                  <Input
-                    value={currentItem?.itemKey || ''}
-                    placeholder="Select item"
-                    readOnly
-                    className="h-11 flex-1 rounded-full border border-[#e7d7c6] bg-white text-sm font-semibold uppercase tracking-[0.18em] text-coffee"
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => setShowItemModal(true)}
-                    className={lookupButtonClass}
-                    disabled={!currentBatchRowNum || isLoading}
-                    aria-label="Lookup item key"
-                  >
-                    🔍
-                  </Button>
-                </div>
+            <div className="space-y-4">
+              {/* Inline layout: label and input on same row */}
+              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+                <label className={labelClass}>Item key</label>
+                <Input
+                  value={currentItem?.itemKey || ''}
+                  placeholder="Select item"
+                  readOnly
+                  className="h-12 rounded-2xl border-2 border-[#d4c4b3] bg-[#fdfaf7] text-[15px] font-medium uppercase tracking-[0.16em] text-coffee transition-smooth focus-within:border-[#ffc107] input-glow-focus"
+                />
+                <Button
+                  type="button"
+                  onClick={() => setShowItemModal(true)}
+                  className={lookupButtonClass}
+                  disabled={!currentBatchRowNum || isLoading}
+                  aria-label="Lookup item key"
+                >
+                  🔍
+                </Button>
               </div>
 
-              <div>
-                <span className={labelClass}>Description</span>
+              {/* Inline layout: label and input on same row */}
+              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+                <label className={labelClass}>Description</label>
                 <Input
                   value={currentItem?.description || ''}
                   readOnly
                   placeholder="Description"
-                  className="mt-2 h-11 rounded-[22px] border border-[#e7d7c6] bg-white text-sm font-semibold text-coffee"
+                  className="h-12 rounded-2xl border-2 border-[#d4c4b3] bg-[#fdfaf7] text-[15px] font-medium text-coffee"
                 />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <span className={labelClass}>Lot No.</span>
-                  <div className="mt-2 flex items-center gap-3">
-                    <Input
-                      value={selectedLot?.lotNo || ''}
-                      placeholder="Auto-selected (FEFO)"
-                      readOnly
-                      className="h-11 rounded-full border border-[#e7d7c6] bg-white text-sm font-semibold text-coffee"
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => setShowLotModal(true)}
-                      className={lookupButtonClass}
-                      disabled={!currentItem || isLoading}
-                      aria-label="Override lot number"
-                    >
-                      🔍
-                    </Button>
-                  </div>
-                  <div className="mt-3 rounded-[22px] border border-sand bg-[#f7efe3] px-4 py-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-mocha/55">
+              {/* Lot and Bin section - inline layout */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+                  <label className={labelClass}>Lot No.</label>
+                  <Input
+                    value={selectedLot?.lotNo || ''}
+                    placeholder="Auto-selected (FEFO)"
+                    readOnly
+                    className="h-12 rounded-2xl border-2 border-[#d4c4b3] bg-[#fdfaf7] text-[15px] font-medium text-coffee"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => setShowLotModal(true)}
+                    className={lookupButtonClass}
+                    disabled={!currentItem || isLoading}
+                    aria-label="Override lot number"
+                  >
+                    🔍
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-2xl border-2 border-sand/80 bg-[#f9f3ec] px-4 py-3 shadow-soft">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.20em] text-mocha/60">
                       SOH
                     </span>
-                    <p className="text-base font-semibold text-coffee">{availableQtyDisplay} KG</p>
+                    <p className="text-[15px] font-bold text-coffee">{availableQtyDisplay} KG</p>
                   </div>
-                </div>
-                <div>
-                  <span className={labelClass}>Bin No.</span>
-                  <div className="mt-2 flex items-center gap-3">
-                    <Input
-                      value={selectedLot?.binNo || ''}
-                      placeholder="Auto from lot"
-                      readOnly
-                      className="h-11 rounded-full border border-[#e7d7c6] bg-white text-sm font-semibold text-coffee"
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => setShowBinModal(true)}
-                      className={lookupButtonClass}
-                      disabled={!currentItem || isLoading}
-                      aria-label="Lookup bin number"
-                    >
-                      🔍
-                    </Button>
-                  </div>
-                  <div className="mt-3 rounded-[22px] border border-sand bg-[#f7efe3] px-4 py-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-mocha/55">
+                  <div className="rounded-2xl border-2 border-sand/80 bg-[#f9f3ec] px-4 py-3 shadow-soft">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.20em] text-mocha/60">
                       Expiry
                     </span>
-                    <p className="text-base font-semibold text-coffee">
+                    <p className="text-[15px] font-bold text-coffee">
                       {selectedLot?.expiryDate || '—'}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                <div>
-                  <span className={labelClass}>Weight</span>
-                  <Input
-                    value={formatQuantity(currentWeight)}
-                    readOnly
-                    className={`mt-2 h-11 rounded-full border-2 bg-white font-mono text-lg font-bold tracking-widest ${weightFieldClass}`}
-                  />
-                </div>
+              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+                <label className={labelClass}>Bin No.</label>
+                <Input
+                  value={selectedLot?.binNo || ''}
+                  placeholder="Auto from lot"
+                  readOnly
+                  className="h-12 rounded-2xl border-2 border-[#d4c4b3] bg-[#fdfaf7] text-[15px] font-medium text-coffee"
+                />
+                <Button
+                  type="button"
+                  onClick={() => setShowBinModal(true)}
+                  className={lookupButtonClass}
+                  disabled={!currentItem || isLoading}
+                  aria-label="Lookup bin number"
+                >
+                  🔍
+                </Button>
+              </div>
+
+              {/* Weight section - inline with Fetch button */}
+              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+                <label className={labelClass}>Weight</label>
+                <Input
+                  value={formatQuantity(currentWeight)}
+                  readOnly
+                  className={`h-12 rounded-2xl border-2 bg-[#fdfaf7] font-mono text-[17px] font-bold tracking-wider transition-smooth ${weightFieldClass}`}
+                />
                 <Button
                   type="button"
                   onClick={() => setManualWeight(currentScale.weight)}
@@ -466,46 +470,49 @@ export function PartialPickingPage() {
                 </Button>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-3 md:items-center">
-                <div>
-                  <span className={labelClass}>Weight range</span>
-                  <div className="mt-2 flex items-center gap-3">
-                    <Input
-                      value={formatQuantity(weightRangeLow)}
-                      readOnly
-                      className="h-11 rounded-full border border-[#e7d7c6] bg-white font-mono text-sm font-semibold text-coffee"
-                    />
-                    <span className="text-sm font-semibold uppercase tracking-[0.2em] text-mocha/50">
-                      to
-                    </span>
-                    <Input
-                      value={formatQuantity(weightRangeHigh)}
-                      readOnly
-                      className="h-11 rounded-full border border-[#e7d7c6] bg-white font-mono text-sm font-semibold text-coffee"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <span className={labelClass}>Total needed</span>
+              {/* Weight range section - inline */}
+              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+                <label className={labelClass}>Weight range</label>
+                <div className="flex items-center gap-3">
                   <Input
-                    value={formatQuantity(currentItem?.totalNeeded)}
+                    value={formatQuantity(weightRangeLow)}
                     readOnly
-                    className="mt-2 h-11 rounded-full border border-[#e7d7c6] bg-white font-mono text-sm font-semibold text-coffee"
+                    className="h-12 flex-1 rounded-2xl border-2 border-[#d4c4b3] bg-[#fdfaf7] font-mono text-[15px] font-semibold text-coffee"
+                  />
+                  <span className="text-[13px] font-semibold uppercase tracking-[0.16em] text-mocha/60">
+                    to
+                  </span>
+                  <Input
+                    value={formatQuantity(weightRangeHigh)}
+                    readOnly
+                    className="h-12 flex-1 rounded-2xl border-2 border-[#d4c4b3] bg-[#fdfaf7] font-mono text-[15px] font-semibold text-coffee"
                   />
                 </div>
-                <div>
-                  <span className={labelClass}>Remaining qty</span>
-                  <Input
-                    value={formatQuantity(currentItem?.remainingQty)}
-                    readOnly
-                    className="mt-2 h-11 rounded-full border border-[#e7d7c6] bg-white font-mono text-sm font-semibold text-coffee"
-                  />
-                </div>
+              </div>
+
+              {/* Total needed - inline */}
+              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+                <label className={labelClass}>Total needed</label>
+                <Input
+                  value={formatQuantity(currentItem?.totalNeeded)}
+                  readOnly
+                  className="h-12 rounded-2xl border-2 border-[#d4c4b3] bg-[#fdfaf7] font-mono text-[15px] font-semibold text-coffee"
+                />
+              </div>
+
+              {/* Remaining qty - inline */}
+              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+                <label className={labelClass}>Remaining qty</label>
+                <Input
+                  value={formatQuantity(currentItem?.remainingQty)}
+                  readOnly
+                  className="h-12 rounded-2xl border-2 border-[#d4c4b3] bg-[#fdfaf7] font-mono text-[15px] font-semibold text-coffee"
+                />
               </div>
             </div>
 
             {selectedLot && (
-              <div className="mt-6 rounded-[26px] border border-sand bg-[#fff5e8] px-5 py-4 text-sm font-semibold text-coffee shadow-insetSoft">
+              <div className="mt-6 rounded-2xl border-2 border-[#f0b429]/40 bg-gradient-to-br from-[#ffeaa7] to-[#f7d794] px-6 py-4 text-[13px] font-bold uppercase tracking-[0.18em] text-coffee shadow-card">
                 Lot {selectedLot.lotNo} · Bin {selectedLot.binNo || '—'} · Available{' '}
                 {availableQtyDisplay} KG
               </div>
