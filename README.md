@@ -30,7 +30,7 @@ The Partial Picking System is a modern Progressive Web Application (PWA) designe
 
 ### Frontend (Port 6060)
 - **React 19** with TypeScript 5.3
-- **Tailwind CSS 4** for styling
+- **Tailwind CSS v3** for styling
 - **TanStack Query v5** for data fetching
 - **Vite** for development and build tooling
 - **Vitest** + **Playwright** for testing
@@ -153,7 +153,7 @@ Open browser: **http://localhost:6060**
 │                    FRONTEND (React 19 PWA)                      │
 │  - React 19 Concurrent Features (useTransition)                │
 │  - TanStack Query v5 (data fetching)                           │
-│  - ShadCN UI Components (Tailwind 4)                           │
+│  - ShadCN UI Components (Tailwind CSS v3)                      │
 │  - Service Worker (offline mode)                               │
 └────────────┬───────────────────────────────────────────────────┘
              │

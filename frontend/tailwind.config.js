@@ -41,18 +41,30 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        // Professional Brown Theme - Coffee to Cream
+        'coffee-dark': '#3d2817',
+        coffee: '#4a2d1a',
+        espresso: '#2f1608',
+        mocha: '#6b4a33',
+        'mocha-light': '#8b6a53',
+        caramel: '#f4c15e',
+        'caramel-dark': '#d99a2f',
+        gold: '#e6b888',
         cream: '#f7efe3',
         cappuccino: '#fdf7ef',
         latte: '#efe1d1',
-        mocha: '#6b4a33',
-        coffee: '#4a2d1a',
-        espresso: '#2f1608',
-        caramel: '#f4c15e',
-        'caramel-dark': '#d99a2f',
+        sand: '#e7d7c6',
+        'sand-light': '#ede8e0',
+        almond: '#f0e4d6',
+
+        // Professional Accent Colors
+        success: '#4caf50',
+        error: '#c62828',
+        warning: '#f57c00',
+
+        // Legacy compatibility
         pistachio: '#2ecc71',
         clay: '#d04b3b',
-        sand: '#e7d7c6',
-        almond: '#f0e4d6',
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -66,7 +78,7 @@ export default {
         insetSoft: 'inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 6px 16px rgba(0, 0, 0, 0.08)',
       },
       fontFamily: {
-        rounded: ['"Nunito Sans"', 'ui-rounded', 'ui-sans-serif', 'system-ui'],
+        rounded: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
       },
     },
   },

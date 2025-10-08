@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Partial Picking System PWA** - Production-ready warehouse picking application with real-time weight scale integration, dual authentication (LDAP + SQL), FEFO lot selection, and offline PWA capabilities.
 
 **Tech Stack**:
-- Frontend: React 19 + TypeScript + Tailwind4 CSS + Vite
+- Frontend: React 19 + TypeScript + Tailwind CSS v3 + Vite
 - Backend: Rust + Axum 0.7 + Tiberius (SQL Server)
 - Bridge: .NET 8 WebSocket service (weight scales)
 - Database: SQL Server TFCPILOT3 @ 192.168.0.86:49381

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("release")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("GUI wizard for configuring PK Bridge Service workstations with dual-scale support")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73acb1febd13fc412e8941033971d13a62b1a3cb")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2053d6d44e34469d657ee262089e2f798a213d3a")]
 [assembly: System.Reflection.AssemblyProductAttribute("PK Bridge Configuration Wizard")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PKBridgeConfigWizard")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

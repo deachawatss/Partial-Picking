@@ -561,11 +561,13 @@ async fn upsert_ldap_user(
         auth_source: AuthSource::Ldap,
         ldap_username: row.get::<&str, _>("ldap_username").map(|s| s.to_string()),
         ldap_dn: row.get::<&str, _>("ldap_dn").map(|s| s.to_string()),
-        last_ldap_sync: row.get("last_ldap_sync"),
+        // LDAP sync timestamp: Tiberius doesn't support direct DateTime conversion
+        // Set to None (these fields are optional and not critical for auth)
+        last_ldap_sync: None,
         ad_enabled: row.get::<bool, _>("ad_enabled").unwrap_or(true),
         app_permissions: row.get::<&str, _>("app_permissions").map(|s| s.to_string()),
         pword: None, // Never return password hash
-        created_at: row.get("created_at"),
+        created_at: None,
     })
 }
 

@@ -13,7 +13,7 @@ The Partial Picking System is a 3-tier Progressive Web Application built with mo
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                  PRESENTATION LAYER                       │
-│  React 19 PWA (TypeScript + Tailwind 4 + TanStack Query) │
+│  React 19 PWA (TypeScript + Tailwind CSS v3 + TanStack Query) │
 │  - Offline-first architecture (Service Worker)           │
 │  - Real-time UI updates (WebSocket + React concurrent)   │
 │  - Optimized for 1280x1024 touchscreens                 │
@@ -103,7 +103,7 @@ Phase 4: Inventory Commit    → LotMaster QtyCommitSales UPDATE
 - Background sync for pending transactions
 
 **UI Framework**:
-- Tailwind CSS 4 (utility-first styling)
+- Tailwind CSS v3 (utility-first styling)
 - ShadCN UI components (accessible, customizable)
 
 ### Backend

@@ -54,9 +54,12 @@ A modern **Progressive Web Application (PWA)** for warehouse partial picking ope
 ### 1.3 Target Deployment
 
 - **Location:** TFC1 Warehouse (WHTFC1)
-- **Workstations:** WS1, WS2, WS3, WS4 (expandable to 8+ stations)
+- **Workstations:** Flexible deployment via .NET Bridge Config Wizard (any Windows PC with supported scales)
+  - Initial deployment: WS1, WS2, WS3, WS4
+  - Expandable: Any PC with config wizard installation (8+ potential stations)
 - **Display:** 17-inch monitors @ 1280x1024 resolution (5:4 aspect ratio)
 - **Database:** SQL Server TFCPILOT3 @ 192.168.0.86:49381
+- **Bridge Service:** .NET 8 Config Wizard for workstation-scale binding
 
 ---
 
@@ -581,28 +584,31 @@ ORDER BY
 
 #### User Workflow
 
-1. **Scan or Search Lot Number**
-   - Barcode scanner input (primary)
-   - Manual text search with autocomplete
+1. **Search or Scan Lot Number**
+   - **Option A - Search:** Click search icon → Lot search modal with autocomplete
+   - **Option B - Scan:** Barcode scanner input (auto-fill lot field)
+   - **Option C - Manual:** Type lot number directly
 
 2. **System Auto-Selects Best Bin (FEFO)**
    - Executes FEFO query
    - Selects bin with earliest expiry + sufficient stock
    - Filters TFC1 PARTIAL bins only
 
-3. **Display Auto-Selected Bin**
-   - Bin No: `PWBB-12` (large, bold)
+3. **Display Auto-Selected Bin (with Manual Override)**
+   - Bin No: `PWBB-12` (large, bold, **clickable for manual change**)
    - Expiry Date: `2028-04-23` (color-coded: Red <30 days, Yellow 30-90 days, Green >90 days)
    - **Stock Breakdown:**
      - Physical Stock (QtyOnHand): `588.927 KG`
      - Committed (QtyCommitSales): `20.000 KG` (reserved)
      - **Available: `568.927 KG`** (bold, highlighted)
    - Lot Status: `P` (Pick-enabled)
-   - Selection Reason: "Selected: Earliest expiry with sufficient stock"
+   - Selection Reason: "Auto-selected: Earliest expiry" OR "Manually selected by operator"
 
-4. **Manual Override (Optional)**
-   - "Change Bin" link allows supervisor override
-   - Logs override reason in audit trail
+4. **Manual Bin Override**
+   - Click Bin No field → Opens bin selection modal
+   - Shows all available bins for selected lot (FEFO sorted)
+   - User selects preferred bin
+   - Logs manual selection in audit trail (ModifiedBy field)
 
 #### Validation Rules
 

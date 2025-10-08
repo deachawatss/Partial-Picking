@@ -2,29 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@theme {
-  /* Professional Brown Theme - Coffee to Cream */
-  --color-coffee-dark: #3d2817;
-  --color-coffee: #4a2d1a;
-  --color-mocha: #6b4a33;
-  --color-mocha-light: #8b6a53;
-  --color-caramel: #d4a574;
-  --color-caramel-dark: #b8895f;
-  --color-gold: #e6b888;
-  --color-cream: #f5f0e8;
-  --color-sand: #e0d5c7;
-  --color-sand-light: #ede8e0;
-
-  /* Professional Accent Colors */
-  --color-success: #4caf50;
-  --color-error: #c62828;
-  --color-warning: #f57c00;
-
-  /* Legacy pistachio and clay for compatibility */
-  --color-pistachio: #4caf50;
-  --color-clay: #c62828;
-}
-
 @layer base {
   :root {
     --background: 36 55.6% 92.9%;

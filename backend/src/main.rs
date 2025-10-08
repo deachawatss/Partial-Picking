@@ -41,29 +41,8 @@ async fn main() {
 
     tracing::info!("Database connection pool created successfully");
 
-    // Configure CORS - use explicit origins and headers (required when credentials enabled)
-    let allowed_origins = config
-        .cors_allowed_origins
-        .iter()
-        .filter_map(|origin| origin.parse::<HeaderValue>().ok())
-        .collect::<Vec<_>>();
-
-    let cors = CorsLayer::new()
-        .allow_origin(allowed_origins)
-        .allow_methods([
-            Method::GET,
-            Method::POST,
-            Method::PUT,
-            Method::DELETE,
-            Method::PATCH,
-            Method::OPTIONS,
-        ])
-        .allow_headers([
-            header::AUTHORIZATION,
-            header::CONTENT_TYPE,
-            header::ACCEPT,
-        ])
-        .allow_credentials(true);
+    // Configure CORS - allow all origins for development
+    let cors = CorsLayer::very_permissive();
 
     // Create middleware layer to inject Config into request extensions
     let config_clone = config.clone();
