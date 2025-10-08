@@ -2,14 +2,14 @@
  * Partial Picking Page
  *
  * Main picking interface for warehouse operators with:
- * - Weight progress bar with real-time scale updates (T073-T075)
- * - Run/Batch/Item selection modals with search
+ * - Weight progress bar with real-time scale updates and tolerance markers
+ * - Horizontal header rows for Run/Batch/Item selection
  * - FEFO lot selection with auto-population
- * - Save Pick/Unpick operations
+ * - Save/Add Lot/View Lots/Print/Exit operations
  * - Complete Run workflow
  *
- * T069: Wired with PickingContext for complete API integration
- * T075: Integrated with useWeightScale for dual scale WebSocket support
+ * Optimized for 1280x1024 (no scroll) and 1920x1080 (responsive)
+ * WCAG 2.2 AA compliant
  */
 
 import { useState } from 'react'
@@ -17,7 +17,6 @@ import { usePicking } from '@/contexts/PickingContext'
 import { useWeightScale } from '@/hooks/useWeightScale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { WeightProgressBar } from '@/components/picking/WeightProgressBar'
 import { RunSelectionModal } from '@/components/picking/RunSelectionModal'
 import { BatchSelectionModal } from '@/components/picking/BatchSelectionModal'
@@ -27,7 +26,7 @@ import { BinSelectionModal } from '@/components/picking/BinSelectionModal'
 import { BatchTicketGrid } from '@/components/picking/BatchTicketGrid'
 
 export function PartialPickingPage() {
-  // T069: Picking context with real API integration
+  // Picking context with real API integration
   const {
     currentRun,
     currentBatchRowNum,
@@ -41,7 +40,6 @@ export function PartialPickingPage() {
     selectBatch,
     selectItem,
     selectLot,
-    setWorkstation,
     savePick,
     unpickItem,
     completeRun,
@@ -55,7 +53,7 @@ export function PartialPickingPage() {
   const [showLotModal, setShowLotModal] = useState(false)
   const [showBinModal, setShowBinModal] = useState(false)
 
-  // T075: Dual scale WebSocket integration
+  // Dual scale WebSocket integration
   const [selectedScale, setSelectedScale] = useState<'small' | 'big'>('small')
   const smallScale = useWeightScale('small')
   const bigScale = useWeightScale('big')
@@ -67,116 +65,75 @@ export function PartialPickingPage() {
   const [manualWeight, setManualWeight] = useState<number | null>(null)
   const currentWeight = manualWeight !== null ? manualWeight : currentScale.weight
 
+  const scaleStatuses = {
+    small: { online: smallScale.online, stable: smallScale.stable },
+    big: { online: bigScale.online, stable: bigScale.stable },
+  }
+
   // Success notification state
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [gridFilter, setGridFilter] = useState<'pending' | 'picked'>('pending')
 
   /**
-   * T069: Handle Save Pick button
-   * T075: Uses weight from WebSocket scale (auto-populated or manual)
-   * Calls PickingContext.savePick() → POST /api/picks
+   * Handle Save Pick button
    */
   const handleSavePick = async () => {
     try {
       await savePick(currentWeight)
-
-      // Show success notification
       setSuccessMessage('Pick saved successfully!')
       setTimeout(() => setSuccessMessage(null), 3000)
-
-      // Clear manual weight after successful pick
       setManualWeight(null)
     } catch (error) {
-      // Error is handled in context and displayed in errorMessage
       console.error('[PartialPickingPage] Save pick failed:', error)
     }
   }
 
   /**
-   * T075: Handle Use Weight button from progress bar
-   * Auto-populate weight input when scale reading is stable and in range
+   * Handle Add Lot button
    */
-  const handleUseWeight = (weight: number) => {
-    setManualWeight(weight)
-    setSuccessMessage(
-      `Weight ${weight.toFixed(3)} kg captured from ${selectedScale.toUpperCase()} scale`
-    )
-    setTimeout(() => setSuccessMessage(null), 2000)
-  }
-
-  /**
-   * T075: Handle Tare button
-   * Reset manual weight input
-   */
-  const handleTare = () => {
-    setManualWeight(null)
-  }
-
-  /**
-   * T069: Handle Unpick button
-   * Calls PickingContext.unpickItem() → DELETE /api/picks/{runNo}/{rowNum}/{lineId}
-   */
-  const handleUnpick = async () => {
+  const handleAddLot = () => {
     if (!currentItem) {
+      alert('Please select an item first')
       return
     }
-
-    if (!confirm(`Are you sure you want to unpick ${currentItem.itemKey}?`)) {
-      return
-    }
-
-    try {
-      // Find lineId for current item
-      const lineId = currentBatchItems.findIndex(i => i.itemKey === currentItem.itemKey) + 1
-
-      if (lineId === 0) {
-        alert('Item not found in batch items')
-        return
-      }
-
-      await unpickItem(lineId)
-
-      // Show success notification
-      setSuccessMessage('Item unpicked successfully!')
-      setTimeout(() => setSuccessMessage(null), 3000)
-    } catch (error) {
-      // Error is handled in context
-      console.error('[PartialPickingPage] Unpick failed:', error)
-    }
+    setShowLotModal(true)
   }
 
   /**
-   * T069: Handle Complete Run button
-   * Calls PickingContext.completeRun() → POST /api/runs/{runNo}/complete
+   * Handle View Lots button
    */
-  const handleCompleteRun = async () => {
+  const handleViewLots = () => {
+    // TODO: Implement View Lots modal
+    console.log('[PartialPickingPage] View Lots clicked')
+  }
+
+  /**
+   * Handle Print button
+   */
+  const handlePrint = () => {
     if (!currentRun) {
+      alert('No run selected')
       return
     }
+    window.print()
+  }
 
-    if (!confirm(`Complete run ${currentRun.runNo} and assign pallet?`)) {
-      return
-    }
-
-    try {
-      await completeRun()
-
-      // Show success notification with pallet ID (from response)
-      setSuccessMessage(`Run ${currentRun.runNo} completed successfully! Status: PRINT`)
-      setTimeout(() => setSuccessMessage(null), 5000)
-    } catch (error) {
-      // Error is handled in context
-      console.error('[PartialPickingPage] Complete run failed:', error)
+  /**
+   * Handle Exit button
+   */
+  const handleExit = () => {
+    if (confirm('Are you sure you want to exit?')) {
+      // TODO: Navigate to home or logout
+      console.log('[PartialPickingPage] Exit clicked')
     }
   }
 
   /**
-   * T069: Handle Run selection from modal
-   * Calls PickingContext.selectRun() → GET /api/runs/{runNo}
+   * Handle Run selection from modal
    */
   const handleRunSelect = async (runNo: number) => {
     setShowRunModal(false)
     clearError()
-
     try {
       await selectRun(runNo)
     } catch (error) {
@@ -185,13 +142,11 @@ export function PartialPickingPage() {
   }
 
   /**
-   * T069: Handle Batch selection from modal
-   * Calls PickingContext.selectBatch() → GET /api/runs/{runNo}/batches/{rowNum}/items
+   * Handle Batch selection from modal
    */
   const handleBatchSelect = async (rowNum: number) => {
     setShowBatchModal(false)
     clearError()
-
     try {
       await selectBatch(rowNum)
     } catch (error) {
@@ -200,13 +155,11 @@ export function PartialPickingPage() {
   }
 
   /**
-   * T069: Handle Item selection from modal or grid click
-   * Calls PickingContext.selectItem() → GET /api/lots/available?itemKey={itemKey}
+   * Handle Item selection from modal or grid click
    */
   const handleItemSelect = async (itemKey: string) => {
     setShowItemModal(false)
     clearError()
-
     try {
       await selectItem(itemKey)
     } catch (error) {
@@ -215,449 +168,429 @@ export function PartialPickingPage() {
   }
 
   /**
-   * T069: Handle Lot selection from modal
-   * Manual lot override (FEFO lot auto-selected by default)
+   * Handle Lot selection from modal
    */
   const handleLotSelect = (lot: { lotNo: string; dateExpiry: string; availableQty: number }) => {
     setShowLotModal(false)
     clearError()
-
-    // Convert to LotAvailabilityDTO format
     selectLot({
       lotNo: lot.lotNo,
       itemKey: currentItem?.itemKey || '',
-      binNo: '', // Will be selected in bin modal
+      binNo: '',
       locationKey: 'TFC1',
       qtyOnHand: 0,
       qtyCommitSales: 0,
       availableQty: lot.availableQty,
-      expiryDate: lot.dateExpiry, // Convert from dateExpiry to expiryDate
+      expiryDate: lot.dateExpiry,
       lotStatus: 'P',
     })
   }
 
+  const formatQuantity = (value?: number | null) => Number(value ?? 0).toFixed(4)
+  const labelClass = 'text-[11px] font-semibold uppercase tracking-[0.26em] text-mocha/70'
+  const lookupButtonClass =
+    'h-11 min-w-[48px] rounded-full bg-[#f0b429] px-4 text-sm font-bold uppercase tracking-[0.22em] text-coffee shadow-[0_12px_24px_rgba(240,180,41,0.28)] transition hover:bg-[#e7a718] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#f0b429] disabled:bg-[#f6d9a9]/60 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed'
+  const fetchButtonClass =
+    'h-11 min-w-[150px] rounded-full bg-[#f0b429] px-6 text-[11px] font-extrabold uppercase tracking-[0.28em] text-coffee shadow-[0_14px_28px_rgba(240,180,41,0.3)] transition hover:bg-[#e7a718] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#f0b429] disabled:bg-[#f6d9a9]/60 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed'
+  const actionButtonBase =
+    'inline-flex h-12 w-full items-center justify-center rounded-full text-sm font-extrabold uppercase tracking-[0.24em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'
+  const primaryButtonClass = `${actionButtonBase} bg-[#f0b429] text-coffee shadow-[0_16px_36px_rgba(240,180,41,0.3)] hover:bg-[#e7a718] focus-visible:ring-[#f0b429] disabled:bg-[#f6d9a9]/60 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed`
+  const secondaryButtonClass = `${actionButtonBase} bg-white/10 text-coffee border-2 border-sand shadow-[0_12px_24px_rgba(184,134,95,0.2)] hover:bg-white/20 focus-visible:ring-sand disabled:bg-white/5 disabled:text-coffee/40 disabled:shadow-none disabled:cursor-not-allowed`
+  const dangerButtonClass = `${actionButtonBase} bg-[#d04b3b] text-white shadow-[0_16px_36px_rgba(208,75,59,0.3)] hover:bg-[#b23b2f] focus-visible:ring-[#d04b3b] disabled:bg-[#f4c5bf] disabled:text-white/70 disabled:shadow-none disabled:cursor-not-allowed`
+  const weightRangeLow = currentItem?.weightRangeLow ?? 0
+  const weightRangeHigh = currentItem?.weightRangeHigh ?? 0
+  const toleranceValue =
+    currentItem?.toleranceKG ??
+    (currentItem ? Math.max((currentItem.weightRangeHigh - currentItem.weightRangeLow) / 2, 0) : 0)
+  const weightInRange =
+    currentWeight > 0 && currentWeight >= weightRangeLow && currentWeight <= weightRangeHigh
+  const weightFieldClass = weightInRange
+    ? 'border-[#2f7a52] bg-[#f2fff5] text-[#2f7a52] shadow-[0_0_0_3px_rgba(47,122,82,0.12)]'
+    : currentWeight > 0
+      ? 'border-[#d04b3b] bg-[#fff1f1] text-[#d04b3b] shadow-[0_0_0_3px_rgba(208,75,59,0.12)]'
+      : 'border-[#e7d7c6] text-coffee'
+  const baseBatchItems = currentBatchItems.map((item, index) => ({
+    lineId: index + 1,
+    itemKey: item.itemKey,
+    description: item.description,
+    batchNo: currentBatchRowNum || 0,
+    targetQty: item.totalNeeded,
+    pickedQty: item.pickedQty,
+    balance: item.remainingQty,
+    allergens: item.allergen,
+    status: item.pickedQty > 0 ? ('picked' as const) : ('unpicked' as const),
+  }))
+  const pendingGridItems = baseBatchItems.filter(item => item.status !== 'picked')
+  const pickedGridItems = baseBatchItems.filter(item => item.status === 'picked')
+  const gridItems = gridFilter === 'pending' ? pendingGridItems : pickedGridItems
+  const pendingCount = pendingGridItems.length
+  const pickedCount = pickedGridItems.length
+  const runNumberDisplay = currentRun?.runNo?.toString() ?? ''
+  const batchNumberDisplay = currentBatchRowNum?.toString() ?? ''
+  const productionDateDisplay = currentRun?.productionDate || ''
+  const availableQtyDisplay = selectedLot ? formatQuantity(selectedLot.availableQty) : '0.0000'
+  const handleScaleSelection = (scale: 'small' | 'big') => {
+    setSelectedScale(scale)
+    setManualWeight(null)
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      {/* T075: Weight Progress Bar with WebSocket integration */}
-      <WeightProgressBar
-        scaleType={selectedScale}
-        targetWeight={currentItem?.totalNeeded || 0}
-        tolerance={currentItem?.toleranceKG || 1.0}
-        onTare={handleTare}
-        onUseWeight={handleUseWeight}
-      />
-
-      {/* Header Row 1: Run No, FG Item, Scale Switcher */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-        {/* Run No */}
-        <div className="space-y-2">
-          <Label htmlFor="runNo">Run No</Label>
-          <div className="flex gap-2">
-            <Input
-              id="runNo"
-              type="text"
-              value={currentRun?.runNo || ''}
-              className="flex-1 bg-gray-100"
-              placeholder="Select Run"
-              readOnly
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowRunModal(true)}
-              aria-label="Lookup run number"
-              className="min-h-[44px]"
-              disabled={isLoading}
-            >
-              🔍
-            </Button>
-          </div>
-        </div>
-
-        {/* FG ItemKey */}
-        <div className="space-y-2">
-          <Label>FG ItemKey</Label>
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              type="text"
-              value={currentRun?.fgItemKey || ''}
-              readOnly
-              placeholder="Item Key"
-              className="bg-gray-100"
-            />
-            <Input
-              type="text"
-              value={currentRun?.fgDescription || ''}
-              readOnly
-              placeholder="Description"
-              className="bg-gray-100"
-            />
-          </div>
-        </div>
-
-        {/* T075: Scale Switcher with connection status */}
-        <div className="space-y-2">
-          <Label>Scale Type</Label>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={selectedScale === 'small' ? 'default' : 'outline'}
-              onClick={() => setSelectedScale('small')}
-              className={`flex-1 min-h-[44px] ${
-                selectedScale === 'small'
-                  ? 'bg-[#8B4513] hover:bg-[#A0522D]'
-                  : 'bg-white hover:bg-gray-100 text-gray-900'
-              }`}
-              title={smallScale.online ? 'Small scale online' : 'Small scale offline'}
-            >
-              SMALL {smallScale.online ? '🟢' : '🔴'}
-            </Button>
-            <Button
-              type="button"
-              variant={selectedScale === 'big' ? 'default' : 'outline'}
-              onClick={() => setSelectedScale('big')}
-              className={`flex-1 min-h-[44px] ${
-                selectedScale === 'big'
-                  ? 'bg-[#8B4513] hover:bg-[#A0522D]'
-                  : 'bg-white hover:bg-gray-100 text-gray-900'
-              }`}
-              title={bigScale.online ? 'Big scale online' : 'Big scale offline'}
-            >
-              BIG {bigScale.online ? '🟢' : '🔴'}
-            </Button>
-          </div>
-          {/* Display both scale weights */}
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className={`p-2 rounded ${smallScale.online ? 'bg-green-50' : 'bg-gray-50'}`}>
-              <div className="font-medium">Small: {smallScale.weight.toFixed(3)} kg</div>
-              <div className="text-gray-600">{smallScale.stable ? '⚖️ Stable' : '⏳ Unstable'}</div>
-            </div>
-            <div className={`p-2 rounded ${bigScale.online ? 'bg-green-50' : 'bg-gray-50'}`}>
-              <div className="font-medium">Big: {bigScale.weight.toFixed(3)} kg</div>
-              <div className="text-gray-600">{bigScale.stable ? '⚖️ Stable' : '⏳ Unstable'}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Header Row 2: Batch No, Batches Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        {/* Batch No */}
-        <div className="space-y-2">
-          <Label htmlFor="batchNo">Batch No</Label>
-          <div className="flex gap-2">
-            <Input
-              id="batchNo"
-              type="text"
-              value={currentBatchRowNum || ''}
-              placeholder="Select Batch"
-              className="flex-1 bg-gray-100"
-              readOnly
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowBatchModal(true)}
-              aria-label="Lookup batch number"
-              className="min-h-[44px]"
-              disabled={!currentRun || isLoading}
-            >
-              🔍
-            </Button>
-          </div>
-        </div>
-
-        {/* Batches Info */}
-        <div className="space-y-2">
-          <Label>Batches</Label>
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              type="text"
-              value={currentRun?.batches.join(', ') || ''}
-              readOnly
-              placeholder="Available Batches"
-              className="bg-gray-100"
-            />
-            <Input
-              type="text"
-              value={currentRun?.productionDate || ''}
-              readOnly
-              placeholder="Production Date"
-              className="bg-gray-100"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Success Message */}
-      {successMessage && (
-        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
-          {successMessage}
-        </div>
-      )}
-
-      {/* Error Message */}
-      {errorMessage && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          <div className="flex justify-between items-start">
-            <span>{errorMessage}</span>
-            <button
-              onClick={clearError}
-              className="text-red-500 hover:text-red-700 font-bold ml-4"
-              aria-label="Clear error"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Loading Indicator */}
-      {isLoading && (
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-700">
-          Loading...
-        </div>
-      )}
-
-      {/* Main Content: Form and Batch Ticket Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        {/* Form Column (Left) */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="text-lg font-bold mb-4">Item Details</h2>
-          <div className="space-y-4">
-            {/* Item Key */}
-            <div className="space-y-2">
-              <Label htmlFor="itemKey">Item Key</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="itemKey"
-                  type="text"
-                  value={currentItem?.itemKey || ''}
-                  placeholder="Select Item"
-                  className="flex-1 bg-gray-100"
-                  readOnly
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowItemModal(true)}
-                  aria-label="Lookup item key"
-                  className="min-h-[44px]"
-                  disabled={!currentBatchRowNum || isLoading}
-                >
-                  🔍
-                </Button>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Input
-                id="description"
-                type="text"
-                value={currentItem?.description || ''}
-                readOnly
-                className="bg-gray-100"
-              />
-            </div>
-
-            {/* Quantities */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-2">
-                <Label>Target (kg)</Label>
-                <Input
-                  type="text"
-                  value={currentItem?.totalNeeded.toFixed(2) || '0.00'}
-                  readOnly
-                  className="bg-gray-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Picked (kg)</Label>
-                <Input
-                  type="text"
-                  value={currentItem?.pickedQty.toFixed(2) || '0.00'}
-                  readOnly
-                  className="bg-gray-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Remaining (kg)</Label>
-                <Input
-                  type="text"
-                  value={currentItem?.remainingQty.toFixed(2) || '0.00'}
-                  readOnly
-                  className="bg-gray-100"
-                />
-              </div>
-            </div>
-
-            {/* Weight Range */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-2">
-                <Label>Weight Low (kg)</Label>
-                <Input
-                  type="text"
-                  value={currentItem?.weightRangeLow.toFixed(3) || '0.000'}
-                  readOnly
-                  className="bg-gray-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Weight High (kg)</Label>
-                <Input
-                  type="text"
-                  value={currentItem?.weightRangeHigh.toFixed(3) || '0.000'}
-                  readOnly
-                  className="bg-gray-100"
-                />
-              </div>
-            </div>
-
-            {/* Lot No (FEFO auto-selected) */}
-            <div className="space-y-2">
-              <Label htmlFor="lotNo">Lot No (FEFO)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="lotNo"
-                  type="text"
-                  value={selectedLot?.lotNo || ''}
-                  placeholder="Auto-selected by FEFO"
-                  readOnly
-                  className="flex-1 bg-gray-100"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowLotModal(true)}
-                  aria-label="Override FEFO lot"
-                  className="min-h-[44px]"
-                  disabled={!currentItem || isLoading}
-                >
-                  🔍
-                </Button>
-              </div>
-              {selectedLot && (
-                <p className="text-xs text-gray-600">
-                  Expiry: {selectedLot.expiryDate} | Available:{' '}
-                  {selectedLot.availableQty.toFixed(2)} kg | Bin: {selectedLot.binNo}
-                </p>
-              )}
-            </div>
-
-            {/* Bin No (from selected lot) */}
-            <div className="space-y-2">
-              <Label htmlFor="binNo">Bin No</Label>
-              <Input
-                id="binNo"
-                type="text"
-                value={selectedLot?.binNo || ''}
-                placeholder="From selected lot"
-                readOnly
-                className="bg-gray-100"
-              />
-            </div>
-
-            {/* T075: Manual Weight Input (with auto-populate from scale) */}
-            <div className="space-y-2">
-              <Label htmlFor="weightInput">Weight (kg)</Label>
-              <Input
-                id="weightInput"
-                type="number"
-                step="0.001"
-                value={currentWeight.toFixed(3)}
-                onChange={e => setManualWeight(parseFloat(e.target.value) || 0)}
-                placeholder="Weight in kg"
-                className="text-lg font-mono"
-              />
-              <p className="text-xs text-gray-600">
-                {manualWeight !== null
-                  ? 'Manual entry'
-                  : currentScale.online
-                    ? `Live from ${selectedScale.toUpperCase()} scale ${currentScale.stable ? '(stable)' : '(unstable)'}`
-                    : 'Scale offline - manual entry required'}
-              </p>
-            </div>
-
-            {/* T075: Action Buttons - disable if scale offline */}
-            <div className="flex gap-2 pt-4">
-              <Button
-                type="button"
-                onClick={handleSavePick}
-                disabled={
-                  isLoading ||
-                  !currentItem ||
-                  !selectedLot ||
-                  !currentWeight ||
-                  !currentScale.online
-                }
-                className="flex-1 min-h-[44px] bg-green-600 hover:bg-green-700"
-                title={
-                  !currentScale.online
-                    ? `${selectedScale.toUpperCase()} scale offline - cannot save pick`
-                    : 'Save pick'
-                }
-              >
-                {isLoading ? 'Saving...' : 'Save Pick'}
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleUnpick}
-                disabled={isLoading || !currentItem || currentItem.pickedQty === 0}
-                className="flex-1 min-h-[44px]"
-              >
-                Unpick
-              </Button>
-            </div>
-
-            {/* Complete Run Button */}
-            <Button
-              type="button"
-              onClick={handleCompleteRun}
-              disabled={isLoading || !currentRun || currentRun.status === 'PRINT'}
-              className="w-full min-h-[44px] bg-[#FF8C00] hover:bg-[#FF7F00]"
-            >
-              {currentRun?.status === 'PRINT' ? 'Run Completed' : 'Complete Run'}
-            </Button>
-          </div>
-        </div>
-
-        {/* Batch Ticket Grid (Right) - T069: Use real batch items from context */}
-        <BatchTicketGrid
-          items={currentBatchItems.map(item => ({
-            lineId: currentBatchItems.indexOf(item) + 1,
-            itemKey: item.itemKey,
-            description: item.description,
-            targetQty: item.totalNeeded,
-            pickedQty: item.pickedQty,
-            balance: item.remainingQty,
-            batchNo: currentBatchRowNum || 0,
-            allergens: item.allergen,
-            status: item.status === 'Allocated' ? 'picked' : 'unpicked',
-          }))}
-          onItemClick={item => {
-            // Click on grid item to select it
-            handleItemSelect(item.itemKey)
-          }}
+    <div className="min-h-screen bg-[#f6efe5] px-4 py-4 font-rounded">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4">
+        {/* Weight Progress Bar with tolerance markers and scale selector */}
+        <WeightProgressBar
+          weight={currentWeight}
+          targetWeight={currentItem?.totalNeeded ?? 0}
+          tolerance={toleranceValue}
+          selectedScale={selectedScale}
+          onScaleChange={handleScaleSelection}
+          scaleStatuses={scaleStatuses}
+          workstationLabel={workstationId || undefined}
         />
+
+        {/* Notifications */}
+        {(successMessage || errorMessage || isLoading) && (
+          <div className="grid gap-3">
+            {successMessage && (
+              <div className="rounded-3xl border border-[#2f7a52]/40 bg-[#2f7a52]/10 px-6 py-3 text-sm font-semibold text-[#2f7a52] shadow-soft">
+                {successMessage}
+              </div>
+            )}
+            {errorMessage && (
+              <div className="flex items-center justify-between rounded-3xl border border-[#d04b3b]/50 bg-[#d04b3b]/10 px-6 py-3 text-sm font-semibold text-[#d04b3b] shadow-soft">
+                <span>{errorMessage}</span>
+                <button
+                  onClick={clearError}
+                  aria-label="Clear error"
+                  className="text-[#d04b3b] transition hover:text-[#b23b2f]"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            {isLoading && (
+              <div className="rounded-3xl border border-[#f0b429]/40 bg-[#f0b429]/12 px-6 py-3 text-sm font-semibold text-[#b6811d] shadow-soft">
+                Loading…
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Unified Section: Header + Form + Table */}
+        <section className="grid grid-cols-1 gap-5 rounded-[32px] border border-sand bg-white/95 shadow-panel lg:grid-cols-[480px_1fr]">
+          {/* Header Row 1: Run No + FG ItemKey + Description (Full Width) */}
+          <div className="border-b border-sand p-4 lg:col-span-2">
+            <div className="grid grid-cols-1 items-center gap-3 md:grid-cols-[auto_200px_auto_minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-4">
+              <label className={labelClass}>Run No</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={runNumberDisplay}
+                  placeholder="Select run"
+                  readOnly
+                  className="h-11 flex-1 rounded-full border border-[#e7d7c6] bg-cream/50 text-sm font-semibold uppercase tracking-[0.18em] text-coffee"
+                />
+                <Button
+                  type="button"
+                  onClick={() => setShowRunModal(true)}
+                  className={lookupButtonClass}
+                  disabled={isLoading}
+                  aria-label="Lookup run number"
+                >
+                  🔍
+                </Button>
+              </div>
+
+              <label className={labelClass}>FG ItemKey</label>
+              <Input
+                value={currentRun?.fgItemKey || ''}
+                readOnly
+                placeholder="Item key"
+                className="h-11 rounded-full border border-[#e7d7c6] bg-cream/40 text-sm font-semibold uppercase tracking-[0.18em] text-coffee"
+              />
+
+              <label className={labelClass}>Description</label>
+              <Input
+                value={currentRun?.fgDescription || ''}
+                readOnly
+                placeholder="Description"
+                className="h-11 rounded-full border border-[#e7d7c6] bg-cream/40 text-sm font-semibold text-coffee"
+              />
+            </div>
+          </div>
+
+          {/* Header Row 2: Batch No + Batches + Production Date (Full Width) */}
+          <div className="border-b border-sand p-4 lg:col-span-2">
+            <div className="grid grid-cols-1 items-center gap-3 md:grid-cols-[auto_200px_auto_120px_auto_minmax(0,1fr)] md:gap-x-4">
+              <label className={labelClass}>Batch No</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={batchNumberDisplay}
+                  placeholder="Select batch"
+                  readOnly
+                  className="h-11 flex-1 rounded-full border border-[#e7d7c6] bg-cream/40 text-sm font-semibold uppercase tracking-[0.18em] text-coffee"
+                />
+                <Button
+                  type="button"
+                  onClick={() => setShowBatchModal(true)}
+                  className={lookupButtonClass}
+                  disabled={!currentRun || isLoading}
+                  aria-label="Lookup batch number"
+                >
+                  🔍
+                </Button>
+              </div>
+
+              <label className={labelClass}>Batches</label>
+              <div className="flex h-11 items-center rounded-full bg-[#fdf3e3] px-4">
+                <span className="text-base font-semibold text-coffee">
+                  {currentRun?.batches.length ?? 0}
+                </span>
+              </div>
+
+              <label className={labelClass}>Production date</label>
+              <div className="flex h-11 items-center rounded-full bg-[#fdf3e3] px-4">
+                <span className="text-base font-semibold text-coffee">
+                  {productionDateDisplay || '—'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Section (Left Column) */}
+          <div className="flex flex-col p-5">
+            <div className="space-y-5">
+              <div>
+                <span className={labelClass}>Item key</span>
+                <div className="mt-2 flex items-center gap-3">
+                  <Input
+                    value={currentItem?.itemKey || ''}
+                    placeholder="Select item"
+                    readOnly
+                    className="h-11 flex-1 rounded-full border border-[#e7d7c6] bg-white text-sm font-semibold uppercase tracking-[0.18em] text-coffee"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => setShowItemModal(true)}
+                    className={lookupButtonClass}
+                    disabled={!currentBatchRowNum || isLoading}
+                    aria-label="Lookup item key"
+                  >
+                    🔍
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <span className={labelClass}>Description</span>
+                <Input
+                  value={currentItem?.description || ''}
+                  readOnly
+                  placeholder="Description"
+                  className="mt-2 h-11 rounded-[22px] border border-[#e7d7c6] bg-white text-sm font-semibold text-coffee"
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <span className={labelClass}>Lot No.</span>
+                  <div className="mt-2 flex items-center gap-3">
+                    <Input
+                      value={selectedLot?.lotNo || ''}
+                      placeholder="Auto-selected (FEFO)"
+                      readOnly
+                      className="h-11 rounded-full border border-[#e7d7c6] bg-white text-sm font-semibold text-coffee"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => setShowLotModal(true)}
+                      className={lookupButtonClass}
+                      disabled={!currentItem || isLoading}
+                      aria-label="Override lot number"
+                    >
+                      🔍
+                    </Button>
+                  </div>
+                  <div className="mt-3 rounded-[22px] border border-sand bg-[#f7efe3] px-4 py-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-mocha/55">
+                      SOH
+                    </span>
+                    <p className="text-base font-semibold text-coffee">{availableQtyDisplay} KG</p>
+                  </div>
+                </div>
+                <div>
+                  <span className={labelClass}>Bin No.</span>
+                  <div className="mt-2 flex items-center gap-3">
+                    <Input
+                      value={selectedLot?.binNo || ''}
+                      placeholder="Auto from lot"
+                      readOnly
+                      className="h-11 rounded-full border border-[#e7d7c6] bg-white text-sm font-semibold text-coffee"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => setShowBinModal(true)}
+                      className={lookupButtonClass}
+                      disabled={!currentItem || isLoading}
+                      aria-label="Lookup bin number"
+                    >
+                      🔍
+                    </Button>
+                  </div>
+                  <div className="mt-3 rounded-[22px] border border-sand bg-[#f7efe3] px-4 py-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-mocha/55">
+                      Expiry
+                    </span>
+                    <p className="text-base font-semibold text-coffee">
+                      {selectedLot?.expiryDate || '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                <div>
+                  <span className={labelClass}>Weight</span>
+                  <Input
+                    value={formatQuantity(currentWeight)}
+                    readOnly
+                    className={`mt-2 h-11 rounded-full border-2 bg-white font-mono text-lg font-bold tracking-widest ${weightFieldClass}`}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => setManualWeight(currentScale.weight)}
+                  disabled={!currentScale.online}
+                  className={fetchButtonClass}
+                >
+                  Fetch weight
+                </Button>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3 md:items-center">
+                <div>
+                  <span className={labelClass}>Weight range</span>
+                  <div className="mt-2 flex items-center gap-3">
+                    <Input
+                      value={formatQuantity(weightRangeLow)}
+                      readOnly
+                      className="h-11 rounded-full border border-[#e7d7c6] bg-white font-mono text-sm font-semibold text-coffee"
+                    />
+                    <span className="text-sm font-semibold uppercase tracking-[0.2em] text-mocha/50">
+                      to
+                    </span>
+                    <Input
+                      value={formatQuantity(weightRangeHigh)}
+                      readOnly
+                      className="h-11 rounded-full border border-[#e7d7c6] bg-white font-mono text-sm font-semibold text-coffee"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <span className={labelClass}>Total needed</span>
+                  <Input
+                    value={formatQuantity(currentItem?.totalNeeded)}
+                    readOnly
+                    className="mt-2 h-11 rounded-full border border-[#e7d7c6] bg-white font-mono text-sm font-semibold text-coffee"
+                  />
+                </div>
+                <div>
+                  <span className={labelClass}>Remaining qty</span>
+                  <Input
+                    value={formatQuantity(currentItem?.remainingQty)}
+                    readOnly
+                    className="mt-2 h-11 rounded-full border border-[#e7d7c6] bg-white font-mono text-sm font-semibold text-coffee"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {selectedLot && (
+              <div className="mt-6 rounded-[26px] border border-sand bg-[#fff5e8] px-5 py-4 text-sm font-semibold text-coffee shadow-insetSoft">
+                Lot {selectedLot.lotNo} · Bin {selectedLot.binNo || '—'} · Available{' '}
+                {availableQtyDisplay} KG
+              </div>
+            )}
+
+            {/* 5 Button Layout */}
+            <div className="mt-6 grid gap-3">
+              <div className="grid gap-3 md:grid-cols-2">
+                <Button
+                  type="button"
+                  onClick={handleAddLot}
+                  disabled={isLoading || !currentItem}
+                  className={secondaryButtonClass}
+                >
+                  Add Lot
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleViewLots}
+                  disabled={isLoading}
+                  className={secondaryButtonClass}
+                >
+                  View Lots
+                </Button>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <Button
+                  type="button"
+                  onClick={handlePrint}
+                  disabled={isLoading || !currentRun}
+                  className={secondaryButtonClass}
+                >
+                  Print
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSavePick}
+                  disabled={
+                    isLoading ||
+                    !currentItem ||
+                    !selectedLot ||
+                    !currentScale.online ||
+                    currentWeight <= 0
+                  }
+                  className={primaryButtonClass}
+                >
+                  {isLoading ? 'Saving…' : 'Save'}
+                </Button>
+              </div>
+              <Button
+                type="button"
+                onClick={handleExit}
+                disabled={isLoading}
+                className={dangerButtonClass}
+              >
+                Exit
+              </Button>
+            </div>
+          </div>
+
+          {/* Table Section (Right Column) */}
+          <div className="flex flex-col p-5">
+            <BatchTicketGrid
+              items={gridItems}
+              filter={gridFilter}
+              onFilterChange={setGridFilter}
+              pendingCount={pendingCount}
+              pickedCount={pickedCount}
+              onItemClick={item => handleItemSelect(item.itemKey)}
+            />
+          </div>
+        </section>
       </div>
 
-      {/* Modals - T069: Wire with context handlers */}
       <RunSelectionModal
         open={showRunModal}
         onOpenChange={setShowRunModal}
         onSelect={run => handleRunSelect(run.runNo)}
       />
-
       <BatchSelectionModal
         open={showBatchModal}
         onOpenChange={setShowBatchModal}
         onSelect={batch => handleBatchSelect(batch.rowNum)}
         runNo={currentRun?.runNo}
       />
-
       <ItemSelectionModal
         open={showItemModal}
         onOpenChange={setShowItemModal}
@@ -665,7 +598,6 @@ export function PartialPickingPage() {
         runNo={currentRun?.runNo}
         batchNo={currentBatchRowNum || undefined}
       />
-
       <LotSelectionModal
         open={showLotModal}
         onOpenChange={setShowLotModal}
@@ -673,7 +605,6 @@ export function PartialPickingPage() {
         itemKey={currentItem?.itemKey}
         targetQty={currentItem?.totalNeeded}
       />
-
       <BinSelectionModal
         open={showBinModal}
         onOpenChange={setShowBinModal}
