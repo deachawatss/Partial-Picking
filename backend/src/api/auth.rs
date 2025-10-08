@@ -111,20 +111,49 @@ pub async fn login_endpoint(
 
     // Validate request
     if request.username.is_empty() {
+        tracing::warn!("Login attempt with empty username");
         return Err(AppError::ValidationError(
             "Username is required".to_string(),
         ));
     }
 
     if request.password.is_empty() {
+        tracing::warn!(username = %request.username, "Login attempt with empty password");
         return Err(AppError::ValidationError(
             "Password is required".to_string(),
         ));
     }
 
     // Authenticate user (dual strategy: LDAP primary, SQL fallback)
-    let user =
-        auth_service::authenticate(&request.username, &request.password, &config, &pool).await?;
+    let user = match auth_service::authenticate(&request.username, &request.password, &config, &pool).await {
+        Ok(user) => user,
+        Err(e) => {
+            // Log authentication failure with context
+            match &e {
+                AppError::InvalidCredentials => {
+                    tracing::warn!(
+                        username = %request.username,
+                        "Login failed: Invalid credentials (both LDAP and SQL authentication failed)"
+                    );
+                }
+                AppError::LdapAuthFailed(msg) => {
+                    tracing::error!(
+                        username = %request.username,
+                        error = %msg,
+                        "Login failed: LDAP server unreachable"
+                    );
+                }
+                _ => {
+                    tracing::error!(
+                        username = %request.username,
+                        error = ?e,
+                        "Login failed: Unexpected authentication error"
+                    );
+                }
+            }
+            return Err(e);
+        }
+    };
 
     // Generate JWT token
     let token = generate_token(&user, &config)?;
