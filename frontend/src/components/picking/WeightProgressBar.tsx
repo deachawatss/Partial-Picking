@@ -171,8 +171,11 @@ export function WeightProgressBar({
             {statusMessage.toUpperCase()}
           </span>
           <div className="flex items-baseline gap-2">
-            <span className="font-body text-5xl font-bold leading-none tabular-nums tracking-tight">
-              {safeWeight.toFixed(4)}
+            <span
+              className="font-body text-5xl font-bold leading-none tabular-nums text-cyan-50 drop-shadow-[0_2px_8px_rgba(6,182,212,0.4)]"
+              style={{ fontFeatureSettings: '"tnum", "lnum"', letterSpacing: '-0.02em' }}
+            >
+              {safeWeight.toFixed(3)}
             </span>
             <span className="font-heading text-lg font-semibold uppercase tracking-wider text-white/80">
               KG
