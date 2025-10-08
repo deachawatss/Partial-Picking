@@ -27,30 +27,30 @@ interface WeightProgressBarProps {
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
 
 const progressFillByState: Record<string, string> = {
-  offline: 'bg-gradient-to-r from-[#715038] via-[#5a3c26] to-[#402716]',
-  idle: 'bg-gradient-to-r from-[#efe4d4] via-[#e3c8a1] to-[#d5a772]',
-  under: 'bg-gradient-to-r from-[#ff9d6c] via-[#ff7f66] to-[#e44c4c]',
-  approaching: 'bg-gradient-to-r from-[#ffd083] via-[#f0b429] to-[#dc9630]',
-  good: 'bg-gradient-to-r from-[#7ad48d] via-[#49b072] to-[#2f7a52]',
-  over: 'bg-gradient-to-r from-[#ff9d6c] via-[#ff6f61] to-[#d84343]',
+  offline: 'bg-gradient-to-r from-[#9E9E9E] via-[#757575] to-[#616161]',
+  idle: 'bg-gradient-to-r from-[#E0E0E0] via-[#BDBDBD] to-[#9E9E9E]',
+  under: 'bg-gradient-to-r from-[#FF9800] via-[#FF6F00] to-[#E65100]',
+  approaching: 'bg-gradient-to-r from-[#FFC107] via-[#FFA000] to-[#FF8F00]',
+  good: 'bg-gradient-to-r from-[#66BB6A] via-[#43A047] to-[#388E3C]',
+  over: 'bg-gradient-to-r from-[#EF5350] via-[#E53935] to-[#D32F2F]',
 }
 
 const statusBadgeByState: Record<string, string> = {
-  offline: 'bg-white/10 text-cream/60 border border-white/10',
-  idle: 'bg-cream/10 text-cream',
-  under: 'bg-[#ff6f61]/20 text-[#ff6f61]',
-  approaching: 'bg-[#f0b429]/20 text-[#f0b429]',
-  good: 'bg-[#2f7a52]/25 text-[#c8f1d6]',
-  over: 'bg-[#ff6f61]/25 text-[#ffd9d4]',
+  offline: 'bg-text-primary/10 text-text-primary/60 border border-text-primary/10',
+  idle: 'bg-text-primary/5 text-text-primary',
+  under: 'bg-[#FF6F00]/15 text-[#E65100]',
+  approaching: 'bg-[#FFC107]/15 text-[#FF8F00]',
+  good: 'bg-[#43A047]/15 text-[#388E3C]',
+  over: 'bg-[#E53935]/15 text-[#D32F2F]',
 }
 
 const containerAccentByState: Record<string, string> = {
-  offline: 'border-[#7b4c31]/40 shadow-[0_10px_24px_rgba(52,33,20,0.25)]',
-  idle: 'border-[#b8865f]/40 shadow-[0_12px_28px_rgba(102,69,42,0.18)]',
-  under: 'border-[#ff6f61]/50 shadow-[0_14px_30px_rgba(255,111,97,0.25)]',
-  approaching: 'border-[#f0b429]/50 shadow-[0_14px_30px_rgba(240,180,41,0.25)]',
-  good: 'border-[#2f7a52]/60 shadow-[0_16px_32px_rgba(47,122,82,0.32)]',
-  over: 'border-[#ff6f61]/60 shadow-[0_16px_32px_rgba(255,111,97,0.32)]',
+  offline: 'border-border-main shadow-soft',
+  idle: 'border-border-main shadow-soft',
+  under: 'border-[#FF6F00]/40 shadow-[0_8px_20px_rgba(255,111,0,0.20)]',
+  approaching: 'border-[#FFC107]/40 shadow-[0_8px_20px_rgba(255,193,7,0.20)]',
+  good: 'border-[#43A047]/40 shadow-[0_8px_20px_rgba(67,160,71,0.25)]',
+  over: 'border-[#E53935]/40 shadow-[0_8px_20px_rgba(229,57,53,0.25)]',
 }
 
 export function WeightProgressBar({
@@ -120,7 +120,7 @@ export function WeightProgressBar({
     const isActive = selectedScale === scale
     const scaleStatus = scaleStatuses[scale] ?? { online: false, stable: false }
     const baseClasses =
-      'inline-flex h-14 min-w-[150px] items-center justify-center rounded-full border-2 px-8 text-base font-bold uppercase transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#4a2d1a]'
+      'inline-flex h-20 w-40 items-center justify-center rounded-lg border-2 text-2xl font-bold uppercase tracking-wide transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 btn-scale-hover'
 
     if (!scaleStatus.online) {
       return (
@@ -128,7 +128,7 @@ export function WeightProgressBar({
           key={scale}
           type="button"
           disabled
-          className={`${baseClasses} border-white/10 bg-white/10 text-white/40 cursor-not-allowed`}
+          className={`${baseClasses} border-border-main bg-border-main/50 text-text-primary/40 cursor-not-allowed`}
         >
           {label}
         </Button>
@@ -141,7 +141,7 @@ export function WeightProgressBar({
           key={scale}
           type="button"
           onClick={() => onScaleChange(scale)}
-          className={`${baseClasses} border-[#c8f1d6]/70 bg-[#2f7a52] text-white shadow-[0_12px_24px_rgba(47,122,82,0.35)] hover:bg-[#296847]`}
+          className={`${baseClasses} border-accent-green bg-accent-green text-white shadow-button-green hover:bg-[#388E3C] hover:shadow-button-green-hover focus-visible:ring-accent-green`}
         >
           {label}
         </Button>
@@ -153,7 +153,7 @@ export function WeightProgressBar({
         key={scale}
         type="button"
         onClick={() => onScaleChange(scale)}
-        className={`${baseClasses} border-white/25 bg-white/10 text-white/80 hover:bg-white/20 hover:text-white`}
+        className={`${baseClasses} border-border-main bg-surface text-text-primary hover:bg-white hover:border-brand-primary/30 focus-visible:ring-brand-primary`}
       >
         {label}
       </Button>
@@ -162,36 +162,36 @@ export function WeightProgressBar({
 
   return (
     <section
-      className={`rounded-[32px] border bg-gradient-to-br from-[#3a200f] via-[#4a2d1a] to-[#221006] px-6 py-5 text-white transition-all ${containerClass}`}
+      className={`scale-display-glow rounded-lg border-2 bg-gradient-to-br from-brand-primary/95 via-brand-primary to-brand-primary/90 px-6 py-5 text-white transition-all ${containerClass}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-5">
         <div className="flex min-w-[220px] flex-col gap-3">
-          <span className="inline-flex items-center gap-3 font-sans text-base font-semibold uppercase tracking-[0.16em] text-white">
-            <span className={`h-3 w-3 rounded-full ${online ? 'bg-[#9cf3b4]' : 'bg-[#ff8e7a]'}`} />
+          <span className="inline-flex items-center gap-3 font-heading text-base font-semibold uppercase tracking-wide text-white">
+            <span className={`h-3 w-3 rounded-full ${online ? 'bg-accent-green' : 'bg-danger'}`} />
             {statusMessage.toUpperCase()}
           </span>
           <div className="flex items-baseline gap-2">
-            <span className="font-mono text-4xl font-extrabold leading-none tabular-nums">
+            <span className="font-mono text-5xl font-extrabold leading-none tabular-nums">
               {safeWeight.toFixed(4)}
             </span>
-            <span className="font-sans text-base font-semibold uppercase tracking-[0.18em] text-white/70">
+            <span className="font-heading text-lg font-semibold uppercase tracking-wider text-white/80">
               KG
             </span>
           </div>
         </div>
 
         <div className="flex flex-1 flex-col gap-3">
-          <div className="relative h-16 overflow-hidden rounded-full border-2 border-white/20 bg-white/10">
+          <div className="relative h-16 overflow-hidden rounded-lg border-2 border-white/30 bg-white/15 shadow-inner">
             <div
-              className={`absolute inset-y-1 left-0 rounded-full ${fillClass} transition-all duration-150`}
+              className={`absolute inset-y-1 left-0 rounded-lg ${fillClass} transition-all duration-200`}
               style={{ width: `${percentage}%` }}
             />
             <span
-              className="pointer-events-none absolute top-1/2 h-14 w-1 -translate-y-1/2 bg-white/70"
+              className="pointer-events-none absolute top-1/2 h-14 w-0.5 -translate-y-1/2 bg-white/80"
               style={{ left: '50%' }}
             />
             <div
-              className="pointer-events-none absolute top-1/2 h-14 -translate-y-1/2 rounded border-l-[6px] border-r-[6px]"
+              className="pointer-events-none absolute top-1/2 h-14 -translate-y-1/2 rounded border-l-[4px] border-r-[4px]"
               style={{
                 left: `${toleranceStart}%`,
                 width: `${toleranceSpanClamped}%`,

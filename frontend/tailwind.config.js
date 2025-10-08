@@ -41,7 +41,17 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        // Professional Brown Theme - Coffee to Cream
+        // Warm Elegant Industrial v2 Theme
+        'brand-primary': '#3E2F26',      // Darker brown for primary panel
+        'accent-green': '#43A047',       // Professional green for actions
+        'bg-main': '#FAF7F3',            // Light warm background
+        'surface': '#FFFFFF',            // Pure white surface
+        'text-primary': '#2D2420',       // Dark brown text with high contrast
+        'border-main': '#E0E0E0',        // Clean gray borders
+        'danger': '#D32F2F',             // Red for logout/errors
+        'highlight': '#FDD835',          // Yellow highlight
+
+        // Legacy Brown Theme - Coffee to Cream (kept for compatibility)
         'coffee-dark': '#3d2817',
         coffee: '#4a2d1a',
         espresso: '#2f1608',
@@ -79,6 +89,18 @@ export default {
       },
       fontFamily: {
         rounded: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        heading: ['Poppins', 'Inter', 'system-ui', 'sans-serif'],
+        body: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+      },
+      keyframes: {
+        pulse: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.85' },
+        },
+      },
+      animation: {
+        'pulse-soft': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
     },
   },

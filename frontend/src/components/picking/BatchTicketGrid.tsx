@@ -46,14 +46,14 @@ export function BatchTicketGrid({
   ]
 
   const baseFilterClasses =
-    'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-coffee'
+    'inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 btn-scale-hover'
 
   return (
-    <section className="flex h-full flex-col overflow-hidden rounded-[28px] border-2 border-sand/80 bg-gradient-to-br from-[#fdfaf7] via-[#f9f3ec] to-[#f5ebe0] shadow-card">
+    <section className="flex h-full flex-col overflow-hidden rounded-lg border-2 border-border-main bg-surface shadow-soft">
       <div className="flex-1 overflow-hidden">
-        <table className="w-full border-separate border-spacing-0 text-[15px] text-mocha">
+        <table className="w-full border-separate border-spacing-0 text-base text-text-primary">
           <thead>
-            <tr className="bg-[#3d2817] text-cream">
+            <tr className="bg-brand-primary text-white">
               <th colSpan={6} className="px-6 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
@@ -65,7 +65,7 @@ export function BatchTicketGrid({
                         return (
                           <span
                             key={option.key}
-                            className={`${baseFilterClasses} cursor-default border-white/20 bg-white/15 text-white/60`}
+                            className={`${baseFilterClasses} cursor-default border-white/30 bg-white/20 text-white/60`}
                           >
                             {option.label}
                           </span>
@@ -80,7 +80,7 @@ export function BatchTicketGrid({
                             key={option.key}
                             type="button"
                             onClick={() => handleFilterClick(option.key)}
-                            className={`${baseFilterClasses} border-[#f5e1c6] bg-[#f5e1c6] text-coffee shadow-[0_12px_24px_rgba(245,195,110,0.35)]`}
+                            className={`${baseFilterClasses} border-accent-green bg-accent-green text-white shadow-button-green focus-visible:ring-accent-green`}
                           >
                             {option.label}
                           </button>
@@ -92,7 +92,7 @@ export function BatchTicketGrid({
                           key={option.key}
                           type="button"
                           onClick={() => handleFilterClick(option.key)}
-                          className={`${baseFilterClasses} border-white/25 bg-white/10 text-white/75 hover:border-white/35 hover:bg-white/15 hover:text-white`}
+                          className={`${baseFilterClasses} border-white/40 bg-white/15 text-white hover:border-white/60 hover:bg-white/25 focus-visible:ring-white`}
                         >
                           {option.label}
                         </button>
@@ -102,7 +102,7 @@ export function BatchTicketGrid({
                 </div>
               </th>
             </tr>
-            <tr className="bg-[#efe1d1] text-[12px] font-bold uppercase tracking-[0.18em] text-mocha">
+            <tr className="bg-bg-main text-xs font-bold uppercase tracking-wider text-text-primary">
               <th className="px-5 py-3.5 text-left">Item</th>
               <th className="px-5 py-3.5 text-center">Batch no.</th>
               <th className="px-5 py-3.5 text-right">Partial (kg)</th>
@@ -112,64 +112,64 @@ export function BatchTicketGrid({
             </tr>
           </thead>
 
-          <tbody className="bg-white/98">
+          <tbody className="bg-surface">
             {items.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-sm text-mocha/40">
+                <td colSpan={6} className="px-6 py-12 text-center text-sm text-text-primary/40">
                   No batch items to display
                 </td>
               </tr>
             ) : (
               items.map(item => {
                 const isPicked = item.status === 'picked'
-                const rowHighlight = isPicked ? 'bg-[#f0fff3] text-mocha' : 'bg-white/95 text-mocha'
+                const rowHighlight = isPicked ? 'bg-accent-green/5 text-text-primary' : 'bg-white text-text-primary'
                 const clickable = onItemClick
-                  ? 'cursor-pointer hover:bg-[#fff8ed] hover:shadow-[0_2px_8px_rgba(61,40,23,0.08)] transition-all duration-200'
+                  ? 'cursor-pointer hover:bg-bg-main hover:shadow-soft transition-all duration-200 btn-scale-hover'
                   : ''
 
                 return (
                   <tr
                     key={`${item.lineId}-${item.itemKey}`}
                     onClick={() => onItemClick?.(item)}
-                    className={`border-b border-sand/40 ${rowHighlight} ${clickable}`}
+                    className={`border-b border-border-main ${rowHighlight} ${clickable}`}
                   >
                     <td className="px-5 py-4">
-                      <div className="text-[15px] font-bold tracking-wide text-coffee">
+                      <div className="text-base font-bold tracking-wide text-text-primary">
                         {item.itemKey}
                       </div>
-                      <div className="text-[12px] uppercase tracking-[0.18em] text-mocha/65">
+                      <div className="text-xs uppercase tracking-wider text-text-primary/60">
                         {item.description || '—'}
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-center text-[15px] font-bold tracking-wide text-coffee">
+                    <td className="px-5 py-4 text-center text-base font-bold tracking-wide text-text-primary">
                       {item.batchNo}
                     </td>
-                    <td className="px-5 py-4 text-right font-mono text-[15px] font-semibold">
+                    <td className="px-5 py-4 text-right font-mono text-base font-semibold">
                       {formatQty(item.targetQty)}
                     </td>
-                    <td className="px-5 py-4 text-right font-mono text-[15px] font-bold">
+                    <td className="px-5 py-4 text-right font-mono text-base font-bold">
                       {item.pickedQty > 0 ? (
-                        <span className="text-[#2f9151]">{formatQty(item.pickedQty)}</span>
+                        <span className="text-accent-green">{formatQty(item.pickedQty)}</span>
                       ) : (
-                        <span className="text-mocha/35">—</span>
+                        <span className="text-text-primary/30">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-4 text-right font-mono text-[15px] font-bold">
+                    <td className="px-5 py-4 text-right font-mono text-base font-bold">
                       {item.pickedQty > 0 ? (
-                        <span className={item.balance > 0.1 ? 'text-[#dc3545]' : 'text-[#2f9151]'}>
+                        <span className={item.balance > 0.1 ? 'text-danger' : 'text-accent-green'}>
                           {formatQty(item.balance)}
                         </span>
                       ) : (
-                        <span className="text-mocha/35">—</span>
+                        <span className="text-text-primary/30">—</span>
                       )}
                     </td>
                     <td className="px-5 py-4">
                       {item.allergens ? (
-                        <span className="inline-flex rounded-2xl border-2 border-[#f0b429]/30 bg-gradient-to-b from-[#ffeaa7] to-[#f7d794] px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-coffee shadow-soft">
+                        <span className="inline-flex rounded-lg border-2 border-highlight/30 bg-gradient-to-b from-[#fff8e1] to-[#ffeaa7] px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide text-text-primary shadow-soft">
                           {item.allergens}
                         </span>
                       ) : (
-                        <span className="text-[12px] uppercase tracking-[0.16em] text-mocha/35">
+                        <span className="text-xs uppercase tracking-wider text-text-primary/30">
                           None
                         </span>
                       )}
@@ -182,7 +182,7 @@ export function BatchTicketGrid({
 
           {items.length > 0 && (
             <tfoot>
-              <tr className="bg-[#efe1d1] text-[11px] font-semibold uppercase tracking-[0.22em] text-mocha/70">
+              <tr className="bg-bg-main text-xs font-semibold uppercase tracking-wider text-text-primary/70">
                 <td colSpan={2} className="px-6 py-5">
                   <div className="flex flex-wrap items-center gap-4">
                     <span>Total items {items.length}</span>
@@ -191,7 +191,7 @@ export function BatchTicketGrid({
                   </div>
                 </td>
                 <td colSpan={4} className="px-6 py-5 text-right">
-                  <div className="flex flex-wrap items-center justify-end gap-6 text-mocha/80">
+                  <div className="flex flex-wrap items-center justify-end gap-6 text-text-primary/80">
                     <span>Total weighted {formatQty(totalWeighted)} kg</span>
                     <span>Balance {formatQty(totalBalance)} kg</span>
                   </div>
