@@ -14,18 +14,25 @@ pub struct GetLotsQuery {
     #[serde(rename = "itemKey")]
     pub item_key: String,
 
+    #[serde(rename = "runNo")]
+    pub run_no: i32,
+
+    #[serde(rename = "rowNum")]
+    pub row_num: i32,
+
     #[serde(rename = "minQty")]
     pub min_qty: Option<f64>,
 }
 
-/// GET /api/lots/available?itemKey=X&minQty=Y
+/// GET /api/lots/available?itemKey=X&runNo=Y&rowNum=Z&minQty=W
 ///
 /// Get available lots for item (FEFO-sorted, TFC1 PARTIAL bins only)
+/// Enhanced with PackSize from cust_PartialPicked JOIN
 ///
 /// # OpenAPI Contract
 /// - operationId: getAvailableLots
-/// - Query parameters: itemKey (required), minQty (optional)
-/// - Response 200: LotsResponse (lots array)
+/// - Query parameters: itemKey (required), runNo (required), rowNum (required), minQty (optional)
+/// - Response 200: LotsResponse (lots array with packSize)
 ///
 /// # Constitutional Compliance (CRITICAL)
 /// * ✅ JWT authentication required (AuthUser extractor)
@@ -33,6 +40,7 @@ pub struct GetLotsQuery {
 /// * ✅ Filters: Location='TFC1', Available qty >= minQty
 /// * ✅ LotStatus IN ('P', 'C', '', NULL) - only usable lots
 /// * ✅ Returns TOP 1 if minQty specified, all lots otherwise
+/// * ✅ Includes PackSize from cust_PartialPicked
 pub async fn get_available_lots_endpoint(
     State(pool): State<DbPool>,
     AuthUser(claims): AuthUser,
@@ -41,6 +49,8 @@ pub async fn get_available_lots_endpoint(
     tracing::info!(
         user = %claims.username,
         item_key = %params.item_key,
+        run_no = params.run_no,
+        row_num = params.row_num,
         min_qty = ?params.min_qty,
         "GET /api/lots/available request"
     );
@@ -49,6 +59,20 @@ pub async fn get_available_lots_endpoint(
     if params.item_key.trim().is_empty() {
         return Err(AppError::ValidationError(
             "itemKey is required and cannot be empty".to_string(),
+        ));
+    }
+
+    // Validate runNo
+    if params.run_no <= 0 {
+        return Err(AppError::ValidationError(
+            "runNo must be greater than 0".to_string(),
+        ));
+    }
+
+    // Validate rowNum
+    if params.row_num <= 0 {
+        return Err(AppError::ValidationError(
+            "rowNum must be greater than 0".to_string(),
         ));
     }
 
@@ -61,7 +85,14 @@ pub async fn get_available_lots_endpoint(
         }
     }
 
-    let response = get_available_lots(&pool, &params.item_key, params.min_qty).await?;
+    let response = get_available_lots(
+        &pool,
+        &params.item_key,
+        params.run_no,
+        params.row_num,
+        params.min_qty,
+    )
+    .await?;
 
     Ok(Json(response))
 }

@@ -86,6 +86,10 @@ async fn main() {
         )
         .route("/bins", get(api::bins::list_bins_endpoint))
         .route(
+            "/bins/lot/:lotNo/:itemKey",
+            get(api::bins::get_bins_for_lot_endpoint),
+        )
+        .route(
             "/workstations",
             get(api::workstations::list_workstations_endpoint),
         )

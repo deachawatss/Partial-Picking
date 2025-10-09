@@ -80,6 +80,7 @@ export interface BatchItemsResponse {
 
 export interface BatchItemDTO {
   itemKey: string
+  batchNo: string
   description: string
   totalNeeded: number
   pickedQty: number
@@ -89,6 +90,7 @@ export interface BatchItemDTO {
   toleranceKG: number
   allergen: string
   status?: 'Allocated' | null
+  totalAvailableSOH: number
 }
 
 export interface PickResponse {
@@ -118,6 +120,7 @@ export interface LotAvailabilityDTO {
   aisle?: string | null
   row?: string | null
   rack?: string | null
+  packSize: number
 }
 
 export interface BinDTO {
@@ -141,6 +144,15 @@ export interface BinLotDTO {
   itemKey: string
   qtyOnHand: number
   expiryDate: string
+}
+
+export interface BinLotInventoryDTO {
+  binNo: string
+  expiryDate: string
+  qtyOnHand: number
+  qtyCommitSales: number
+  availableQty: number
+  packSize: number
 }
 
 export interface WorkstationDTO {
@@ -208,6 +220,10 @@ export interface LotsResponse {
 
 export interface BinsResponse {
   bins: BinDTO[]
+}
+
+export interface BinLotsResponse {
+  bins: BinLotInventoryDTO[]
 }
 
 export interface WorkstationsResponse {

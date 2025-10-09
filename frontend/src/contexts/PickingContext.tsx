@@ -34,7 +34,7 @@ interface PickingContextType {
   // Selection methods
   selectRun: (runNo: number) => Promise<void>
   selectBatch: (rowNum: number) => Promise<void>
-  selectItem: (itemKey: string) => Promise<void>
+  selectItem: (itemKey: string, batchNo?: string) => Promise<void>
   selectLot: (lot: LotAvailabilityDTO) => void
   setWorkstation: (workstationId: string) => void
 
@@ -89,11 +89,88 @@ export function PickingProvider({ children }: PickingProviderProps) {
       // Update state
       setCurrentRun(runDetails)
 
-      // Reset downstream selections
-      setCurrentBatchRowNum(null)
-      setCurrentBatchItems([])
-      setCurrentItem(null)
-      setSelectedLot(null)
+      // Load items from ALL batches in the run
+      if (runDetails.batches.length > 0) {
+        console.log('[Picking] Loading items from all batches:', runDetails.batches)
+
+        try {
+          // Load items from all batches and combine them
+          const allItemsPromises = runDetails.batches.map(batchRowNum =>
+            runsApi.getBatchItems(runDetails.runNo, batchRowNum)
+          )
+
+          const allBatchItems = await Promise.all(allItemsPromises)
+          const combinedItems = allBatchItems.flat()
+
+          console.log('[Picking] All batch items loaded:', {
+            batchCount: runDetails.batches.length,
+            totalItemCount: combinedItems.length,
+            items: combinedItems.map(i => `${i.batchNo}:${i.itemKey}`),
+          })
+
+          // Sort items by quantity descending (pick largest first), then BatchNo descending
+          // This matches official app behavior for efficient warehouse picking
+          const sortedItems = [...combinedItems].sort((a, b) => {
+            // Primary: Sort by totalNeeded (Partial KG) descending (largest first)
+            const qtyCompare = b.totalNeeded - a.totalNeeded
+            if (qtyCompare !== 0) return qtyCompare
+
+            // Secondary: Sort by BatchNo descending (850417 before 850416)
+            return b.batchNo.localeCompare(a.batchNo)
+          })
+
+          setCurrentBatchRowNum(runDetails.batches[0])
+          setCurrentBatchItems(sortedItems)
+
+          // Auto-select first item (highest quantity)
+          if (sortedItems.length > 0) {
+            const firstItem = sortedItems[0]
+            console.log('[Picking] Auto-selecting first item:', firstItem.itemKey, 'from batch:', firstItem.batchNo)
+
+            try {
+              // Load FEFO lots for first item
+              const itemBatchRowNum = parseInt(firstItem.batchNo, 10)
+              const lots = await lotsApi.getAvailableLots(
+                firstItem.itemKey,
+                runDetails.runNo,
+                itemBatchRowNum,
+                firstItem.remainingQty
+              )
+
+              console.log('[Picking] FEFO lots loaded for first item:', {
+                count: lots.length,
+                firstLot: lots[0]?.lotNo,
+              })
+
+              // Set current item
+              setCurrentItem(firstItem)
+
+              // Auto-select first FEFO lot if available
+              if (lots.length > 0) {
+                setSelectedLot(lots[0])
+              } else {
+                setSelectedLot(null)
+              }
+            } catch (lotError) {
+              console.warn('[Picking] Failed to load lots for first item:', lotError)
+              // Still set the item even if lot loading fails
+              setCurrentItem(firstItem)
+              setSelectedLot(null)
+            }
+          }
+        } catch (batchError) {
+          console.warn('[Picking] Failed to load batch items:', batchError)
+          // Don't fail the entire run selection if batch loading fails
+          setCurrentBatchRowNum(null)
+          setCurrentBatchItems([])
+        }
+      } else {
+        // No batches in run, reset downstream
+        setCurrentBatchRowNum(null)
+        setCurrentBatchItems([])
+        setCurrentItem(null)
+        setSelectedLot(null)
+      }
     } catch (error) {
       const message = getErrorMessage(error)
       console.error('[Picking] Failed to load run:', message)
@@ -156,14 +233,17 @@ export function PickingProvider({ children }: PickingProviderProps) {
    * T068: Select item and auto-load FEFO lots
    * Calls GET /api/lots/available?itemKey={itemKey}&minQty={remainingQty}
    */
-  const selectItem = async (itemKey: string): Promise<void> => {
-    if (!currentRun || currentBatchRowNum === null) {
-      setErrorMessage('Please select a run and batch first')
+  const selectItem = async (itemKey: string, batchNo?: string): Promise<void> => {
+    if (!currentRun) {
+      setErrorMessage('Please select a run first')
       return
     }
 
-    // Find item in current batch items
-    const item = currentBatchItems.find(i => i.itemKey === itemKey)
+    // Find specific item by itemKey AND batchNo (for individual row selection)
+    // If batchNo not provided, find first item with matching itemKey (for modal compatibility)
+    const item = currentBatchItems.find(i =>
+      i.itemKey === itemKey && (!batchNo || i.batchNo === batchNo)
+    )
     if (!item) {
       setErrorMessage('Item not found in current batch')
       return
@@ -173,16 +253,25 @@ export function PickingProvider({ children }: PickingProviderProps) {
     setErrorMessage(null)
 
     try {
-      console.log('[Picking] Loading FEFO lots for item:', itemKey)
+      console.log('[Picking] Loading FEFO lots for item:', itemKey, 'from batch:', item.batchNo)
 
-      // Call API to get available lots (FEFO sorted)
-      // Use remainingQty as minQty to filter lots
-      const lots = await lotsApi.getAvailableLots(itemKey, item.remainingQty)
+      // Use the item's actual batch number (convert batchNo string to number)
+      const itemBatchRowNum = parseInt(item.batchNo, 10)
+
+      // Call API to get available lots (FEFO sorted with PackSize)
+      // Use item's specific batch number for correct PackSize lookup
+      const lots = await lotsApi.getAvailableLots(
+        itemKey,
+        currentRun.runNo,
+        itemBatchRowNum,
+        item.remainingQty
+      )
 
       console.log('[Picking] FEFO lots loaded:', {
         count: lots.length,
         firstLot: lots[0]?.lotNo,
         firstExpiry: lots[0]?.expiryDate,
+        packSize: lots[0]?.packSize,
       })
 
       // Update state
@@ -243,7 +332,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
    */
   const savePick = async (weight: number): Promise<void> => {
     // Validation
-    if (!currentRun || currentBatchRowNum === null || !currentItem || !selectedLot) {
+    if (!currentRun || !currentItem || !selectedLot) {
       setErrorMessage('Please complete all selections before saving pick')
       return
     }
@@ -252,18 +341,24 @@ export function PickingProvider({ children }: PickingProviderProps) {
     setErrorMessage(null)
 
     try {
+      // Use the item's actual batch number
+      const itemBatchRowNum = parseInt(currentItem.batchNo, 10)
+
       console.log('[Picking] Saving pick:', {
         runNo: currentRun.runNo,
-        rowNum: currentBatchRowNum,
+        rowNum: itemBatchRowNum,
         itemKey: currentItem.itemKey,
+        batchNo: currentItem.batchNo,
         lotNo: selectedLot.lotNo,
         binNo: selectedLot.binNo,
         weight,
         workstationId,
       })
 
-      // Find lineId for this item (based on batch items array index + 1)
-      const lineId = currentBatchItems.findIndex(i => i.itemKey === currentItem.itemKey) + 1
+      // Find lineId for this item within its specific batch
+      // Filter items by same batch number and find index
+      const batchSpecificItems = currentBatchItems.filter(i => i.batchNo === currentItem.batchNo)
+      const lineId = batchSpecificItems.findIndex(i => i.itemKey === currentItem.itemKey) + 1
 
       if (lineId === 0) {
         throw new Error('Item not found in batch items')
@@ -272,7 +367,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
       // Build pick request matching OpenAPI spec
       const pickRequest: PickRequest = {
         runNo: currentRun.runNo,
-        rowNum: currentBatchRowNum,
+        rowNum: itemBatchRowNum,
         lineId,
         lotNo: selectedLot.lotNo,
         binNo: selectedLot.binNo,
@@ -289,10 +384,10 @@ export function PickingProvider({ children }: PickingProviderProps) {
         status: pickResponse.status,
       })
 
-      // Refresh batch items to show updated picked quantities
-      await selectBatch(currentBatchRowNum)
+      // Refresh all batch items to show updated picked quantities
+      await selectRun(currentRun.runNo)
 
-      // Clear current item and lot selections (keep batch loaded for next item)
+      // Clear current item and lot selections (keep batches loaded for next item)
       setCurrentItem(null)
       setSelectedLot(null)
     } catch (error) {
@@ -308,10 +403,20 @@ export function PickingProvider({ children }: PickingProviderProps) {
   /**
    * T068: Unpick item (reset to 0, preserve audit trail)
    * Calls DELETE /api/picks/{runNo}/{rowNum}/{lineId}
+   *
+   * Note: This function expects lineId within a specific batch.
+   * For multi-batch runs, ensure the caller provides the correct batch context.
    */
-  const unpickItem = async (lineId: number): Promise<void> => {
-    if (!currentRun || currentBatchRowNum === null) {
-      setErrorMessage('No run or batch selected')
+  const unpickItem = async (lineId: number, rowNum?: number): Promise<void> => {
+    if (!currentRun) {
+      setErrorMessage('No run selected')
+      return
+    }
+
+    // Use provided rowNum or fall back to currentBatchRowNum
+    const batchRowNum = rowNum ?? currentBatchRowNum
+    if (batchRowNum === null) {
+      setErrorMessage('No batch context for unpick operation')
       return
     }
 
@@ -321,7 +426,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
     try {
       console.log('[Picking] Unpicking item:', {
         runNo: currentRun.runNo,
-        rowNum: currentBatchRowNum,
+        rowNum: batchRowNum,
         lineId,
         workstationId,
       })
@@ -329,7 +434,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
       // Call API to unpick item
       const unpickResponse = await pickingApi.unpickItem(
         currentRun.runNo,
-        currentBatchRowNum,
+        batchRowNum,
         lineId,
         workstationId
       )
@@ -340,8 +445,8 @@ export function PickingProvider({ children }: PickingProviderProps) {
         status: unpickResponse.status, // Preserved for audit
       })
 
-      // Refresh batch items to show updated picked quantities
-      await selectBatch(currentBatchRowNum)
+      // Refresh all batch items to show updated picked quantities
+      await selectRun(currentRun.runNo)
 
       // Clear current item and lot selections
       setCurrentItem(null)

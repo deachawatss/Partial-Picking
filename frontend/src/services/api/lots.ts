@@ -19,20 +19,27 @@ import { LotsResponse, LotAvailabilityDTO } from '@/types/api'
  * - Filter: Location='TFC1', User1='WHTFC1', User4='PARTIAL' (511 bins)
  * - Available Qty = QtyOnHand - QtyCommitSales > 0
  * - Sort: DateExpiry ASC, then LocationKey ASC (FEFO)
+ * - Includes PackSize from cust_PartialPicked for the specific run/batch
  *
  * Returns only lots with available quantity in TFC1 PARTIAL bins.
  *
  * @param itemKey - Item key/SKU
+ * @param runNo - Production run number (required for PackSize lookup)
+ * @param rowNum - Batch row number (required for PackSize lookup)
  * @param minQty - Optional minimum available quantity required
- * @returns Promise<LotAvailabilityDTO[]> - FEFO sorted lots with availability
+ * @returns Promise<LotAvailabilityDTO[]> - FEFO sorted lots with availability and packSize
  * @throws ErrorResponse - On network error
  */
 export async function getAvailableLots(
   itemKey: string,
+  runNo: number,
+  rowNum: number,
   minQty?: number
 ): Promise<LotAvailabilityDTO[]> {
   const params: Record<string, string | number> = {
     itemKey,
+    runNo,
+    rowNum,
   }
 
   // Add minQty only if provided (optional parameter)

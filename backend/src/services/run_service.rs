@@ -69,6 +69,9 @@ pub struct BatchItemDTO {
     #[serde(rename = "itemKey")]
     pub item_key: String,
 
+    #[serde(rename = "batchNo")]
+    pub batch_no: String,
+
     pub description: String,
 
     #[serde(rename = "totalNeeded")]
@@ -93,6 +96,9 @@ pub struct BatchItemDTO {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>, // null | "Allocated"
+
+    #[serde(rename = "totalAvailableSOH")]
+    pub total_available_soh: f64,
 }
 
 /// Batch items response matching OpenAPI BatchItemsResponse schema
@@ -151,7 +157,8 @@ pub async fn get_run_details(pool: &DbPool, run_no: i32) -> AppResult<RunDetails
     let fg_item_key: &str = first_row.get("FormulaId").unwrap_or("");
     let fg_description: &str = first_row.get("FormulaDesc").unwrap_or("");
     let no_of_batches: i32 = first_row.get("NoOfBatches").unwrap_or(0);
-    let production_date: DateTime<Utc> = first_row.get("RecDate").unwrap_or(Utc::now());
+    // Production date is always today (formatted as DD/MM/YY on frontend)
+    let production_date: DateTime<Utc> = Utc::now();
     let status: &str = first_row.get("Status").unwrap_or("NEW");
 
     // Collect all batch numbers (RowNum)
@@ -205,11 +212,13 @@ pub async fn get_batch_items(
     let mut conn = pool.get().await?;
 
     // SQL from Database Specialist: batch_items.sql
+    // CRITICAL: Use INLOC for SOH (not LotMaster) to match Angular reference app
     let sql = r#"
         SELECT
             p.RunNo,
             p.RowNum,
             p.LineId,
+            p.BatchNo,
             p.ItemKey,
             i.Desc1 AS ItemDescription,
             p.ToPickedPartialQty,
@@ -219,7 +228,13 @@ pub async fn get_batch_items(
             ISNULL(i.User9, 0) AS Tolerance,
             (p.ToPickedPartialQty - ISNULL(i.User9, 0)) AS WeightRangeLow,
             (p.ToPickedPartialQty + ISNULL(i.User9, 0)) AS WeightRangeHigh,
-            (p.ToPickedPartialQty - p.PickedPartialQty) AS RemainingQty
+            (p.ToPickedPartialQty - p.PickedPartialQty) AS RemainingQty,
+            ISNULL(
+                (SELECT loc.Qtyonhand
+                 FROM INLOC loc
+                 WHERE loc.Itemkey = p.ItemKey AND loc.Location = 'TFC1'
+                ), 0
+            ) AS TotalAvailableSOH
         FROM cust_PartialPicked p
         LEFT JOIN INMAST i ON p.ItemKey = i.Itemkey
         WHERE p.RunNo = @P1
@@ -245,18 +260,30 @@ pub async fn get_batch_items(
         .iter()
         .map(|row| {
             let item_key: &str = row.get("ItemKey").unwrap_or("");
+            let batch_no: &str = row.get("BatchNo").unwrap_or("");
             let description: &str = row.get("ItemDescription").unwrap_or("");
-            let total_needed: f64 = row.get("ToPickedPartialQty").unwrap_or(0.0);
-            let picked_qty: f64 = row.get("PickedPartialQty").unwrap_or(0.0);
-            let remaining_qty: f64 = row.get("RemainingQty").unwrap_or(0.0);
-            let tolerance: f64 = row.get("Tolerance").unwrap_or(0.0);
-            let weight_low: f64 = row.get("WeightRangeLow").unwrap_or(0.0);
-            let weight_high: f64 = row.get("WeightRangeHigh").unwrap_or(0.0);
+            // CRITICAL: SQL Server FLOAT(53) = 8-byte double, must use try_get::<f64>
+            // Using try_get::<f32> on FLOAT(53) columns causes type mismatch → returns None → displays 0.0
+            let total_needed: f64 = row.try_get::<f64, _>("ToPickedPartialQty")
+                .ok().flatten().unwrap_or(0.0);
+            let picked_qty: f64 = row.try_get::<f64, _>("PickedPartialQty")
+                .ok().flatten().unwrap_or(0.0);
+            let remaining_qty: f64 = row.try_get::<f64, _>("RemainingQty")
+                .ok().flatten().unwrap_or(0.0);
+            let tolerance: f64 = row.try_get::<f64, _>("Tolerance")
+                .ok().flatten().unwrap_or(0.0);
+            let weight_low: f64 = row.try_get::<f64, _>("WeightRangeLow")
+                .ok().flatten().unwrap_or(0.0);
+            let weight_high: f64 = row.try_get::<f64, _>("WeightRangeHigh")
+                .ok().flatten().unwrap_or(0.0);
             let allergen: &str = row.get("Allergen").unwrap_or("");
             let status: Option<&str> = row.get("ItemBatchStatus");
+            let total_available_soh: f64 = row.try_get::<f64, _>("TotalAvailableSOH")
+                .ok().flatten().unwrap_or(0.0);
 
             BatchItemDTO {
                 item_key: item_key.to_string(),
+                batch_no: batch_no.to_string(),
                 description: description.to_string(),
                 total_needed,
                 picked_qty,
@@ -266,6 +293,7 @@ pub async fn get_batch_items(
                 tolerance_kg: tolerance,
                 allergen: allergen.to_string(),
                 status: status.map(|s| s.to_string()),
+                total_available_soh,
             }
         })
         .collect();

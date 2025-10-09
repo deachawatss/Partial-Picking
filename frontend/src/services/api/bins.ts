@@ -9,7 +9,7 @@
  */
 
 import { apiClient } from './client'
-import { BinsResponse, BinDTO } from '@/types/api'
+import { BinsResponse, BinDTO, BinLotsResponse, BinLotInventoryDTO } from '@/types/api'
 
 /**
  * Get TFC1 PARTIAL bins (511 bins total)
@@ -43,11 +43,36 @@ export async function getBins(filters?: {
 }
 
 /**
+ * Get bins for a specific lot and item (bin override workflow)
+ *
+ * OpenAPI Operation: GET /api/bins/lot/{lotNo}/{itemKey}
+ * Retrieve bins that contain inventory for a specific lot and item.
+ * Used for manual bin override: when user selects a lot, they can choose
+ * a different bin that contains inventory for the same lot.
+ *
+ * Returns bins with inventory details:
+ * - BinNo, DateExpiry, QtyOnHand, QtyCommitSales, AvailableQty, PackSize
+ *
+ * @param lotNo - Lot number
+ * @param itemKey - Item SKU
+ * @returns Promise<BinLotInventoryDTO[]> - List of bins with inventory for the lot
+ * @throws ErrorResponse - On network error
+ */
+export async function getBinsForLot(
+  lotNo: string,
+  itemKey: string
+): Promise<BinLotInventoryDTO[]> {
+  const response = await apiClient.get<BinLotsResponse>(`/bins/lot/${lotNo}/${itemKey}`)
+  return response.data.bins
+}
+
+/**
  * Bins API Service Object
  * Provides all bin-related API methods
  */
 export const binsApi = {
   getBins,
+  getBinsForLot,
 }
 
 export default binsApi

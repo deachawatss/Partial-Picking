@@ -238,6 +238,113 @@ export function useWeightScale(workstationId: string, scaleType: 'small' | 'big'
 **chrome-devtools**: `navigate_page → take_snapshot → click uid="..." → wait_for text="..."`
 **SQL Server MCP**: `read_query "SELECT..."`, `describe_table "cust_PartialPicked"`
 
+## Critical Tool Usage Guidelines
+
+### Sequential Thinking MCP (MANDATORY for Complex Tasks)
+
+**ALWAYS use `sequentialthinking` MCP for**:
+- Multi-step problem solving (>3 steps)
+- Architecture decisions requiring trade-off analysis
+- Debugging complex issues with multiple potential causes
+- Planning implementations with dependencies
+- Analyzing code patterns before modifications
+- Any task requiring hypothesis generation and verification
+
+**How to use**:
+```typescript
+// Use sequential thinking to break down complex problems
+sequentialthinking({
+  thought: "Analyzing the 4-phase transaction failure...",
+  thoughtNumber: 1,
+  totalThoughts: 5,
+  nextThoughtNeeded: true
+})
+```
+
+**Why this matters**:
+- Prevents hasty implementations without proper analysis
+- Ensures all edge cases are considered
+- Creates verifiable solution hypotheses
+- Documents decision-making process
+- Reduces need for rework
+
+**Examples requiring sequential thinking**:
+- "Why is the weight scale WebSocket disconnecting?" → Use sequential thinking to analyze connection lifecycle
+- "Should we use Zustand or TanStack Query for state?" → Use sequential thinking to compare trade-offs
+- "FEFO query returning wrong lot" → Use sequential thinking to trace through ORDER BY logic
+
+### Context7 Dependency Alignment (MANDATORY Before Implementation)
+
+**ALWAYS query Context7 BEFORE implementing**:
+- New React hooks or components
+- Rust async patterns or middleware
+- Database connection pooling
+- WebSocket implementations
+- Authentication flows
+
+**Critical: Verify Current Versions**:
+```bash
+# Check project dependencies FIRST
+cat backend/Cargo.toml | grep "axum\|tokio\|tiberius"
+cat frontend/package.json | grep "react\|vite\|tailwindcss"
+
+# Then query Context7 with exact versions
+Context7: "Axum 0.7 middleware best practices"
+Context7: "React 19 useTransition with WebSocket"
+Context7: "Tiberius SQL Server connection pooling"
+```
+
+**Why this matters**:
+- Axum 0.7 has breaking changes from 0.6 (Service trait removal)
+- React 19 concurrent rendering differs from React 18
+- Tiberius async patterns require specific Tokio runtime setup
+- Outdated examples can break production code
+
+**Common Version-Specific Patterns**:
+
+**Axum 0.7** (NOT 0.6):
+```rust
+// ✅ Correct (Axum 0.7)
+use axum::extract::State;
+async fn handler(State(pool): State<DbPool>) -> Result<Json<Response>> { }
+
+// ❌ Wrong (Axum 0.6 pattern)
+async fn handler(Extension(pool): Extension<DbPool>) -> Result<Json<Response>> { }
+```
+
+**React 19** (NOT 18):
+```typescript
+// ✅ Correct (React 19 concurrent)
+import { useTransition } from 'react';
+const [isPending, startTransition] = useTransition();
+startTransition(() => setWeight(data.weight));
+
+// ❌ Wrong (React 18 pattern)
+import { unstable_useTransition } from 'react'; // Removed in React 19
+```
+
+**Tiberius + Tokio**:
+```rust
+// ✅ Correct (Current Tiberius)
+use tiberius::{Client, Config};
+use tokio_util::compat::TokioAsyncWriteCompatExt;
+
+let config = Config::new();
+config.host("192.168.0.86");
+let tcp = TcpStream::connect(config.get_addr()).await?;
+let client = Client::connect(config, tcp.compat_write()).await?;
+
+// ❌ Wrong (Outdated pattern without compat)
+let client = Client::connect(config, tcp).await?; // Won't compile
+```
+
+**Verification Checklist**:
+- ✅ Checked `Cargo.toml` and `package.json` for exact versions
+- ✅ Queried Context7 with version-specific search (e.g., "Axum 0.7", "React 19")
+- ✅ Verified pattern matches current dependency versions
+- ✅ Tested example compiles/runs with project dependencies
+- ✅ No deprecated APIs or removed features used
+
 ## Common Workflows
 
 **Add API Endpoint**: Contract → Failing test → Implement → Test passes → Frontend client
@@ -290,9 +397,48 @@ Improve picking form layout with consistent label alignment
 ❌ **Missing key**: `WHERE RunNo AND LineId` → ✅ `WHERE RunNo AND RowNum AND LineId` (all 3!)
 ❌ **Audit trail**: Don't set `ItemBatchStatus=NULL` on unpick → ✅ Only update `PickedPartialQty=0`
 
+### ⚠️ CRITICAL: Tiberius Type Conversion and SOH Calculation
+
+**Problem #1: Tiberius Type Mismatch Returns 0.0**
+
+SQL Server FLOAT(53) columns are **8-byte doubles**. Using `try_get::<f32>` (4-byte float) causes silent type mismatch:
+```rust
+❌ WRONG - Returns 0.0 for all FLOAT(53) columns:
+let qty: f64 = row.try_get::<f32, _>("ToPickedPartialQty")
+    .ok().flatten().unwrap_or(0.0) as f64;
+
+✅ CORRECT - Use f64 for SQL Server FLOAT(53):
+let qty: f64 = row.try_get::<f64, _>("ToPickedPartialQty")
+    .ok().flatten().unwrap_or(0.0);
+```
+
+**Symptoms**: All numeric fields display 0.000 in UI despite correct database values.
+
+**Root Cause**: `try_get::<f32>` fails on FLOAT(53) → returns `None` → `unwrap_or(0.0)` → displays 0.0
+
+**Problem #2: INLOC vs LotMaster for SOH**
+
+Use **INLOC** for Stock on Hand (SOH), NOT LotMaster:
+```sql
+❌ WRONG - Incomplete inventory (only lot-tracked items):
+SELECT SUM(QtyOnHand - QtyCommitSales) FROM LotMaster
+WHERE ItemKey = @itemKey AND LocationKey = 'TFC1'
+
+✅ CORRECT - Complete aggregated inventory:
+SELECT Qtyonhand FROM INLOC
+WHERE Itemkey = @itemKey AND Location = 'TFC1'
+```
+
+**Example**: INRICF05 shows 22,043 KG in INLOC but only 1,130 KG in LotMaster.
+
+**Why**: INLOC has complete location-level totals; LotMaster only tracks lot-allocated items.
+
+**Reference**: Angular reference app at `docs/frontend-ref-DontEdit/` uses INLOC for SOH.
+
 ## Documentation
 
 **Primary Docs**:
 - **`DB-Flow.md`** - Database schema + workflows (MANDATORY before DB/workflow development)
+- **`API.md`** -API (MANDATORY before API development)
 - `specs/001-i-have-an/{research.md, plan.md, tasks.md}` - Project specs and planning
 - `.specify/memory/constitution.md` - Constitutional principles

@@ -1,29 +1,58 @@
-import { useState } from 'react'
-import { useBins } from '@/hooks/useBinsQuery'
-import type { BinDTO } from '@/types/api'
+import { useMemo } from 'react'
+import { useBinsForLot } from '@/hooks/useBinsQuery'
+import type { BinLotInventoryDTO } from '@/types/api'
+
+interface Bin {
+  binNo: string
+  expiryDate: string
+  qtyOnHand: number
+  qtyCommitSales: number
+  availableQty: number
+  packSize: number
+  bagsAvailable: number
+}
 
 interface BinSelectionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSelect: (bin: BinDTO) => void
-  lotNo?: string
+  onSelect: (bin: Bin) => void
+  lotNo: string | null
+  itemKey: string | null
 }
 
-export function BinSelectionModal({ open, onOpenChange, onSelect, lotNo }: BinSelectionModalProps) {
-  const [searchTerm, setSearchTerm] = useState('')
+export function BinSelectionModal({
+  open,
+  onOpenChange,
+  onSelect,
+  lotNo,
+  itemKey,
+}: BinSelectionModalProps) {
+  const { data: binData, isLoading, error } = useBinsForLot(lotNo, itemKey, {
+    enabled: open && !!lotNo && !!itemKey
+  })
 
-  // Fetch all TFC1 PARTIAL bins with client-side search
-  const { data: bins, isLoading, error } = useBins(searchTerm, { enabled: open })
+  // Map BinLotInventoryDTO to Bin with BagsAvailable calculation
+  const bins = useMemo<Bin[]>(() => {
+    if (!binData) return []
 
-  const handleSelect = (bin: BinDTO) => {
+    return binData.map((bin) => ({
+      binNo: bin.binNo,
+      expiryDate: bin.expiryDate,
+      qtyOnHand: bin.qtyOnHand,
+      qtyCommitSales: bin.qtyCommitSales,
+      availableQty: bin.availableQty,
+      packSize: bin.packSize,
+      bagsAvailable: bin.packSize > 0 ? bin.availableQty / bin.packSize : 0,
+    }))
+  }, [binData])
+
+  const handleSelect = (bin: Bin) => {
     onSelect(bin)
     onOpenChange(false)
-    setSearchTerm('')
   }
 
   const handleClose = () => {
     onOpenChange(false)
-    setSearchTerm('')
   }
 
   if (!open) return null
@@ -35,7 +64,7 @@ export function BinSelectionModal({ open, onOpenChange, onSelect, lotNo }: BinSe
         <div className="modal-header-brown">
           <h3 className="modal-title">
             <span>📍</span>
-            <span>Select Bin</span>
+            <span>Select Bin for Lot</span>
           </h3>
           <button
             type="button"
@@ -48,30 +77,14 @@ export function BinSelectionModal({ open, onOpenChange, onSelect, lotNo }: BinSe
         </div>
 
         {/* Lot Context Bar */}
-        {lotNo && (
+        {lotNo && itemKey && (
           <div className="modal-item-context">
             <span className="modal-context-label">Lot:</span>
             <span className="modal-context-value">{lotNo}</span>
-            <span className="modal-context-label">• TFC1 PARTIAL Bins Only</span>
+            <span className="modal-context-label">• Item:</span>
+            <span className="modal-context-value">{itemKey}</span>
           </div>
         )}
-
-        {/* Search Section */}
-        <div className="modal-search">
-          <div className="modal-search-input-wrapper">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search bin number..."
-              className="modal-search-input"
-              autoFocus
-            />
-            <div className="modal-search-icon">
-              <span>🔍</span>
-            </div>
-          </div>
-        </div>
 
         {/* Results Section */}
         <div className="modal-content">
@@ -81,7 +94,7 @@ export function BinSelectionModal({ open, onOpenChange, onSelect, lotNo }: BinSe
               <div className="modal-empty-icon">⚠️</div>
               <p className="modal-empty-text">Error loading bins</p>
               <p className="modal-empty-hint">
-                Could not load TFC1 PARTIAL bins. Please try again.
+                Could not load bins for lot {lotNo}. Please try again.
               </p>
             </div>
           )}
@@ -90,59 +103,75 @@ export function BinSelectionModal({ open, onOpenChange, onSelect, lotNo }: BinSe
           {isLoading && (
             <div className="modal-empty-state">
               <div className="modal-empty-icon">⏳</div>
-              <p className="modal-empty-text">Loading bins...</p>
+              <p className="modal-empty-text">Loading bins for lot...</p>
             </div>
           )}
 
           {/* Empty State */}
-          {!isLoading && !error && bins && bins.length === 0 && (
+          {!isLoading && !error && bins.length === 0 && (
             <div className="modal-empty-state">
               <div className="modal-empty-icon">📦</div>
-              <p className="modal-empty-text">
-                {searchTerm ? 'No bins found' : 'No bins available'}
-              </p>
+              <p className="modal-empty-text">No bins available</p>
               <p className="modal-empty-hint">
-                {searchTerm ? 'Try a different search term' : 'No TFC1 PARTIAL bins found'}
+                {lotNo && itemKey
+                  ? `No bins found for lot ${lotNo} and item ${itemKey}`
+                  : 'Please select a lot and item first'}
               </p>
             </div>
           )}
 
-          {/* Bins List */}
-          {!isLoading && !error && bins && bins.length > 0 && (
-            <div className="modal-results-list">
-              {bins.map((bin) => (
-                <button
-                  key={bin.binNo}
-                  type="button"
-                  className="modal-batch-item"
-                  onClick={() => handleSelect(bin)}
-                >
-                  <div>
-                    <div className="modal-batch-label">{bin.binNo}</div>
-                    <div style={{ marginTop: '4px', fontSize: '0.875rem', color: '#5B4A3F' }}>
-                      {bin.description && <span>{bin.description} • </span>}
-                      {bin.aisle && bin.row && bin.rack && (
-                        <span>Aisle {bin.aisle} • Row {bin.row} • Rack {bin.rack}</span>
-                      )}
-                      {(!bin.aisle || !bin.row || !bin.rack) && (
-                        <span>Location: {bin.location} • {bin.user1} • {bin.user4}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="modal-batch-arrow">→</div>
-                </button>
-              ))}
+          {/* Bins Table */}
+          {!isLoading && !error && bins.length > 0 && (
+            <div className="modal-table-container">
+              <table className="modal-table">
+                <thead>
+                  <tr>
+                    <th className="text-center">Bin No</th>
+                    <th>Date Exp</th>
+                    <th className="text-center">Qty On Hand</th>
+                    <th className="text-center">Committed Qty</th>
+                    <th className="text-center">Qty Available</th>
+                    <th className="text-center">Bags Available</th>
+                    <th className="text-center">Pack Size</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bins.map((bin) => (
+                    <tr
+                      key={bin.binNo}
+                      onClick={() => handleSelect(bin)}
+                    >
+                      <td className="text-center">
+                        <strong>{bin.binNo}</strong>
+                      </td>
+                      <td>{bin.expiryDate}</td>
+                      <td className="text-center">{bin.qtyOnHand.toFixed(2)}</td>
+                      <td className="text-center">{bin.qtyCommitSales.toFixed(2)}</td>
+                      <td
+                        className="text-center"
+                        style={{
+                          color: '#2E7D32',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        {bin.availableQty.toFixed(2)}
+                      </td>
+                      <td className="text-center">{bin.bagsAvailable.toFixed(2)}</td>
+                      <td className="text-center">{bin.packSize.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
 
         {/* Modal Footer */}
-        {!isLoading && !error && bins && bins.length > 0 && (
+        {!isLoading && !error && bins.length > 0 && (
           <div className="modal-footer">
             <div className="modal-footer-left">
               <p className="modal-footer-info">
-                Showing {bins.length} bin{bins.length !== 1 ? 's' : ''}
-                {searchTerm && ' (filtered)'}
+                Showing {bins.length} bin{bins.length !== 1 ? 's' : ''} for lot {lotNo}
               </p>
             </div>
 

@@ -7,7 +7,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { binsApi } from '@/services/api'
-import { BinDTO } from '@/types/api'
+import { BinDTO, BinLotInventoryDTO } from '@/types/api'
 import { useMemo } from 'react'
 
 /**
@@ -55,4 +55,37 @@ export function useBins(
     ...query,
     data: filteredBins,
   }
+}
+
+/**
+ * Fetch bins for a specific lot and item (bin override workflow)
+ *
+ * Returns bins that contain inventory for the specified lot and item.
+ * Used when user wants to manually override the bin selection within the same lot.
+ *
+ * Includes inventory details: BinNo, DateExpiry, QtyOnHand, QtyCommitSales,
+ * AvailableQty, PackSize
+ *
+ * @param lotNo - Lot number
+ * @param itemKey - Item SKU
+ * @param options - Query options
+ * @returns Query result with bins for the lot
+ */
+export function useBinsForLot(
+  lotNo: string | null,
+  itemKey: string | null,
+  options?: {
+    enabled?: boolean
+  }
+) {
+  return useQuery<BinLotInventoryDTO[]>({
+    queryKey: ['bins', 'lot', lotNo, itemKey],
+    queryFn: () => {
+      if (!lotNo) throw new Error('Lot number is required')
+      if (!itemKey) throw new Error('Item key is required')
+      return binsApi.getBinsForLot(lotNo, itemKey)
+    },
+    enabled: (options?.enabled ?? true) && !!lotNo && !!itemKey,
+    staleTime: 1000 * 60 * 2, // 2 minutes (inventory changes frequently)
+  })
 }

@@ -49,15 +49,17 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
     setSelectedRunNo(run.runNo)
   }
 
-  // When run details are loaded, call onSelect
-  if (runDetails && selectedRunNo) {
-    onSelect(runDetails)
-    onOpenChange(false)
-    setSelectedRunNo(null)
-    setSearchInput('')
-    setDebouncedSearch('')
-    setCurrentPage(0)
-  }
+  // When run details are loaded, call onSelect (useEffect to avoid setState during render)
+  useEffect(() => {
+    if (runDetails && selectedRunNo) {
+      onSelect(runDetails)
+      onOpenChange(false)
+      setSelectedRunNo(null)
+      setSearchInput('')
+      setDebouncedSearch('')
+      setCurrentPage(0)
+    }
+  }, [runDetails, selectedRunNo, onSelect, onOpenChange])
 
   const handleClose = () => {
     onOpenChange(false)
