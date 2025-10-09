@@ -1,7 +1,4 @@
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
 
 interface Run {
   runNo: number
@@ -27,18 +24,25 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
       fgItemKey: 'FG-001',
       fgDescription: 'Finished Good Item 1',
       productionDate: '2025-10-01',
-      status: 'In Progress',
+      status: 'NEW',
     },
     {
       runNo: 100002,
       fgItemKey: 'FG-002',
       fgDescription: 'Finished Good Item 2',
       productionDate: '2025-10-02',
-      status: 'Pending',
+      status: 'PRINT',
+    },
+    {
+      runNo: 100003,
+      fgItemKey: 'FG-003',
+      fgDescription: 'Finished Good Item 3',
+      productionDate: '2025-10-03',
+      status: 'NEW',
     },
   ]
 
-  // Filter runs by search term (debounced in real implementation)
+  // Filter runs by search term
   const filteredRuns = mockRuns.filter(
     run =>
       run.runNo.toString().includes(searchTerm) ||
@@ -52,68 +56,120 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
     setSearchTerm('')
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Select Production Run</DialogTitle>
-        </DialogHeader>
+  const handleClose = () => {
+    onOpenChange(false)
+    setSearchTerm('')
+  }
 
-        {/* Search Input */}
-        <div className="mb-4">
-          <Input
-            type="text"
-            placeholder="Search by Run No, Item Key, or Description..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full"
-            autoFocus
-          />
+  const getStatusClass = (status: string) => {
+    if (status === 'NEW') return 'modal-status-new'
+    if (status === 'PRINT') return 'modal-status-in-progress'
+    return 'modal-status-default'
+  }
+
+  if (!open) return null
+
+  return (
+    <div className="modal-overlay" onClick={handleClose}>
+      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+        {/* Modal Header - Brown Gradient */}
+        <div className="modal-header-brown">
+          <h3 className="modal-title">
+            <span>🔍</span>
+            <span>Select Production Run</span>
+          </h3>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={handleClose}
+            aria-label="Close dialog"
+          >
+            ✕
+          </button>
         </div>
 
-        {/* Runs Grid */}
-        <div className="space-y-2">
+        {/* Search Section */}
+        <div className="modal-search">
+          <div className="modal-search-input-wrapper">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by Run No, Item Key, or Description..."
+              className="modal-search-input"
+              autoFocus
+            />
+            <div className="modal-search-icon">
+              <span>🔍</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Results Section */}
+        <div className="modal-content">
+          {/* Empty State */}
           {filteredRuns.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">No runs found</p>
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">📋</div>
+              <p className="modal-empty-text">
+                {searchTerm ? 'No runs found' : 'Start typing to search runs'}
+              </p>
+              <p className="modal-empty-hint">
+                {searchTerm
+                  ? 'Try a different search term'
+                  : 'Enter run number, item key, or description'}
+              </p>
+            </div>
           ) : (
-            filteredRuns.map(run => (
-              <Button
-                key={run.runNo}
-                type="button"
-                variant="outline"
-                className="w-full h-auto p-4 text-left justify-start"
-                onClick={() => handleSelect(run)}
-              >
-                <div className="grid grid-cols-4 gap-4 w-full">
-                  <div>
-                    <div className="text-xs text-gray-500">Run No</div>
-                    <div className="font-bold">{run.runNo}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">FG Item</div>
-                    <div className="font-medium">{run.fgItemKey}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Description</div>
-                    <div className="font-medium truncate">{run.fgDescription}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Production Date</div>
-                    <div className="font-medium">{run.productionDate}</div>
-                  </div>
-                </div>
-              </Button>
-            ))
+            /* Results Table */
+            <div className="modal-table-container">
+              <table className="modal-table">
+                <thead>
+                  <tr>
+                    <th>Run No</th>
+                    <th>FG Item Key</th>
+                    <th>FG Description</th>
+                    <th className="text-center">Status</th>
+                    <th>Production Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRuns.map((run) => (
+                    <tr key={run.runNo} onClick={() => handleSelect(run)}>
+                      <td>
+                        <strong>{run.runNo}</strong>
+                      </td>
+                      <td>{run.fgItemKey}</td>
+                      <td title={run.fgDescription}>{run.fgDescription}</td>
+                      <td className="text-center">
+                        <span className={`modal-status-badge ${getStatusClass(run.status)}`}>
+                          {run.status}
+                        </span>
+                      </td>
+                      <td>{run.productionDate}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
-        {/* Close Button */}
-        <div className="flex justify-end mt-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        {/* Modal Footer */}
+        {filteredRuns.length > 0 && (
+          <div className="modal-footer">
+            <div className="modal-footer-left">
+              <p className="modal-footer-info">
+                Showing {filteredRuns.length} of {mockRuns.length} results
+              </p>
+            </div>
+
+            <button type="button" onClick={handleClose} className="modal-cancel-btn">
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

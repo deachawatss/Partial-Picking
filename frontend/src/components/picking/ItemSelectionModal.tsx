@@ -1,6 +1,3 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-
 interface PickItem {
   lineId: number
   itemKey: string
@@ -62,74 +59,106 @@ export function ItemSelectionModal({
     onOpenChange(false)
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'picked':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'error':
-        return 'bg-red-100 text-red-800 border-red-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
+  const handleClose = () => {
+    onOpenChange(false)
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            Select Item {runNo && batchNo && `(Run: ${runNo}, Batch: ${batchNo})`}
-          </DialogTitle>
-        </DialogHeader>
+  const getStatusClass = (status: string) => {
+    if (status === 'picked') return 'modal-status-completed'
+    if (status === 'error') return 'modal-status-default'
+    return 'modal-status-new'
+  }
 
-        {/* Items Grid */}
-        <div className="space-y-2">
+  if (!open) return null
+
+  return (
+    <div className="modal-overlay" onClick={handleClose}>
+      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+        {/* Modal Header - Brown Gradient */}
+        <div className="modal-header-brown">
+          <h3 className="modal-title">
+            <span>📝</span>
+            <span>
+              Select Item {runNo && batchNo && `(Run: ${runNo}, Batch: ${batchNo})`}
+            </span>
+          </h3>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={handleClose}
+            aria-label="Close dialog"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Results Section */}
+        <div className="modal-content">
           {mockItems.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">No items found</p>
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">📋</div>
+              <p className="modal-empty-text">No items found</p>
+              <p className="modal-empty-hint">There are no items for this batch</p>
+            </div>
           ) : (
-            mockItems.map(item => (
-              <Button
-                key={item.lineId}
-                type="button"
-                variant="outline"
-                className={`w-full h-auto p-4 text-left justify-start ${getStatusColor(item.status)}`}
-                onClick={() => handleSelect(item)}
-              >
-                <div className="grid grid-cols-5 gap-4 w-full">
-                  <div className="col-span-2">
-                    <div className="text-xs opacity-75">Item Key</div>
-                    <div className="font-bold">{item.itemKey}</div>
-                    <div className="text-sm mt-1 truncate">{item.description}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs opacity-75">Target (kg)</div>
-                    <div className="font-medium">{item.targetQty.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs opacity-75">Picked (kg)</div>
-                    <div className="font-medium">{item.pickedQty.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs opacity-75">Balance (kg)</div>
-                    <div
-                      className={`font-medium ${item.balance > 0 ? 'text-gray-900' : 'text-green-600'}`}
-                    >
-                      {item.balance.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              </Button>
-            ))
+            <div className="modal-table-container">
+              <table className="modal-table">
+                <thead>
+                  <tr>
+                    <th>Item Key</th>
+                    <th>Description</th>
+                    <th className="text-center">Target (kg)</th>
+                    <th className="text-center">Picked (kg)</th>
+                    <th className="text-center">Balance (kg)</th>
+                    <th className="text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mockItems.map((item) => (
+                    <tr key={item.lineId} onClick={() => handleSelect(item)}>
+                      <td>
+                        <strong>{item.itemKey}</strong>
+                      </td>
+                      <td title={item.description}>{item.description}</td>
+                      <td className="text-center">{item.targetQty.toFixed(2)}</td>
+                      <td className="text-center">{item.pickedQty.toFixed(2)}</td>
+                      <td
+                        className="text-center"
+                        style={{
+                          color: item.balance > 0 ? '#2B1C14' : '#2E7D32',
+                          fontWeight: item.balance === 0 ? 'bold' : 'normal',
+                        }}
+                      >
+                        {item.balance.toFixed(2)}
+                      </td>
+                      <td className="text-center">
+                        <span className={`modal-status-badge ${getStatusClass(item.status)}`}>
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
-        {/* Close Button */}
-        <div className="flex justify-end mt-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        {/* Modal Footer */}
+        {mockItems.length > 0 && (
+          <div className="modal-footer">
+            <div className="modal-footer-left">
+              <p className="modal-footer-info">
+                Showing {mockItems.length} item{mockItems.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+
+            <button type="button" onClick={handleClose} className="modal-cancel-btn">
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

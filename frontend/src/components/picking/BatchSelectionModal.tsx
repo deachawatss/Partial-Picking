@@ -1,6 +1,3 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-
 interface Batch {
   batchNo: number
   rowNum: number
@@ -52,69 +49,76 @@ export function BatchSelectionModal({
     onOpenChange(false)
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'In Progress':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
+  const handleClose = () => {
+    onOpenChange(false)
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Select Batch {runNo && `(Run: ${runNo})`}</DialogTitle>
-        </DialogHeader>
+  if (!open) return null
 
-        {/* Batches Grid */}
-        <div className="space-y-2">
+  return (
+    <div className="modal-overlay" onClick={handleClose}>
+      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+        {/* Modal Header - Brown Gradient */}
+        <div className="modal-header-brown">
+          <h3 className="modal-title">
+            <span>📦</span>
+            <span>Select Batch {runNo && `(Run: ${runNo})`}</span>
+          </h3>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={handleClose}
+            aria-label="Close dialog"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Batch Cards */}
+        <div className="modal-content">
           {mockBatches.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">No batches found</p>
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">📋</div>
+              <p className="modal-empty-text">No batches found</p>
+              <p className="modal-empty-hint">There are no batches for this run</p>
+            </div>
           ) : (
-            mockBatches.map(batch => (
-              <Button
-                key={batch.batchNo}
-                type="button"
-                variant="outline"
-                className={`w-full h-auto p-4 text-left justify-start ${getStatusColor(batch.status)}`}
-                onClick={() => handleSelect(batch)}
-              >
-                <div className="grid grid-cols-4 gap-4 w-full">
+            <div className="modal-results-list">
+              {mockBatches.map((batch) => (
+                <button
+                  key={batch.batchNo}
+                  type="button"
+                  className="modal-batch-item"
+                  onClick={() => handleSelect(batch)}
+                >
                   <div>
-                    <div className="text-xs opacity-75">Batch No</div>
-                    <div className="font-bold text-lg">{batch.batchNo}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs opacity-75">Items</div>
-                    <div className="font-medium">{batch.itemCount} items</div>
-                  </div>
-                  <div>
-                    <div className="text-xs opacity-75">Picked</div>
-                    <div className="font-medium">
-                      {batch.pickedCount}/{batch.itemCount}
+                    <div className="modal-batch-label">Batch {batch.batchNo}</div>
+                    <div style={{ marginTop: '4px', fontSize: '0.875rem', color: '#5B4A3F' }}>
+                      {batch.itemCount} items • {batch.pickedCount}/{batch.itemCount} picked • {batch.status}
                     </div>
                   </div>
-                  <div>
-                    <div className="text-xs opacity-75">Status</div>
-                    <div className="font-medium">{batch.status}</div>
-                  </div>
-                </div>
-              </Button>
-            ))
+                  <div className="modal-batch-arrow">→</div>
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
-        {/* Close Button */}
-        <div className="flex justify-end mt-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        {/* Modal Footer */}
+        {mockBatches.length > 0 && (
+          <div className="modal-footer">
+            <div className="modal-footer-left">
+              <p className="modal-footer-info">
+                Showing {mockBatches.length} batch{mockBatches.length !== 1 ? 'es' : ''}
+              </p>
+            </div>
+
+            <button type="button" onClick={handleClose} className="modal-cancel-btn">
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

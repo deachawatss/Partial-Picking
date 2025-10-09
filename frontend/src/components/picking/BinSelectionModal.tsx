@@ -1,6 +1,3 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { useState } from 'react'
 
 interface Bin {
@@ -40,57 +37,107 @@ export function BinSelectionModal({ open, onOpenChange, onSelect, lotNo }: BinSe
     setSearchTerm('')
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Select Bin {lotNo && `for ${lotNo}`}</DialogTitle>
-          <p className="text-sm text-gray-600 mt-2">
-            Showing TFC1 PARTIAL bins only ({filteredBins.length} available)
-          </p>
-        </DialogHeader>
+  const handleClose = () => {
+    onOpenChange(false)
+    setSearchTerm('')
+  }
 
-        {/* Search Input */}
-        <div className="mb-4">
-          <Input
-            type="text"
-            placeholder="Search bin number..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full"
-            autoFocus
-          />
+  if (!open) return null
+
+  return (
+    <div className="modal-overlay" onClick={handleClose}>
+      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+        {/* Modal Header - Brown Gradient */}
+        <div className="modal-header-brown">
+          <h3 className="modal-title">
+            <span>📍</span>
+            <span>Select Bin</span>
+          </h3>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={handleClose}
+            aria-label="Close dialog"
+          >
+            ✕
+          </button>
         </div>
 
-        {/* Bins Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-96 overflow-y-auto">
+        {/* Lot Context Bar */}
+        {lotNo && (
+          <div className="modal-item-context">
+            <span className="modal-context-label">Lot:</span>
+            <span className="modal-context-value">{lotNo}</span>
+            <span className="modal-context-label">• TFC1 PARTIAL Bins Only</span>
+          </div>
+        )}
+
+        {/* Search Section */}
+        <div className="modal-search">
+          <div className="modal-search-input-wrapper">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search bin number..."
+              className="modal-search-input"
+              autoFocus
+            />
+            <div className="modal-search-icon">
+              <span>🔍</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Results Section */}
+        <div className="modal-content">
           {filteredBins.length === 0 ? (
-            <p className="col-span-full text-center text-gray-500 py-8">No bins found</p>
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">📦</div>
+              <p className="modal-empty-text">
+                {searchTerm ? 'No bins found' : 'Start typing to search bins'}
+              </p>
+              <p className="modal-empty-hint">
+                {searchTerm ? 'Try a different search term' : 'Enter bin number to search'}
+              </p>
+            </div>
           ) : (
-            filteredBins.map(bin => (
-              <Button
-                key={bin.binNo}
-                type="button"
-                variant="outline"
-                className="h-auto p-4 text-left justify-start hover:bg-blue-50 hover:border-blue-300"
-                onClick={() => handleSelect(bin)}
-              >
-                <div className="w-full">
-                  <div className="font-bold text-lg">{bin.binNo}</div>
-                  <div className="text-xs text-gray-600 mt-1">{bin.location}</div>
-                </div>
-              </Button>
-            ))
+            <div className="modal-results-list">
+              {filteredBins.map((bin) => (
+                <button
+                  key={bin.binNo}
+                  type="button"
+                  className="modal-batch-item"
+                  onClick={() => handleSelect(bin)}
+                >
+                  <div>
+                    <div className="modal-batch-label">{bin.binNo}</div>
+                    <div style={{ marginTop: '4px', fontSize: '0.875rem', color: '#5B4A3F' }}>
+                      Location: {bin.location} • {bin.user1} • {bin.user4}
+                    </div>
+                  </div>
+                  <div className="modal-batch-arrow">→</div>
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
-        {/* Close Button */}
-        <div className="flex justify-end mt-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        {/* Modal Footer */}
+        {filteredBins.length > 0 && (
+          <div className="modal-footer">
+            <div className="modal-footer-left">
+              <p className="modal-footer-info">
+                Showing {filteredBins.length} of {mockBins.length} bins
+              </p>
+            </div>
+
+            <button type="button" onClick={handleClose} className="modal-cancel-btn">
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

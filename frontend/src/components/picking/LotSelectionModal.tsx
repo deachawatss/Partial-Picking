@@ -1,6 +1,3 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-
 interface Lot {
   lotNo: string
   dateExpiry: string
@@ -59,82 +56,120 @@ export function LotSelectionModal({
     onOpenChange(false)
   }
 
+  const handleClose = () => {
+    onOpenChange(false)
+  }
+
   const isFefoLot = (index: number) => index === 0 // First lot is FEFO (earliest expiry)
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Select Lot (FEFO) {itemKey && `for ${itemKey}`}</DialogTitle>
-          <p className="text-sm text-gray-600 mt-2">
-            Lots are sorted by expiry date (FEFO - First Expired First Out). Top lot recommended.
-          </p>
-        </DialogHeader>
+  if (!open) return null
 
-        {/* Lots Grid */}
-        <div className="space-y-2">
+  return (
+    <div className="modal-overlay" onClick={handleClose}>
+      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+        {/* Modal Header - Brown Gradient */}
+        <div className="modal-header-brown">
+          <h3 className="modal-title">
+            <span>🎯</span>
+            <span>Select Lot (FEFO)</span>
+          </h3>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={handleClose}
+            aria-label="Close dialog"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Item Context Bar */}
+        {itemKey && targetQty && (
+          <div className="modal-item-context">
+            <span className="modal-context-label">Item:</span>
+            <span className="modal-context-value">{itemKey}</span>
+            <span className="modal-context-label">• Target:</span>
+            <span className="modal-context-value">{targetQty.toFixed(2)} kg</span>
+            <span className="modal-context-label">• FEFO: First Expired First Out</span>
+          </div>
+        )}
+
+        {/* Results Section */}
+        <div className="modal-content">
           {mockLots.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">
-              No lots available with sufficient quantity (
-              {targetQty ? targetQty.toFixed(2) : '0.00'} kg required)
-            </p>
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">📦</div>
+              <p className="modal-empty-text">No lots available</p>
+              <p className="modal-empty-hint">
+                No lots found with sufficient quantity (
+                {targetQty ? targetQty.toFixed(2) : '0.00'} kg required)
+              </p>
+            </div>
           ) : (
-            mockLots.map((lot, index) => (
-              <Button
-                key={lot.lotNo}
-                type="button"
-                variant="outline"
-                className={`w-full h-auto p-4 text-left justify-start ${
-                  isFefoLot(index)
-                    ? 'bg-blue-100 text-blue-900 border-blue-300 border-2 ring-2 ring-blue-400'
-                    : 'bg-white text-gray-900'
-                }`}
-                onClick={() => handleSelect(lot)}
-              >
-                <div className="w-full">
-                  {isFefoLot(index) && (
-                    <div className="text-xs font-bold text-blue-700 mb-2 flex items-center gap-2">
-                      ⭐ FEFO LOT (Earliest Expiry - Recommended)
-                    </div>
-                  )}
-                  <div className="grid grid-cols-5 gap-4">
-                    <div>
-                      <div className="text-xs opacity-75">Lot No</div>
-                      <div className="font-bold">{lot.lotNo}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs opacity-75">Expiry Date</div>
-                      <div className="font-medium">{lot.dateExpiry}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs opacity-75">On Hand (kg)</div>
-                      <div className="font-medium">{lot.qtyOnHand.toFixed(2)}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs opacity-75">Committed (kg)</div>
-                      <div className="font-medium">{lot.qtyCommitSales.toFixed(2)}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs opacity-75">Available (kg)</div>
-                      <div className="font-medium text-green-600">
+            <div className="modal-table-container">
+              <table className="modal-table">
+                <thead>
+                  <tr>
+                    <th>Lot No</th>
+                    <th>Expiry Date</th>
+                    <th className="text-center">On Hand (kg)</th>
+                    <th className="text-center">Committed (kg)</th>
+                    <th className="text-center">Available (kg)</th>
+                    <th className="text-center">Bin</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mockLots.map((lot, index) => (
+                    <tr
+                      key={lot.lotNo}
+                      onClick={() => handleSelect(lot)}
+                      style={{
+                        background: isFefoLot(index) ? '#E3F2FD' : undefined,
+                      }}
+                    >
+                      <td>
+                        <div className="flex items-center gap-2">
+                          {isFefoLot(index) && <span title="FEFO Lot (Earliest Expiry)">⭐</span>}
+                          <strong>{lot.lotNo}</strong>
+                        </div>
+                      </td>
+                      <td>{lot.dateExpiry}</td>
+                      <td className="text-center">{lot.qtyOnHand.toFixed(2)}</td>
+                      <td className="text-center">{lot.qtyCommitSales.toFixed(2)}</td>
+                      <td
+                        className="text-center"
+                        style={{
+                          color: '#2E7D32',
+                          fontWeight: 'bold',
+                        }}
+                      >
                         {lot.availableQty.toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-                  {lot.binNo && <div className="mt-2 text-xs text-gray-600">Bin: {lot.binNo}</div>}
-                </div>
-              </Button>
-            ))
+                      </td>
+                      <td className="text-center">{lot.binNo || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
-        {/* Close Button */}
-        <div className="flex justify-end mt-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        {/* Modal Footer */}
+        {mockLots.length > 0 && (
+          <div className="modal-footer">
+            <div className="modal-footer-left">
+              <p className="modal-footer-info">
+                Showing {mockLots.length} lot{mockLots.length !== 1 ? 's' : ''} • ⭐ = FEFO
+                Recommended
+              </p>
+            </div>
+
+            <button type="button" onClick={handleClose} className="modal-cancel-btn">
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
