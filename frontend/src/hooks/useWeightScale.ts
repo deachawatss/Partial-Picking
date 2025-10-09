@@ -247,16 +247,17 @@ export function useWeightScale(
                 setStable(weightMsg.data.stable)
               })
 
-              log(
-                'Weight update:',
-                weightMsg.data.weight,
-                weightMsg.data.unit,
-                'stable:',
-                weightMsg.data.stable,
-                'latency:',
-                latency,
-                'ms'
-              )
+              // Only log unstable weights to reduce console spam
+              if (!weightMsg.data.stable) {
+                log(
+                  'Weight update (unstable):',
+                  weightMsg.data.weight,
+                  weightMsg.data.unit,
+                  'latency:',
+                  latency,
+                  'ms'
+                )
+              }
               break
             }
 
