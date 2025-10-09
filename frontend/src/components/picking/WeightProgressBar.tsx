@@ -68,7 +68,13 @@ export function WeightProgressBar({
 
   const toleranceLow = Math.max(safeTarget - safeTolerance, 0)
   const toleranceHigh = safeTarget + safeTolerance
-  const maxForScale = Math.max(toleranceHigh * 1.25, safeTarget + safeTolerance * 2, 5)
+
+  // Position the acceptable tolerance range at 60-70% of the bar width
+  // This ensures consistent visual positioning regardless of actual weight values
+  const TOLERANCE_POSITION = 0.65 // Position center of tolerance at 65% of bar
+  const maxForScale = safeTarget > 0
+    ? Math.max(toleranceHigh / TOLERANCE_POSITION, 50) // Scale so high tolerance is at ~65%
+    : 50 // Default 50 KG when no target selected
 
   const percentage = clamp((safeWeight / maxForScale) * 100, 0, 100)
   const toleranceStart = clamp((toleranceLow / maxForScale) * 100, 0, 100)
@@ -185,23 +191,67 @@ export function WeightProgressBar({
 
         <div className="flex flex-1 flex-col gap-3">
           <div className="relative h-16 overflow-hidden rounded-lg border-2 border-white/30 bg-white/15 shadow-inner">
+            {/* Weight fill bar */}
             <div
               className={`absolute inset-y-1 left-0 rounded-lg ${fillClass} transition-all duration-200`}
               style={{ width: `${percentage}%` }}
             />
-            <span
-              className="pointer-events-none absolute top-1/2 h-14 w-0.5 -translate-y-1/2 bg-white/80"
-              style={{ left: '50%' }}
-            />
+
+            {/* Tolerance zone (acceptable range) */}
             <div
-              className="pointer-events-none absolute top-1/2 h-14 -translate-y-1/2 rounded border-l-[4px] border-r-[4px]"
+              className="pointer-events-none absolute top-1/2 h-14 -translate-y-1/2 rounded-md"
               style={{
                 left: `${toleranceStart}%`,
                 width: `${toleranceSpanClamped}%`,
-                borderColor: toleranceBorderColor,
-                backgroundColor: toleranceBackgroundColor,
-                boxShadow: toleranceGlowEffect,
+                border: `3px solid ${isInRange ? '#4ade80' : '#fbbf24'}`,
+                backgroundColor: isInRange ? 'rgba(74, 222, 128, 0.25)' : 'rgba(251, 191, 36, 0.25)',
+                boxShadow: isInRange
+                  ? '0 0 20px rgba(74, 222, 128, 0.6), inset 0 0 15px rgba(74, 222, 128, 0.3)'
+                  : '0 0 20px rgba(251, 191, 36, 0.6), inset 0 0 15px rgba(251, 191, 36, 0.3)',
+                zIndex: 5,
               }}
+            />
+
+            {/* Min tolerance marker (left boundary) */}
+            {safeTarget > 0 && (
+              <div
+                className="pointer-events-none absolute top-0 bottom-0 w-1 bg-gradient-to-b from-accent-gold via-accent-gold to-accent-gold/50 shadow-lg"
+                style={{ left: `${toleranceMinPosition}%`, zIndex: 10 }}
+              >
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-accent-gold/90 rounded text-[10px] font-bold text-white whitespace-nowrap shadow-md">
+                  {toleranceLow.toFixed(3)}
+                </div>
+              </div>
+            )}
+
+            {/* Max tolerance marker (right boundary) */}
+            {safeTarget > 0 && (
+              <div
+                className="pointer-events-none absolute top-0 bottom-0 w-1 bg-gradient-to-b from-accent-gold via-accent-gold to-accent-gold/50 shadow-lg"
+                style={{ left: `${toleranceMaxPosition}%`, zIndex: 10 }}
+              >
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-accent-gold/90 rounded text-[10px] font-bold text-white whitespace-nowrap shadow-md">
+                  {toleranceHigh.toFixed(3)}
+                </div>
+              </div>
+            )}
+
+            {/* Target weight indicator (center line) */}
+            {safeTarget > 0 && (
+              <div
+                className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-lg"
+                style={{ left: `${(safeTarget / maxForScale) * 100}%`, zIndex: 20 }}
+              >
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-white/95 rounded text-[10px] font-bold text-brand-primary whitespace-nowrap shadow-md border border-brand-primary/20">
+                  Target: {safeTarget.toFixed(3)}
+                </div>
+              </div>
+            )}
+
+            {/* 50% reference line (midpoint) */}
+            <span
+              className="pointer-events-none absolute top-1/2 h-14 w-0.5 -translate-y-1/2 bg-white/40"
+              style={{ left: '50%', zIndex: 1 }}
             />
           </div>
         </div>

@@ -202,11 +202,16 @@ export function PartialPickingPage() {
   const primaryButtonClass = 'picking-btn-action-primary'
   const secondaryButtonClass = 'picking-btn-action-secondary'
   const dangerButtonClass = 'picking-btn-action-danger'
-  const weightRangeLow = currentItem?.weightRangeLow ?? 0
-  const weightRangeHigh = currentItem?.weightRangeHigh ?? 0
-  const toleranceValue =
-    currentItem?.toleranceKG ??
-    (currentItem ? Math.max((currentItem.weightRangeHigh - currentItem.weightRangeLow) / 2, 0) : 0)
+
+  // Default weight values when no run/item is selected (for progress bar testing)
+  const DEFAULT_TARGET_WEIGHT = 31 // KG (center of 30-32 range)
+  const DEFAULT_TOLERANCE = 1 // KG (±1 KG gives 30-32 range)
+
+  // Calculate weight values for progress bar
+  const targetWeight = currentItem?.totalNeeded ?? DEFAULT_TARGET_WEIGHT
+  const toleranceValue = currentItem?.toleranceKG ?? DEFAULT_TOLERANCE
+  const weightRangeLow = currentItem?.weightRangeLow ?? (DEFAULT_TARGET_WEIGHT - DEFAULT_TOLERANCE)
+  const weightRangeHigh = currentItem?.weightRangeHigh ?? (DEFAULT_TARGET_WEIGHT + DEFAULT_TOLERANCE)
   const weightInRange =
     currentWeight > 0 && currentWeight >= weightRangeLow && currentWeight <= weightRangeHigh
   const weightFieldClass = weightInRange
@@ -276,7 +281,7 @@ export function PartialPickingPage() {
           <div className="p-4 lg:col-span-2">
             <WeightProgressBar
               weight={currentWeight}
-              targetWeight={currentItem?.totalNeeded ?? 0}
+              targetWeight={targetWeight}
               tolerance={toleranceValue}
               selectedScale={selectedScale}
               onScaleChange={handleScaleSelection}
