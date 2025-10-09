@@ -280,7 +280,7 @@ pub async fn get_batch_items(
     Ok(BatchItemsResponse { items })
 }
 
-/// List all production runs with pagination
+/// List all production runs with pagination and optional search
 ///
 /// Uses validated SQL from PRD: Section 7.11A - Run Search Modal
 ///
@@ -288,6 +288,7 @@ pub async fn get_batch_items(
 /// * `pool` - Database connection pool
 /// * `limit` - Records per page (default 10, max 100)
 /// * `offset` - Records to skip (default 0)
+/// * `search` - Optional search query for filtering by RunNo, FormulaId, or FormulaDesc
 ///
 /// # Returns
 /// * RunListResponse with runs array and pagination metadata
@@ -297,30 +298,69 @@ pub async fn get_batch_items(
 /// * ✅ Filters Status IN ('NEW', 'PRINT')
 /// * ✅ FEFO-friendly ordering (RunNo DESC - newest first)
 /// * ✅ Pagination with OFFSET/FETCH NEXT
-pub async fn list_runs(pool: &DbPool, limit: i32, offset: i32) -> AppResult<RunListResponse> {
+/// * ✅ Performance-optimized LIKE searches (prefix for RunNo, contains for text fields)
+pub async fn list_runs(pool: &DbPool, limit: i32, offset: i32, search: Option<&str>) -> AppResult<RunListResponse> {
     let mut conn = pool.get().await?;
 
     // Validate limit (1-100)
     let limit = limit.clamp(1, 100);
     let offset = offset.max(0);
 
-    // SQL from PRD Section 7.11A: Run Search Modal
+    // SQL from PRD Section 7.11A: Run Search Modal with optional search filtering
     // Get total count first
-    let count_sql = r#"
+    let count_sql = if search.is_some() {
+        r#"
         SELECT COUNT(DISTINCT RunNo) as TotalCount
         FROM Cust_PartialRun
         WHERE Status IN ('NEW', 'PRINT')
-    "#;
+          AND (
+            CAST(RunNo AS VARCHAR) LIKE @P1 + '%'
+            OR FormulaId LIKE '%' + @P1 + '%'
+            OR FormulaDesc LIKE '%' + @P1 + '%'
+          )
+        "#
+    } else {
+        r#"
+        SELECT COUNT(DISTINCT RunNo) as TotalCount
+        FROM Cust_PartialRun
+        WHERE Status IN ('NEW', 'PRINT')
+        "#
+    };
 
-    let count_result = Query::new(count_sql).query(&mut *conn).await?;
+    let mut count_query = Query::new(count_sql);
+    if let Some(search_term) = search {
+        count_query.bind(search_term);
+    }
+
+    let count_result = count_query.query(&mut *conn).await?;
     let count_rows: Vec<Row> = count_result.into_first_result().await?;
     let total: i32 = count_rows
         .first()
         .and_then(|row| row.get::<i32, _>("TotalCount"))
         .unwrap_or(0);
 
-    // Get paginated runs
-    let runs_sql = r#"
+    // Get paginated runs with optional search filtering
+    let runs_sql = if search.is_some() {
+        r#"
+        SELECT
+            RunNo,
+            FormulaId,
+            FormulaDesc,
+            Status,
+            COUNT(*) as BatchCount
+        FROM Cust_PartialRun
+        WHERE Status IN ('NEW', 'PRINT')
+          AND (
+            CAST(RunNo AS VARCHAR) LIKE @P1 + '%'
+            OR FormulaId LIKE '%' + @P1 + '%'
+            OR FormulaDesc LIKE '%' + @P1 + '%'
+          )
+        GROUP BY RunNo, FormulaId, FormulaDesc, Status
+        ORDER BY RunNo DESC
+        OFFSET @P2 ROWS FETCH NEXT @P3 ROWS ONLY
+        "#
+    } else {
+        r#"
         SELECT
             RunNo,
             FormulaId,
@@ -332,11 +372,18 @@ pub async fn list_runs(pool: &DbPool, limit: i32, offset: i32) -> AppResult<RunL
         GROUP BY RunNo, FormulaId, FormulaDesc, Status
         ORDER BY RunNo DESC
         OFFSET @P1 ROWS FETCH NEXT @P2 ROWS ONLY
-    "#;
+        "#
+    };
 
     let mut query = Query::new(runs_sql);
-    query.bind(offset);
-    query.bind(limit);
+    if let Some(search_term) = search {
+        query.bind(search_term);
+        query.bind(offset);
+        query.bind(limit);
+    } else {
+        query.bind(offset);
+        query.bind(limit);
+    }
 
     let rows = query.query(&mut *conn).await?;
     let rows: Vec<Row> = rows.into_first_result().await?;
@@ -375,6 +422,7 @@ pub async fn list_runs(pool: &DbPool, limit: i32, offset: i32) -> AppResult<RunL
         offset = offset,
         returned_count = runs.len(),
         has_more = has_more,
+        search = ?search,
         "Retrieved run list"
     );
 

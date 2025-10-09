@@ -24,7 +24,7 @@ import {
 import { cacheRun, getCachedRun } from '@/services/cache'
 
 /**
- * List all production runs with pagination
+ * List all production runs with pagination and optional search
  *
  * OpenAPI Operation: GET /api/runs
  *
@@ -33,13 +33,21 @@ import { cacheRun, getCachedRun } from '@/services/cache'
  *
  * @param limit - Records per page (default 10, max 100)
  * @param offset - Records to skip (default 0)
+ * @param search - Optional search query to filter by RunNo, FormulaId, or FormulaDesc
  * @returns Promise<RunListResponse> - Paginated list of runs
  * @throws ErrorResponse - On network error or API error
  */
-export async function listRuns(limit: number = 10, offset: number = 0): Promise<RunListResponse> {
-  const response = await apiClient.get<RunListResponse>('/runs', {
-    params: { limit, offset },
-  })
+export async function listRuns(
+  limit: number = 10,
+  offset: number = 0,
+  search?: string
+): Promise<RunListResponse> {
+  const params: { limit: number; offset: number; search?: string } = { limit, offset }
+  if (search && search.trim() !== '') {
+    params.search = search.trim()
+  }
+
+  const response = await apiClient.get<RunListResponse>('/runs', { params })
   return response.data
 }
 

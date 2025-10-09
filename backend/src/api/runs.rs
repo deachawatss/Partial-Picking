@@ -19,6 +19,9 @@ pub struct ListRunsQuery {
 
     #[serde(default = "default_offset")]
     pub offset: i32,
+
+    /// Optional search query to filter runs by RunNo, FormulaId, or FormulaDesc
+    pub search: Option<String>,
 }
 
 fn default_limit() -> i32 {
@@ -72,7 +75,7 @@ pub async fn list_runs_endpoint(
         ));
     }
 
-    let response = list_runs(&pool, params.limit, params.offset).await?;
+    let response = list_runs(&pool, params.limit, params.offset, params.search.as_deref()).await?;
 
     Ok(Json(response))
 }

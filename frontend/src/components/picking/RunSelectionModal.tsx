@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRunsList, useRunDetails } from '@/hooks/useRunsQuery'
 import type { RunDetailsResponse, RunListItemDTO } from '@/types/api'
 
@@ -12,29 +12,37 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
   const [currentPage, setCurrentPage] = useState(0)
   const limit = 10
 
-  // Search box state
-  const [runNoInput, setRunNoInput] = useState('')
-  const [searchedRunNo, setSearchedRunNo] = useState<number | null>(null)
+  // Auto-filter search state
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
-  // Paginated list query
-  const { data: runsList, isLoading, error } = useRunsList(limit, currentPage * limit, { enabled: open })
+  // Debounce search input (400ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput)
+      // Reset to page 0 when search changes
+      if (searchInput !== debouncedSearch) {
+        setCurrentPage(0)
+      }
+    }, 400)
 
-  // Fetch run details when a run is selected (either from search or from list)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  // Use debounced search for filtering
+  const searchParam = debouncedSearch.trim() !== '' ? debouncedSearch : undefined
+
+  // Paginated list query with optional search
+  const { data: runsList, isLoading, error } = useRunsList(
+    limit,
+    currentPage * limit,
+    searchParam,
+    { enabled: open }
+  )
+
+  // Fetch run details when a run is selected from list
   const [selectedRunNo, setSelectedRunNo] = useState<number | null>(null)
-  const { data: runDetails, isLoading: isLoadingDetails, error: searchError } = useRunDetails(selectedRunNo || searchedRunNo)
-
-  const handleSearch = () => {
-    const runNo = parseInt(runNoInput, 10)
-    if (!isNaN(runNo) && runNo > 0) {
-      setSearchedRunNo(runNo)
-    }
-  }
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSearch()
-    }
-  }
+  const { data: runDetails, isLoading: isLoadingDetails } = useRunDetails(selectedRunNo)
 
   const handleSelectRun = async (run: RunListItemDTO) => {
     // Fetch full run details from browsing list
@@ -42,20 +50,20 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
   }
 
   // When run details are loaded, call onSelect
-  if (runDetails && (selectedRunNo || searchedRunNo)) {
+  if (runDetails && selectedRunNo) {
     onSelect(runDetails)
     onOpenChange(false)
     setSelectedRunNo(null)
-    setSearchedRunNo(null)
-    setRunNoInput('')
+    setSearchInput('')
+    setDebouncedSearch('')
     setCurrentPage(0)
   }
 
   const handleClose = () => {
     onOpenChange(false)
     setSelectedRunNo(null)
-    setSearchedRunNo(null)
-    setRunNoInput('')
+    setSearchInput('')
+    setDebouncedSearch('')
     setCurrentPage(0)
   }
 
@@ -102,48 +110,37 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
         <div className="modal-search">
           <div className="modal-search-input-wrapper">
             <input
-              type="number"
-              value={runNoInput}
-              onChange={(e) => setRunNoInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Enter Run Number (e.g., 6000037)..."
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search by Run No, Formula ID, or Description (e.g., 600)..."
               className="modal-search-input"
               autoFocus
             />
-            <button
-              onClick={handleSearch}
-              disabled={isLoadingDetails}
-              className="modal-search-btn"
-              aria-label="Search run"
-            >
-              {isLoadingDetails ? '⏳' : '🔍'}
-            </button>
+            {searchInput && searchInput !== debouncedSearch && (
+              <span className="modal-search-btn" style={{ pointerEvents: 'none' }}>
+                ⏳
+              </span>
+            )}
+            {searchInput && searchInput === debouncedSearch && (
+              <button
+                onClick={() => {
+                  setSearchInput('')
+                  setDebouncedSearch('')
+                }}
+                className="modal-search-btn"
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
         {/* Results Section */}
         <div className="modal-content">
-          {/* Search Error State */}
-          {searchError && searchedRunNo && (
-            <div className="modal-empty-state">
-              <div className="modal-empty-icon">⚠️</div>
-              <p className="modal-empty-text">Run not found</p>
-              <p className="modal-empty-hint">
-                Run number {searchedRunNo} does not exist. Please check and try again.
-              </p>
-            </div>
-          )}
-
-          {/* Search Loading State */}
-          {isLoadingDetails && searchedRunNo && (
-            <div className="modal-empty-state">
-              <div className="modal-empty-icon">⏳</div>
-              <p className="modal-empty-text">Loading run details...</p>
-            </div>
-          )}
-
           {/* List Error State */}
-          {error && !searchedRunNo && (
+          {error && (
             <div className="modal-empty-state">
               <div className="modal-empty-icon">⚠️</div>
               <p className="modal-empty-text">Failed to load runs</p>
@@ -154,58 +151,29 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
           )}
 
           {/* List Loading State */}
-          {isLoading && !searchedRunNo && (
+          {isLoading && (
             <div className="modal-empty-state">
               <div className="modal-empty-icon">⏳</div>
               <p className="modal-empty-text">Loading production runs...</p>
             </div>
           )}
 
-          {/* Search Result - Show single run when searched */}
-          {runDetails && searchedRunNo && !searchError && !isLoadingDetails && (
+          {/* Runs Table - Show paginated list */}
+          {runsList && !isLoading && !error && (
             <div className="modal-table-container">
-              <table className="modal-table">
-                <thead>
-                  <tr>
-                    <th>Run No</th>
-                    <th>FG Item Key</th>
-                    <th>FG Description</th>
-                    <th className="text-center">Status</th>
-                    <th>Production Date</th>
-                    <th className="text-center">Batches</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    onClick={() => {
-                      onSelect(runDetails)
-                      onOpenChange(false)
-                      setSearchedRunNo(null)
-                      setRunNoInput('')
-                    }}
-                    className="cursor-pointer hover:bg-gray-50"
-                  >
-                    <td>
-                      <strong>{runDetails.runNo}</strong>
-                    </td>
-                    <td>{runDetails.fgItemKey}</td>
-                    <td title={runDetails.fgDescription}>{runDetails.fgDescription}</td>
-                    <td className="text-center">
-                      <span className={`modal-status-badge ${getStatusClass(runDetails.status)}`}>
-                        {runDetails.status}
-                      </span>
-                    </td>
-                    <td>{runDetails.productionDate}</td>
-                    <td className="text-center">{runDetails.noOfBatches}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Runs Table - Show paginated list when NOT searching */}
-          {runsList && !isLoading && !error && !searchedRunNo && (
-            <div className="modal-table-container">
+              {searchParam && (
+                <div style={{
+                  padding: '8px 12px',
+                  background: '#f0f9ff',
+                  border: '1px solid #0ea5e9',
+                  borderRadius: '6px',
+                  marginBottom: '12px',
+                  fontSize: '13px',
+                  color: '#0369a1'
+                }}>
+                  🔍 Filtering by: <strong>{debouncedSearch}</strong> ({runsList.pagination.total} results)
+                </div>
+              )}
               <table className="modal-table">
                 <thead>
                   <tr>
@@ -221,7 +189,11 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
                     <tr>
                       <td colSpan={5} className="text-center py-8">
                         <div className="modal-empty-icon">📋</div>
-                        <p className="modal-empty-text">No production runs found</p>
+                        <p className="modal-empty-text">
+                          {searchParam
+                            ? `No runs found matching "${debouncedSearch}"`
+                            : 'No production runs found'}
+                        </p>
                       </td>
                     </tr>
                   ) : (
@@ -251,8 +223,8 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
           )}
         </div>
 
-        {/* Modal Footer with Pagination - Only show when browsing list */}
-        {runsList && !searchedRunNo && (
+        {/* Modal Footer with Pagination */}
+        {runsList && (
           <div className="modal-footer">
             <div className="modal-footer-left">
               <p className="modal-footer-info">
@@ -281,18 +253,6 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
                 Cancel
               </button>
             </div>
-          </div>
-        )}
-
-        {/* Modal Footer - Simple Cancel when searching */}
-        {searchedRunNo && runDetails && (
-          <div className="modal-footer">
-            <div className="modal-footer-left">
-              <p className="modal-footer-info">Click the row to select this run</p>
-            </div>
-            <button type="button" onClick={handleClose} className="modal-cancel-btn">
-              Cancel
-            </button>
           </div>
         )}
       </div>
