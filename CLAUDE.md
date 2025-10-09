@@ -84,6 +84,34 @@ cd bridge && dotnet run
 - ✅ Is audit data preserved?
 - ✅ Are we using existing database keys?
 
+## Before Development - Required Reading
+
+⚠️ **MANDATORY**: Read `DB-Flow.md` BEFORE implementing any database or workflow features.
+
+**DB-Flow.md** is the single source of truth for:
+- Database schema (table structures, composite keys, field names with exact casing)
+- Operational workflows (4-phase atomic picking, unpick/delete, auto-population)
+- FEFO lot selection algorithm (ORDER BY DateExpiry ASC, Location ASC)
+- Weight tolerance validation (INMAST.User9 absolute tolerance)
+- Label printing workflows (Individual + Summary labels with ZPL)
+- Production-tested SQL queries (Run selection, batch items, lot selection, bins)
+- Common pitfalls (table casing, wrong field names, missing composite key components)
+
+**Why DB-Flow.md exists**:
+- Consolidates 3,795 lines of documentation (database-schema.md + PickingFlow.md) into focused 600-line guide
+- Includes real production examples (Run 213972, INSALT02 picking, QtyCommitSales workflow)
+- Documents exact field names (casing matters: `cust_PartialPicked` not `Cust_PartialPicked`)
+- Shows complete 4-phase atomic transaction SQL with rollback
+- Explains audit trail preservation (ItemBatchStatus, PickingDate, ModifiedBy NEVER deleted)
+
+**When to reference DB-Flow.md**:
+- ✅ Before writing ANY SQL query
+- ✅ Before implementing picking/unpick workflows
+- ✅ Before creating database models or DTOs
+- ✅ Before debugging weight field issues
+- ✅ Before implementing FEFO lot selection
+- ✅ Before working with composite keys (RunNo+RowNum+LineId)
+
 ## Critical Architecture Patterns
 
 ### 4-Phase Atomic Picking Transaction
@@ -264,4 +292,7 @@ Improve picking form layout with consistent label alignment
 
 ## Documentation
 
-**Specs**: `specs/001-i-have-an/{research.md, plan.md, tasks.md}` | **Constitution**: `.specify/memory/constitution.md` | **Agents**: `agents.md`
+**Primary Docs**:
+- **`DB-Flow.md`** - Database schema + workflows (MANDATORY before DB/workflow development)
+- `specs/001-i-have-an/{research.md, plan.md, tasks.md}` - Project specs and planning
+- `.specify/memory/constitution.md` - Constitutional principles

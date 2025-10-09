@@ -114,13 +114,34 @@ export function WeightProgressBar({
 
   const containerClass = containerAccentByState[weightState] ?? containerAccentByState.idle
   const fillClass = progressFillByState[weightState] ?? progressFillByState.idle
-  const toleranceBorderColor = isInRange ? '#4ade80' : '#fbbf24'
-  const toleranceBackgroundColor = isInRange
-    ? 'rgba(74, 222, 128, 0.25)'
-    : 'rgba(251, 191, 36, 0.25)'
-  const toleranceGlowEffect = isInRange
-    ? '0 0 16px rgba(74, 222, 128, 0.5), inset 0 0 12px rgba(74, 222, 128, 0.2)'
-    : '0 0 16px rgba(251, 191, 36, 0.5), inset 0 0 12px rgba(251, 191, 36, 0.2)'
+
+  // Tolerance zone colors based on state
+  const getToleranceColors = () => {
+    // Gray/neutral when offline or no weight
+    if (!online || safeWeight === 0) {
+      return {
+        border: '#9ca3af', // gray-400
+        background: 'rgba(156, 163, 175, 0.15)', // gray-400 with low opacity
+        glow: '0 0 8px rgba(156, 163, 175, 0.3), inset 0 0 6px rgba(156, 163, 175, 0.1)',
+      }
+    }
+    // Green when in range
+    if (isInRange) {
+      return {
+        border: '#4ade80', // green-400
+        background: 'rgba(74, 222, 128, 0.25)',
+        glow: '0 0 20px rgba(74, 222, 128, 0.6), inset 0 0 15px rgba(74, 222, 128, 0.3)',
+      }
+    }
+    // Amber/red when out of range
+    return {
+      border: '#fbbf24', // amber-400
+      background: 'rgba(251, 191, 36, 0.25)',
+      glow: '0 0 20px rgba(251, 191, 36, 0.6), inset 0 0 15px rgba(251, 191, 36, 0.3)',
+    }
+  }
+
+  const toleranceColors = getToleranceColors()
 
   const renderScaleButton = (scale: ScaleKey, label: string) => {
     const isActive = selectedScale === scale
@@ -203,11 +224,9 @@ export function WeightProgressBar({
               style={{
                 left: `${toleranceStart}%`,
                 width: `${toleranceSpanClamped}%`,
-                border: `3px solid ${isInRange ? '#4ade80' : '#fbbf24'}`,
-                backgroundColor: isInRange ? 'rgba(74, 222, 128, 0.25)' : 'rgba(251, 191, 36, 0.25)',
-                boxShadow: isInRange
-                  ? '0 0 20px rgba(74, 222, 128, 0.6), inset 0 0 15px rgba(74, 222, 128, 0.3)'
-                  : '0 0 20px rgba(251, 191, 36, 0.6), inset 0 0 15px rgba(251, 191, 36, 0.3)',
+                border: `3px solid ${toleranceColors.border}`,
+                backgroundColor: toleranceColors.background,
+                boxShadow: toleranceColors.glow,
                 zIndex: 5,
               }}
             />
@@ -247,12 +266,6 @@ export function WeightProgressBar({
                 </div>
               </div>
             )}
-
-            {/* 50% reference line (midpoint) */}
-            <span
-              className="pointer-events-none absolute top-1/2 h-14 w-0.5 -translate-y-1/2 bg-white/40"
-              style={{ left: '50%', zIndex: 1 }}
-            />
           </div>
         </div>
 

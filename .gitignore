@@ -31,11 +31,10 @@ yarn-error.log*
 # Documentation reference (do not track)
 docs/mobile-rust/
 docs/frontend-ref/node_modules/
+docs/PK/
+**/.git/
 
-# AI tooling (do not track)
-.claude/
-.specify/
-bmad/
+
 
 
 # Test coverage
