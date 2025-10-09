@@ -1,37 +1,21 @@
 import { useState } from 'react'
-
-interface Bin {
-  binNo: string
-  location: string
-  user1?: string
-  user4?: string
-}
+import { useBins } from '@/hooks/useBinsQuery'
+import type { BinDTO } from '@/types/api'
 
 interface BinSelectionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSelect: (bin: Bin) => void
+  onSelect: (bin: BinDTO) => void
   lotNo?: string
 }
 
 export function BinSelectionModal({ open, onOpenChange, onSelect, lotNo }: BinSelectionModalProps) {
   const [searchTerm, setSearchTerm] = useState('')
 
-  // Mock data - will be replaced with API call in Phase 3.4
-  // Filter: Only TFC1 PARTIAL bins (Location='TFC1', User1='WHTFC1', User4='PARTIAL')
-  const mockBins: Bin[] = [
-    { binNo: 'TFC1-PARTIAL-001', location: 'TFC1', user1: 'WHTFC1', user4: 'PARTIAL' },
-    { binNo: 'TFC1-PARTIAL-002', location: 'TFC1', user1: 'WHTFC1', user4: 'PARTIAL' },
-    { binNo: 'TFC1-PARTIAL-003', location: 'TFC1', user1: 'WHTFC1', user4: 'PARTIAL' },
-    { binNo: 'TFC1-PARTIAL-004', location: 'TFC1', user1: 'WHTFC1', user4: 'PARTIAL' },
-    { binNo: 'TFC1-PARTIAL-005', location: 'TFC1', user1: 'WHTFC1', user4: 'PARTIAL' },
-  ]
+  // Fetch all TFC1 PARTIAL bins with client-side search
+  const { data: bins, isLoading, error } = useBins(searchTerm, { enabled: open })
 
-  const filteredBins = mockBins.filter(bin =>
-    bin.binNo.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const handleSelect = (bin: Bin) => {
+  const handleSelect = (bin: BinDTO) => {
     onSelect(bin)
     onOpenChange(false)
     setSearchTerm('')
@@ -91,19 +75,42 @@ export function BinSelectionModal({ open, onOpenChange, onSelect, lotNo }: BinSe
 
         {/* Results Section */}
         <div className="modal-content">
-          {filteredBins.length === 0 ? (
+          {/* Error State */}
+          {error && (
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">⚠️</div>
+              <p className="modal-empty-text">Error loading bins</p>
+              <p className="modal-empty-hint">
+                Could not load TFC1 PARTIAL bins. Please try again.
+              </p>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">⏳</div>
+              <p className="modal-empty-text">Loading bins...</p>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !error && bins && bins.length === 0 && (
             <div className="modal-empty-state">
               <div className="modal-empty-icon">📦</div>
               <p className="modal-empty-text">
-                {searchTerm ? 'No bins found' : 'Start typing to search bins'}
+                {searchTerm ? 'No bins found' : 'No bins available'}
               </p>
               <p className="modal-empty-hint">
-                {searchTerm ? 'Try a different search term' : 'Enter bin number to search'}
+                {searchTerm ? 'Try a different search term' : 'No TFC1 PARTIAL bins found'}
               </p>
             </div>
-          ) : (
+          )}
+
+          {/* Bins List */}
+          {!isLoading && !error && bins && bins.length > 0 && (
             <div className="modal-results-list">
-              {filteredBins.map((bin) => (
+              {bins.map((bin) => (
                 <button
                   key={bin.binNo}
                   type="button"
@@ -113,7 +120,13 @@ export function BinSelectionModal({ open, onOpenChange, onSelect, lotNo }: BinSe
                   <div>
                     <div className="modal-batch-label">{bin.binNo}</div>
                     <div style={{ marginTop: '4px', fontSize: '0.875rem', color: '#5B4A3F' }}>
-                      Location: {bin.location} • {bin.user1} • {bin.user4}
+                      {bin.description && <span>{bin.description} • </span>}
+                      {bin.aisle && bin.row && bin.rack && (
+                        <span>Aisle {bin.aisle} • Row {bin.row} • Rack {bin.rack}</span>
+                      )}
+                      {(!bin.aisle || !bin.row || !bin.rack) && (
+                        <span>Location: {bin.location} • {bin.user1} • {bin.user4}</span>
+                      )}
                     </div>
                   </div>
                   <div className="modal-batch-arrow">→</div>
@@ -124,11 +137,12 @@ export function BinSelectionModal({ open, onOpenChange, onSelect, lotNo }: BinSe
         </div>
 
         {/* Modal Footer */}
-        {filteredBins.length > 0 && (
+        {!isLoading && !error && bins && bins.length > 0 && (
           <div className="modal-footer">
             <div className="modal-footer-left">
               <p className="modal-footer-info">
-                Showing {filteredBins.length} of {mockBins.length} bins
+                Showing {bins.length} bin{bins.length !== 1 ? 's' : ''}
+                {searchTerm && ' (filtered)'}
               </p>
             </div>
 

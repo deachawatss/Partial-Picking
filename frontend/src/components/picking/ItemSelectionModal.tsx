@@ -1,3 +1,7 @@
+import { useMemo } from 'react'
+import { useBatchItems } from '@/hooks/useItemsQuery'
+import type { BatchItemDTO } from '@/types/api'
+
 interface PickItem {
   lineId: number
   itemKey: string
@@ -12,8 +16,8 @@ interface ItemSelectionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSelect: (item: PickItem) => void
-  runNo?: number
-  batchNo?: number
+  runNo: number | null
+  batchNo: number | null
 }
 
 export function ItemSelectionModal({
@@ -23,36 +27,24 @@ export function ItemSelectionModal({
   runNo,
   batchNo,
 }: ItemSelectionModalProps) {
-  // Mock data - will be replaced with API call in Phase 3.4 (T065)
-  const mockItems: PickItem[] = [
-    {
-      lineId: 1,
-      itemKey: 'ITEM-001',
-      description: 'Ingredient A - Premium Grade',
-      targetQty: 25.5,
-      pickedQty: 0,
-      balance: 25.5,
-      status: 'unpicked',
-    },
-    {
-      lineId: 2,
-      itemKey: 'ITEM-002',
-      description: 'Ingredient B - Standard',
-      targetQty: 15.0,
-      pickedQty: 15.2,
-      balance: -0.2,
-      status: 'picked',
-    },
-    {
-      lineId: 3,
-      itemKey: 'ITEM-003',
-      description: 'Ingredient C - Organic',
-      targetQty: 30.0,
-      pickedQty: 0,
-      balance: 30.0,
-      status: 'unpicked',
-    },
-  ]
+  const { data: batchItems, isLoading, error } = useBatchItems(runNo, batchNo, {
+    enabled: open && !!runNo && !!batchNo
+  })
+
+  // Map BatchItemDTO to PickItem
+  const items = useMemo<PickItem[]>(() => {
+    if (!batchItems) return []
+
+    return batchItems.map((item, index) => ({
+      lineId: index + 1, // Generate lineId from index
+      itemKey: item.itemKey,
+      description: item.description,
+      targetQty: item.totalNeeded,
+      pickedQty: item.pickedQty,
+      balance: item.remainingQty,
+      status: item.status === 'Allocated' ? 'picked' : 'unpicked',
+    }))
+  }, [batchItems])
 
   const handleSelect = (item: PickItem) => {
     onSelect(item)
@@ -94,13 +86,40 @@ export function ItemSelectionModal({
 
         {/* Results Section */}
         <div className="modal-content">
-          {mockItems.length === 0 ? (
+          {/* Error State */}
+          {error && (
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">⚠️</div>
+              <p className="modal-empty-text">Error loading items</p>
+              <p className="modal-empty-hint">
+                Could not load items for run {runNo}, batch {batchNo}. Please try again.
+              </p>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">⏳</div>
+              <p className="modal-empty-text">Loading items...</p>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !error && items.length === 0 && (
             <div className="modal-empty-state">
               <div className="modal-empty-icon">📋</div>
               <p className="modal-empty-text">No items found</p>
-              <p className="modal-empty-hint">There are no items for this batch</p>
+              <p className="modal-empty-hint">
+                {runNo && batchNo
+                  ? `Batch ${batchNo} has no items`
+                  : 'Please select a run and batch first'}
+              </p>
             </div>
-          ) : (
+          )}
+
+          {/* Items Table */}
+          {!isLoading && !error && items.length > 0 && (
             <div className="modal-table-container">
               <table className="modal-table">
                 <thead>
@@ -114,14 +133,14 @@ export function ItemSelectionModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {mockItems.map((item) => (
+                  {items.map((item) => (
                     <tr key={item.lineId} onClick={() => handleSelect(item)}>
                       <td>
                         <strong>{item.itemKey}</strong>
                       </td>
                       <td title={item.description}>{item.description}</td>
-                      <td className="text-center">{item.targetQty.toFixed(2)}</td>
-                      <td className="text-center">{item.pickedQty.toFixed(2)}</td>
+                      <td className="text-center">{item.targetQty.toFixed(3)}</td>
+                      <td className="text-center">{item.pickedQty.toFixed(3)}</td>
                       <td
                         className="text-center"
                         style={{
@@ -129,7 +148,7 @@ export function ItemSelectionModal({
                           fontWeight: item.balance === 0 ? 'bold' : 'normal',
                         }}
                       >
-                        {item.balance.toFixed(2)}
+                        {item.balance.toFixed(3)}
                       </td>
                       <td className="text-center">
                         <span className={`modal-status-badge ${getStatusClass(item.status)}`}>
@@ -145,11 +164,11 @@ export function ItemSelectionModal({
         </div>
 
         {/* Modal Footer */}
-        {mockItems.length > 0 && (
+        {!isLoading && !error && items.length > 0 && (
           <div className="modal-footer">
             <div className="modal-footer-left">
               <p className="modal-footer-info">
-                Showing {mockItems.length} item{mockItems.length !== 1 ? 's' : ''}
+                Showing {items.length} item{items.length !== 1 ? 's' : ''}
               </p>
             </div>
 

@@ -1,0 +1,146 @@
+/* ================================================================ */
+/* COMPONENT LIBRARY - Picking Interface                           */
+/* ================================================================ */
+
+/* Label Styles */
+.picking-label {
+  @apply font-heading text-lg font-semibold uppercase tracking-wider text-text-primary min-w-[120px];
+}
+
+.picking-label-inline {
+  @apply font-heading text-lg font-semibold uppercase tracking-wider text-text-primary min-w-[130px];
+}
+
+/* Button Variants */
+.picking-btn-lookup-inline {
+  @apply absolute right-[1px] top-1/2 -translate-y-1/2 h-[47px] w-[47px];
+  @apply rounded-md bg-brand-primary hover:bg-accent-gold text-white;
+  @apply disabled:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50;
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1), background-color 200ms ease;
+  box-shadow: 0 0 0 3px rgba(224, 170, 47, 0.3) transparent;
+}
+
+.picking-btn-lookup-inline:hover:not(:disabled) {
+  transform: translateY(-50%) scale(1.08);
+}
+
+.picking-btn-lookup-inline:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.picking-btn-lookup-inline:focus-visible {
+  @apply outline-none;
+  box-shadow: 0 0 0 3px rgba(224, 170, 47, 0.3), 0 0 0 1px #E0AA2F;
+  transition: box-shadow 200ms ease;
+}
+
+.picking-btn-action-primary {
+  @apply inline-flex h-12 w-full items-center justify-center rounded-lg;
+  @apply text-sm font-semibold uppercase tracking-wide;
+  @apply text-white;
+  position: relative;
+  background: linear-gradient(135deg, #3A2920 0%, #2B1C14 100%);
+  box-shadow: 0 8px 16px -6px rgba(224, 170, 47, 0.28), 0 2px 6px -2px rgba(224, 170, 47, 0.14);
+  overflow: hidden;
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.picking-btn-action-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(224, 170, 47, 0) 0%, rgba(224, 170, 47, 0.2) 100%);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.picking-btn-action-primary:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.picking-btn-action-primary:hover:not(:disabled) {
+  transform: scale(1.03);
+}
+
+.picking-btn-action-primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.picking-btn-action-primary:focus-visible {
+  @apply outline-none;
+  box-shadow: 0 0 0 3px rgba(224, 170, 47, 0.3), 0 0 0 1px #E0AA2F;
+}
+
+.picking-btn-action-primary:disabled {
+  @apply bg-gray-300 text-gray-500 cursor-not-allowed opacity-60;
+  box-shadow: none;
+  transform: none !important;
+}
+
+.picking-btn-action-secondary {
+  @apply picking-btn-action-primary;
+}
+
+.picking-btn-action-danger {
+  @apply inline-flex h-12 w-full items-center justify-center rounded-lg;
+  @apply text-sm font-semibold uppercase tracking-wide;
+  @apply bg-danger text-white;
+  box-shadow: 0 8px 16px -6px rgba(198, 40, 40, 0.32), 0 2px 6px -2px rgba(198, 40, 40, 0.16);
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.picking-btn-action-danger:hover:not(:disabled) {
+  @apply bg-[#A01F1F];
+  box-shadow: 0 12px 24px -8px rgba(198, 40, 40, 0.40), 0 4px 8px -2px rgba(198, 40, 40, 0.20);
+  transform: scale(1.03);
+}
+
+.picking-btn-action-danger:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.picking-btn-action-danger:focus-visible {
+  @apply outline-none;
+  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.3), 0 0 0 1px #C62828;
+}
+
+.picking-btn-action-danger:disabled {
+  @apply bg-gray-300 text-gray-500 cursor-not-allowed opacity-60;
+  box-shadow: none;
+  transform: none !important;
+}
+
+/* Display Fields */
+.picking-display-field {
+  @apply flex h-12 items-center rounded-lg border-2 border-border-main;
+  @apply bg-bg-main px-4;
+  box-shadow: 0 1px 3px rgba(58, 41, 32, 0.08), 0 1px 2px rgba(58, 41, 32, 0.06);
+}
+
+.picking-display-value {
+  @apply text-base font-bold text-text-primary;
+}
+
+/* Info Banner */
+.picking-info-banner {
+  @apply rounded-lg border-2 border-accent-gold/40;
+  @apply bg-gradient-to-br from-[#FFF9EC] to-[#FFEDC4];
+  @apply px-6 py-4 text-sm font-semibold uppercase tracking-wide;
+  @apply text-text-primary;
+  box-shadow: 0 4px 12px rgba(58, 41, 32, 0.12), 0 2px 4px rgba(58, 41, 32, 0.08);
+}
+
+/* Section Container */
+.picking-section {
+  @apply rounded-lg border-2 border-border-main bg-surface;
+  box-shadow: 0 4px 12px rgba(58, 41, 32, 0.12), 0 2px 4px rgba(58, 41, 32, 0.08);
+}
+
+/* Form Grid Layouts */
+.picking-form-row-inline {
+  @apply grid grid-cols-[130px_minmax(0,1fr)] items-center gap-3;
+}
+
+.picking-form-row-with-extra {
+  @apply grid grid-cols-[130px_1fr_auto] items-center gap-3;
+}

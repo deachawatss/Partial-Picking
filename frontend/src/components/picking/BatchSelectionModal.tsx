@@ -1,16 +1,10 @@
-interface Batch {
-  batchNo: number
-  rowNum: number
-  itemCount: number
-  pickedCount: number
-  status: string
-}
+import { useBatches } from '@/hooks/useBatchesQuery'
 
 interface BatchSelectionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSelect: (batch: Batch) => void
-  runNo?: number
+  onSelect: (batchNo: number) => void
+  runNo: number | null
 }
 
 export function BatchSelectionModal({
@@ -19,33 +13,12 @@ export function BatchSelectionModal({
   onSelect,
   runNo,
 }: BatchSelectionModalProps) {
-  // Mock data - will be replaced with API call in Phase 3.4 (T065)
-  const mockBatches: Batch[] = [
-    {
-      batchNo: 1,
-      rowNum: 1,
-      itemCount: 10,
-      pickedCount: 5,
-      status: 'In Progress',
-    },
-    {
-      batchNo: 2,
-      rowNum: 2,
-      itemCount: 8,
-      pickedCount: 0,
-      status: 'Pending',
-    },
-    {
-      batchNo: 3,
-      rowNum: 3,
-      itemCount: 12,
-      pickedCount: 12,
-      status: 'Completed',
-    },
-  ]
+  const { data: runDetails, isLoading, error } = useBatches(runNo, { enabled: open && !!runNo })
 
-  const handleSelect = (batch: Batch) => {
-    onSelect(batch)
+  const batches = runDetails?.batches ?? []
+
+  const handleSelect = (batchNo: number) => {
+    onSelect(batchNo)
     onOpenChange(false)
   }
 
@@ -76,26 +49,53 @@ export function BatchSelectionModal({
 
         {/* Batch Cards */}
         <div className="modal-content">
-          {mockBatches.length === 0 ? (
+          {/* Error State */}
+          {error && (
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">⚠️</div>
+              <p className="modal-empty-text">Error loading batches</p>
+              <p className="modal-empty-hint">
+                Could not load batches for run {runNo}. Please try again.
+              </p>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">⏳</div>
+              <p className="modal-empty-text">Loading batches...</p>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !error && batches.length === 0 && (
             <div className="modal-empty-state">
               <div className="modal-empty-icon">📋</div>
               <p className="modal-empty-text">No batches found</p>
-              <p className="modal-empty-hint">There are no batches for this run</p>
+              <p className="modal-empty-hint">
+                {runNo ? `Run ${runNo} has no batches` : 'Please select a run first'}
+              </p>
             </div>
-          ) : (
+          )}
+
+          {/* Batch List */}
+          {!isLoading && !error && batches.length > 0 && (
             <div className="modal-results-list">
-              {mockBatches.map((batch) => (
+              {batches.map((batchNo) => (
                 <button
-                  key={batch.batchNo}
+                  key={batchNo}
                   type="button"
                   className="modal-batch-item"
-                  onClick={() => handleSelect(batch)}
+                  onClick={() => handleSelect(batchNo)}
                 >
                   <div>
-                    <div className="modal-batch-label">Batch {batch.batchNo}</div>
-                    <div style={{ marginTop: '4px', fontSize: '0.875rem', color: '#5B4A3F' }}>
-                      {batch.itemCount} items • {batch.pickedCount}/{batch.itemCount} picked • {batch.status}
-                    </div>
+                    <div className="modal-batch-label">Batch {batchNo}</div>
+                    {runDetails && (
+                      <div style={{ marginTop: '4px', fontSize: '0.875rem', color: '#5B4A3F' }}>
+                        Run {runDetails.runNo} • {runDetails.fgItemKey} • {runDetails.status}
+                      </div>
+                    )}
                   </div>
                   <div className="modal-batch-arrow">→</div>
                 </button>
@@ -105,11 +105,12 @@ export function BatchSelectionModal({
         </div>
 
         {/* Modal Footer */}
-        {mockBatches.length > 0 && (
+        {!isLoading && !error && batches.length > 0 && (
           <div className="modal-footer">
             <div className="modal-footer-left">
               <p className="modal-footer-info">
-                Showing {mockBatches.length} batch{mockBatches.length !== 1 ? 'es' : ''}
+                Showing {batches.length} batch{batches.length !== 1 ? 'es' : ''}
+                {runDetails && ` of ${runDetails.noOfBatches} total`}
               </p>
             </div>
 

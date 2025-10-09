@@ -1,3 +1,5 @@
+import { EmptyState } from '@/components/shared/EmptyState'
+
 interface BatchTicketItem {
   lineId: number
   itemKey: string
@@ -19,7 +21,7 @@ interface BatchTicketGridProps {
   pickedCount?: number
 }
 
-const formatQty = (value: number) => value.toFixed(2)
+const formatQty = (value: number) => value.toFixed(3)
 
 export function BatchTicketGrid({
   items,
@@ -115,8 +117,16 @@ export function BatchTicketGrid({
           <tbody className="bg-surface">
             {items.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-sm text-text-primary/40">
-                  No batch items to display
+                <td colSpan={6} className="p-0">
+                  <EmptyState
+                    variant="empty"
+                    title={filter === 'picked' ? 'No picked items yet' : 'No pending items'}
+                    description={
+                      filter === 'picked'
+                        ? 'Items will appear here once they are picked and weighed'
+                        : 'Select a batch to view items to pick'
+                    }
+                  />
                 </td>
               </tr>
             ) : (

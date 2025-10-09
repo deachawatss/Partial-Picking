@@ -286,7 +286,7 @@ export function useWeightScale(
             }
 
             default:
-              log('Unknown message type:', message.type)
+              log('Unknown message type:', (message as BaseMessage).type)
           }
         } catch (err) {
           console.error(`[useWeightScale:${scaleType}] Failed to parse message:`, err)

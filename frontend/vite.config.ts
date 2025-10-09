@@ -149,5 +149,68 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src')
     }
+  },
+  build: {
+    // Performance optimizations
+    target: 'esnext',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.log in production
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug']
+      }
+    },
+    rollupOptions: {
+      output: {
+        // Manual chunk splitting for better caching
+        manualChunks: {
+          // React ecosystem
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          // UI libraries
+          'ui-vendor': ['lucide-react'],
+          // API and state management
+          'api-vendor': ['@tanstack/react-query'],
+          // Modal components (code-split modals)
+          'modals': [
+            './src/components/picking/RunSelectionModal.tsx',
+            './src/components/picking/BatchSelectionModal.tsx',
+            './src/components/picking/ItemSelectionModal.tsx',
+            './src/components/picking/LotSelectionModal.tsx',
+            './src/components/picking/BinSelectionModal.tsx'
+          ]
+        },
+        // Optimized chunk file names with content hash
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
+      }
+    },
+    // Chunk size warnings (500kb warning, 1000kb error)
+    chunkSizeWarningLimit: 500,
+    // CSS code splitting
+    cssCodeSplit: true,
+    // Source maps for production debugging (can disable for smaller builds)
+    sourcemap: false,
+    // Optimize CSS
+    cssMinify: true
+  },
+  // CSS processing optimizations
+  css: {
+    devSourcemap: true,
+    preprocessorOptions: {
+      // Add any PostCSS optimizations here if needed
+    }
+  },
+  // Optimize dependencies
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@tanstack/react-query',
+      'lucide-react'
+    ],
+    exclude: ['@vite/client', '@vite/env']
   }
 })

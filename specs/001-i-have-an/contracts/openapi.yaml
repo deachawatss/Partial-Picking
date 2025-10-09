@@ -41,8 +41,6 @@ tags:
     description: Lot management with FEFO algorithm
   - name: Bins
     description: Bin operations (TFC1 PARTIAL bins only)
-  - name: Sequences
-    description: Sequence number generation (PT for pallets)
   - name: Workstations
     description: Workstation configuration with dual scale assignment
 
@@ -559,77 +557,6 @@ paths:
                     user1: WHTFC1
                     user4: PARTIAL
 
-  /bins/{location}/{binNo}/contents:
-    get:
-      tags: [Bins]
-      summary: Get bin contents (lots)
-      description: Retrieve all lots in specified bin (TFC1 PARTIAL bins only)
-      operationId: getBinContents
-      parameters:
-        - name: location
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [TFC1]
-          example: TFC1
-        - name: binNo
-          in: path
-          required: true
-          schema:
-            type: string
-          example: PWBB-12
-      responses:
-        '200':
-          description: Bin contents retrieved
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BinContentsDTO'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-
-  # ============================================================================
-  # SEQUENCE NUMBER ENDPOINTS
-  # ============================================================================
-
-  /sequences/{seqName}/next:
-    post:
-      tags: [Sequences]
-      summary: Get and increment sequence number
-      description: |
-        Atomically increment sequence and return new value.
-
-        **Used Sequences**:
-        - PT: Pallet ID generation (Cust_PartialPalletLotPicked.PalletID)
-      operationId: getNextSequence
-      parameters:
-        - name: seqName
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [PT]
-          description: Sequence name
-          example: PT
-      responses:
-        '200':
-          description: Next sequence number retrieved
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  seqName:
-                    type: string
-                    example: PT
-                  seqNum:
-                    type: integer
-                    description: New sequence number (already incremented)
-                    example: 623957
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-
   # ============================================================================
   # WORKSTATION CONFIGURATION ENDPOINTS
   # ============================================================================
@@ -678,29 +605,6 @@ paths:
                       comPort: COM4
                       baudRate: 9600
                       status: Active
-
-  /workstations/{workstationId}:
-    get:
-      tags: [Workstations]
-      summary: Get workstation details with scale configuration
-      description: Retrieve workstation configuration including dual scale assignments
-      operationId: getWorkstation
-      parameters:
-        - name: workstationId
-          in: path
-          required: true
-          schema:
-            type: string
-          example: WS-001
-      responses:
-        '200':
-          description: Workstation details retrieved
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WorkstationDTO'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
 
 # ============================================================================
 # COMPONENTS
@@ -1083,28 +987,6 @@ components:
           enum: [PARTIAL]
           description: Bin type identifier (required filter)
           example: PARTIAL
-
-    BinContentsDTO:
-      type: object
-      required: [bin, lots]
-      properties:
-        bin:
-          $ref: '#/components/schemas/BinDTO'
-        lots:
-          type: array
-          items:
-            type: object
-            properties:
-              lotNo:
-                type: string
-              itemKey:
-                type: string
-              qtyOnHand:
-                type: number
-                format: double
-              expiryDate:
-                type: string
-                format: date
 
     WorkstationDTO:
       type: object

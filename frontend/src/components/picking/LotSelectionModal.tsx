@@ -1,17 +1,21 @@
+import { useMemo } from 'react'
+import { useAvailableLots } from '@/hooks/useLotsQuery'
+import type { LotAvailabilityDTO } from '@/types/api'
+
 interface Lot {
   lotNo: string
   dateExpiry: string
   qtyOnHand: number
   qtyCommitSales: number
   availableQty: number
-  binNo?: string
+  binNo: string
 }
 
 interface LotSelectionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSelect: (lot: Lot) => void
-  itemKey?: string
+  itemKey: string | null
   targetQty?: number
 }
 
@@ -22,34 +26,23 @@ export function LotSelectionModal({
   itemKey,
   targetQty,
 }: LotSelectionModalProps) {
-  // Mock data - will be replaced with API call in Phase 3.4 (T067)
-  // Sorted by DateExpiry ASC (FEFO - First Expired First Out)
-  const mockLots: Lot[] = [
-    {
-      lotNo: 'LOT-2025-01-15',
-      dateExpiry: '2025-01-15',
-      qtyOnHand: 50.0,
-      qtyCommitSales: 10.0,
-      availableQty: 40.0,
-      binNo: 'BIN-001',
-    },
-    {
-      lotNo: 'LOT-2025-02-20',
-      dateExpiry: '2025-02-20',
-      qtyOnHand: 75.0,
-      qtyCommitSales: 5.0,
-      availableQty: 70.0,
-      binNo: 'BIN-002',
-    },
-    {
-      lotNo: 'LOT-2025-03-10',
-      dateExpiry: '2025-03-10',
-      qtyOnHand: 100.0,
-      qtyCommitSales: 0.0,
-      availableQty: 100.0,
-      binNo: 'BIN-003',
-    },
-  ]
+  const { data: lotData, isLoading, error } = useAvailableLots(itemKey, targetQty, {
+    enabled: open && !!itemKey
+  })
+
+  // Map LotAvailabilityDTO to Lot (API returns FEFO sorted already)
+  const lots = useMemo<Lot[]>(() => {
+    if (!lotData) return []
+
+    return lotData.map((lot) => ({
+      lotNo: lot.lotNo,
+      dateExpiry: lot.expiryDate,
+      qtyOnHand: lot.qtyOnHand,
+      qtyCommitSales: lot.qtyCommitSales,
+      availableQty: lot.availableQty,
+      binNo: lot.binNo,
+    }))
+  }, [lotData])
 
   const handleSelect = (lot: Lot) => {
     onSelect(lot)
@@ -96,16 +89,40 @@ export function LotSelectionModal({
 
         {/* Results Section */}
         <div className="modal-content">
-          {mockLots.length === 0 ? (
+          {/* Error State */}
+          {error && (
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">⚠️</div>
+              <p className="modal-empty-text">Error loading lots</p>
+              <p className="modal-empty-hint">
+                Could not load lots for item {itemKey}. Please try again.
+              </p>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">⏳</div>
+              <p className="modal-empty-text">Loading FEFO lots...</p>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !error && lots.length === 0 && (
             <div className="modal-empty-state">
               <div className="modal-empty-icon">📦</div>
               <p className="modal-empty-text">No lots available</p>
               <p className="modal-empty-hint">
-                No lots found with sufficient quantity (
-                {targetQty ? targetQty.toFixed(2) : '0.00'} kg required)
+                {itemKey
+                  ? `No lots found for ${itemKey}${targetQty ? ` with ${targetQty.toFixed(3)} kg available` : ''}`
+                  : 'Please select an item first'}
               </p>
             </div>
-          ) : (
+          )}
+
+          {/* Lots Table (FEFO sorted by API) */}
+          {!isLoading && !error && lots.length > 0 && (
             <div className="modal-table-container">
               <table className="modal-table">
                 <thead>
@@ -119,7 +136,7 @@ export function LotSelectionModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {mockLots.map((lot, index) => (
+                  {lots.map((lot, index) => (
                     <tr
                       key={lot.lotNo}
                       onClick={() => handleSelect(lot)}
@@ -134,8 +151,8 @@ export function LotSelectionModal({
                         </div>
                       </td>
                       <td>{lot.dateExpiry}</td>
-                      <td className="text-center">{lot.qtyOnHand.toFixed(2)}</td>
-                      <td className="text-center">{lot.qtyCommitSales.toFixed(2)}</td>
+                      <td className="text-center">{lot.qtyOnHand.toFixed(3)}</td>
+                      <td className="text-center">{lot.qtyCommitSales.toFixed(3)}</td>
                       <td
                         className="text-center"
                         style={{
@@ -143,9 +160,9 @@ export function LotSelectionModal({
                           fontWeight: 'bold',
                         }}
                       >
-                        {lot.availableQty.toFixed(2)}
+                        {lot.availableQty.toFixed(3)}
                       </td>
-                      <td className="text-center">{lot.binNo || '-'}</td>
+                      <td className="text-center">{lot.binNo}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -155,11 +172,11 @@ export function LotSelectionModal({
         </div>
 
         {/* Modal Footer */}
-        {mockLots.length > 0 && (
+        {!isLoading && !error && lots.length > 0 && (
           <div className="modal-footer">
             <div className="modal-footer-left">
               <p className="modal-footer-info">
-                Showing {mockLots.length} lot{mockLots.length !== 1 ? 's' : ''} • ⭐ = FEFO
+                Showing {lots.length} lot{lots.length !== 1 ? 's' : ''} • ⭐ = FEFO
                 Recommended
               </p>
             </div>

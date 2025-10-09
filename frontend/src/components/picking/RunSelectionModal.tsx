@@ -1,64 +1,45 @@
 import { useState } from 'react'
-
-interface Run {
-  runNo: number
-  fgItemKey: string
-  fgDescription: string
-  productionDate: string
-  status: string
-}
+import { useRunDetails } from '@/hooks/useRunsQuery'
+import type { RunDetailsResponse } from '@/types/api'
 
 interface RunSelectionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSelect: (run: Run) => void
+  onSelect: (run: RunDetailsResponse) => void
 }
 
 export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelectionModalProps) {
-  const [searchTerm, setSearchTerm] = useState('')
+  const [runNoInput, setRunNoInput] = useState('')
+  const [searchedRunNo, setSearchedRunNo] = useState<number | null>(null)
 
-  // Mock data - will be replaced with API call in Phase 3.4 (T065)
-  const mockRuns: Run[] = [
-    {
-      runNo: 100001,
-      fgItemKey: 'FG-001',
-      fgDescription: 'Finished Good Item 1',
-      productionDate: '2025-10-01',
-      status: 'NEW',
-    },
-    {
-      runNo: 100002,
-      fgItemKey: 'FG-002',
-      fgDescription: 'Finished Good Item 2',
-      productionDate: '2025-10-02',
-      status: 'PRINT',
-    },
-    {
-      runNo: 100003,
-      fgItemKey: 'FG-003',
-      fgDescription: 'Finished Good Item 3',
-      productionDate: '2025-10-03',
-      status: 'NEW',
-    },
-  ]
+  const { data: runDetails, isLoading, error } = useRunDetails(searchedRunNo)
 
-  // Filter runs by search term
-  const filteredRuns = mockRuns.filter(
-    run =>
-      run.runNo.toString().includes(searchTerm) ||
-      run.fgItemKey.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      run.fgDescription.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const handleSearch = () => {
+    const runNo = parseInt(runNoInput, 10)
+    if (!isNaN(runNo) && runNo > 0) {
+      setSearchedRunNo(runNo)
+    }
+  }
 
-  const handleSelect = (run: Run) => {
-    onSelect(run)
-    onOpenChange(false)
-    setSearchTerm('')
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch()
+    }
+  }
+
+  const handleSelect = () => {
+    if (runDetails) {
+      onSelect(runDetails)
+      onOpenChange(false)
+      setRunNoInput('')
+      setSearchedRunNo(null)
+    }
   }
 
   const handleClose = () => {
     onOpenChange(false)
-    setSearchTerm('')
+    setRunNoInput('')
+    setSearchedRunNo(null)
   }
 
   const getStatusClass = (status: string) => {
@@ -92,36 +73,59 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
         <div className="modal-search">
           <div className="modal-search-input-wrapper">
             <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by Run No, Item Key, or Description..."
+              type="number"
+              value={runNoInput}
+              onChange={(e) => setRunNoInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Enter Run Number (e.g., 6000037)..."
               className="modal-search-input"
               autoFocus
             />
-            <div className="modal-search-icon">
-              <span>🔍</span>
-            </div>
+            <button
+              onClick={handleSearch}
+              disabled={isLoading}
+              className="modal-search-btn"
+              aria-label="Search run"
+            >
+              {isLoading ? '⏳' : '🔍'}
+            </button>
           </div>
         </div>
 
         {/* Results Section */}
         <div className="modal-content">
-          {/* Empty State */}
-          {filteredRuns.length === 0 ? (
+          {/* Error State */}
+          {error && (
             <div className="modal-empty-state">
-              <div className="modal-empty-icon">📋</div>
-              <p className="modal-empty-text">
-                {searchTerm ? 'No runs found' : 'Start typing to search runs'}
-              </p>
+              <div className="modal-empty-icon">⚠️</div>
+              <p className="modal-empty-text">Run not found</p>
               <p className="modal-empty-hint">
-                {searchTerm
-                  ? 'Try a different search term'
-                  : 'Enter run number, item key, or description'}
+                Run number {searchedRunNo} does not exist. Please check and try again.
               </p>
             </div>
-          ) : (
-            /* Results Table */
+          )}
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">⏳</div>
+              <p className="modal-empty-text">Loading run details...</p>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!runDetails && !isLoading && !error && (
+            <div className="modal-empty-state">
+              <div className="modal-empty-icon">📋</div>
+              <p className="modal-empty-text">Enter a run number to search</p>
+              <p className="modal-empty-hint">
+                Type the production run number and press Enter or click Search
+              </p>
+            </div>
+          )}
+
+          {/* Run Details */}
+          {runDetails && !isLoading && !error && (
             <div className="modal-table-container">
               <table className="modal-table">
                 <thead>
@@ -131,24 +135,24 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
                     <th>FG Description</th>
                     <th className="text-center">Status</th>
                     <th>Production Date</th>
+                    <th className="text-center">Batches</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRuns.map((run) => (
-                    <tr key={run.runNo} onClick={() => handleSelect(run)}>
-                      <td>
-                        <strong>{run.runNo}</strong>
-                      </td>
-                      <td>{run.fgItemKey}</td>
-                      <td title={run.fgDescription}>{run.fgDescription}</td>
-                      <td className="text-center">
-                        <span className={`modal-status-badge ${getStatusClass(run.status)}`}>
-                          {run.status}
-                        </span>
-                      </td>
-                      <td>{run.productionDate}</td>
-                    </tr>
-                  ))}
+                  <tr onClick={handleSelect} className="cursor-pointer hover:bg-gray-50">
+                    <td>
+                      <strong>{runDetails.runNo}</strong>
+                    </td>
+                    <td>{runDetails.fgItemKey}</td>
+                    <td title={runDetails.fgDescription}>{runDetails.fgDescription}</td>
+                    <td className="text-center">
+                      <span className={`modal-status-badge ${getStatusClass(runDetails.status)}`}>
+                        {runDetails.status}
+                      </span>
+                    </td>
+                    <td>{runDetails.productionDate}</td>
+                    <td className="text-center">{runDetails.noOfBatches}</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -156,12 +160,10 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
         </div>
 
         {/* Modal Footer */}
-        {filteredRuns.length > 0 && (
+        {runDetails && (
           <div className="modal-footer">
             <div className="modal-footer-left">
-              <p className="modal-footer-info">
-                Showing {filteredRuns.length} of {mockRuns.length} results
-              </p>
+              <p className="modal-footer-info">Click the row to select this run</p>
             </div>
 
             <button type="button" onClick={handleClose} className="modal-cancel-btn">

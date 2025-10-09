@@ -14,6 +14,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Search } from 'lucide-react'
 import { usePicking } from '@/contexts/PickingContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { useWeightScale } from '@/hooks/useWeightScale'
@@ -193,20 +194,14 @@ export function PartialPickingPage() {
   }
 
   const formatQuantity = (value?: number | null) => Number(value ?? 0).toFixed(4)
-  // Elegant Industrial label styling - Poppins SemiBold
-  const labelClass = 'font-heading text-lg font-semibold uppercase tracking-wider text-text-primary min-w-[120px]'
-  // Enhanced button styles with new accent green and refined shadows
-  const lookupButtonClass =
-    'h-12 min-w-[52px] rounded-lg bg-brand-primary hover:bg-accent-gold px-4 text-sm font-semibold uppercase tracking-wide text-white shadow-button btn-scale-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-gold focus-visible:ring-offset-2 disabled:bg-border-main disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100'
-  const lookupButtonInsideInputClass =
-    'absolute right-[1px] top-1/2 -translate-y-1/2 h-[47px] w-[47px] rounded-md bg-brand-primary hover:bg-accent-gold text-base font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-gold focus-visible:ring-offset-1 disabled:bg-border-main disabled:text-text-primary/40 disabled:cursor-not-allowed'
-  const fetchButtonClass =
-    'h-12 min-w-[160px] rounded-lg bg-brand-primary hover:bg-accent-gold px-6 text-sm font-semibold uppercase tracking-wide text-white shadow-button btn-scale-hover button-pulse-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-gold focus-visible:ring-offset-2 disabled:bg-border-main disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100'
-  const actionButtonBase =
-    'inline-flex h-12 w-full items-center justify-center rounded-lg text-sm font-semibold uppercase tracking-wide btn-scale-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'
-  const primaryButtonClass = `${actionButtonBase} bg-brand-primary hover:bg-accent-gold text-white shadow-button focus-visible:ring-accent-gold disabled:bg-border-main disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100`
-  const secondaryButtonClass = `${actionButtonBase} bg-brand-primary hover:bg-accent-gold text-white shadow-button focus-visible:ring-accent-gold disabled:bg-border-main disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100`
-  const dangerButtonClass = `${actionButtonBase} bg-danger text-white shadow-button-danger hover:bg-[#A01F1F] hover:shadow-button-danger-hover focus-visible:ring-danger disabled:bg-border-main disabled:text-white/70 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100`
+  // Elegant Industrial label styling - Poppins SemiBold (using semantic class)
+  const labelClass = 'picking-label-inline'
+  // Enhanced button styles with semantic classes
+  const lookupButtonInsideInputClass = 'picking-btn-lookup-inline'
+  const fetchButtonClass = 'h-12 min-w-[160px] rounded-lg bg-brand-primary hover:bg-accent-gold px-6 text-sm font-semibold uppercase tracking-wide text-white shadow-button btn-scale-hover button-pulse-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-gold focus-visible:ring-offset-2 disabled:bg-border-main disabled:text-text-primary/40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:scale-100'
+  const primaryButtonClass = 'picking-btn-action-primary'
+  const secondaryButtonClass = 'picking-btn-action-secondary'
+  const dangerButtonClass = 'picking-btn-action-danger'
   const weightRangeLow = currentItem?.weightRangeLow ?? 0
   const weightRangeHigh = currentItem?.weightRangeHigh ?? 0
   const toleranceValue =
@@ -308,7 +303,7 @@ export function PartialPickingPage() {
                   disabled={isLoading}
                   aria-label="Lookup run number"
                 >
-                  🔍
+                  <Search className="w-5 h-5" strokeWidth={2.5} />
                 </Button>
               </div>
 
@@ -348,7 +343,7 @@ export function PartialPickingPage() {
                   disabled={!currentRun || isLoading}
                   aria-label="Lookup batch number"
                 >
-                  🔍
+                  <Search className="w-5 h-5" strokeWidth={2.5} />
                 </Button>
               </div>
 
@@ -388,7 +383,7 @@ export function PartialPickingPage() {
                     disabled={!currentBatchRowNum || isLoading}
                     aria-label="Lookup item key"
                   >
-                    🔍
+                    <Search className="w-5 h-5" strokeWidth={2.5} />
                   </Button>
                 </div>
               </div>
@@ -421,7 +416,7 @@ export function PartialPickingPage() {
                     disabled={!currentItem || isLoading}
                     aria-label="Override lot number"
                   >
-                    🔍
+                    <Search className="w-5 h-5" strokeWidth={2.5} />
                   </Button>
                 </div>
                 <span className="text-center text-sm font-semibold uppercase tracking-wider text-text-primary/60">SOH</span>
@@ -444,7 +439,7 @@ export function PartialPickingPage() {
                     disabled={!currentItem || isLoading}
                     aria-label="Lookup bin number"
                   >
-                    🔍
+                    <Search className="w-5 h-5" strokeWidth={2.5} />
                   </Button>
                 </div>
                 <Input
@@ -602,7 +597,7 @@ export function PartialPickingPage() {
       <BatchSelectionModal
         open={showBatchModal}
         onOpenChange={setShowBatchModal}
-        onSelect={batch => handleBatchSelect(batch.rowNum)}
+        onSelect={batchNo => handleBatchSelect(batchNo)}
         runNo={currentRun?.runNo}
       />
       <ItemSelectionModal
