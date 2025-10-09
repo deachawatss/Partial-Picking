@@ -276,7 +276,7 @@ export function PartialPickingPage() {
         )}
 
         {/* Unified Section: Weight Progress + Header + Form + Table */}
-        <section className="grid grid-cols-1 gap-5 rounded-lg border-2 border-border-main bg-surface shadow-soft lg:grid-cols-[480px_1fr]">
+        <section className="grid grid-cols-1 gap-3 rounded-lg border-2 border-border-main bg-surface shadow-soft lg:grid-cols-[9fr_11fr]">
           {/* Weight Progress Bar with tolerance markers and scale selector */}
           <div className="p-4 lg:col-span-2">
             <WeightProgressBar
@@ -372,7 +372,7 @@ export function PartialPickingPage() {
           <div className="flex flex-col p-5">
             <div className="space-y-4">
               {/* Inline layout: label and input on same row */}
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+              <div className="grid grid-cols-[130px_minmax(0,1fr)] items-center gap-3">
                 <label className={labelClass}>Item key</label>
                 <div className="relative">
                   <Input
@@ -394,7 +394,7 @@ export function PartialPickingPage() {
               </div>
 
               {/* Inline layout: label and input on same row */}
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+              <div className="grid grid-cols-[130px_minmax(0,1fr)] items-center gap-3">
                 <label className={labelClass}>Description</label>
                 <Input
                   value={currentItem?.description || ''}
@@ -404,38 +404,31 @@ export function PartialPickingPage() {
                 />
               </div>
 
-              {/* Lot and Bin section - inline layout */}
-              <div className="space-y-3">
-                <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
-                  <label className={labelClass}>Lot No.</label>
-                  <div className="relative">
-                    <Input
-                      value={selectedLot?.lotNo || ''}
-                      placeholder="Auto-selected (FEFO)"
-                      readOnly
-                      className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base text-text-primary"
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => setShowLotModal(true)}
-                      className={lookupButtonInsideInputClass}
-                      disabled={!currentItem || isLoading}
-                      aria-label="Override lot number"
-                    >
-                      🔍
-                    </Button>
-                  </div>
+              {/* Lot No. - inline with SOH label */}
+              <div className="grid grid-cols-[130px_1fr_212px] items-center gap-3">
+                <label className={labelClass}>Lot No.</label>
+                <div className="relative">
+                  <Input
+                    value={selectedLot?.lotNo || ''}
+                    placeholder="Auto-selected (FEFO)"
+                    readOnly
+                    className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base text-text-primary"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => setShowLotModal(true)}
+                    className={lookupButtonInsideInputClass}
+                    disabled={!currentItem || isLoading}
+                    aria-label="Override lot number"
+                  >
+                    🔍
+                  </Button>
                 </div>
-
-                <div className="rounded-lg border-2 border-border-main bg-bg-main px-4 py-3 shadow-soft">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-text-primary/60">
-                    SOH
-                  </span>
-                  <p className="font-body text-base font-semibold tabular-nums text-text-primary">{availableQtyDisplay} KG</p>
-                </div>
+                <span className="text-center text-sm font-semibold uppercase tracking-wider text-text-primary/60">SOH</span>
               </div>
 
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+              {/* Bin No. - inline with SOH value and UOM fields */}
+              <div className="grid grid-cols-[130px_1fr_120px_80px] items-center gap-3">
                 <label className={labelClass}>Bin No.</label>
                 <div className="relative">
                   <Input
@@ -454,10 +447,20 @@ export function PartialPickingPage() {
                     🔍
                   </Button>
                 </div>
+                <Input
+                  value={availableQtyDisplay}
+                  readOnly
+                  className="h-12 rounded-lg border-2 border-border-main bg-bg-main text-base font-semibold tabular-nums text-text-primary"
+                />
+                <Input
+                  value="KG"
+                  readOnly
+                  className="h-12 rounded-lg border-2 border-border-main bg-bg-main text-base font-semibold text-text-primary"
+                />
               </div>
 
               {/* Weight section - inline with Fetch button */}
-              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+              <div className="grid grid-cols-[130px_minmax(0,1fr)_auto] items-center gap-3">
                 <label className={labelClass}>Weight</label>
                 <Input
                   value={formatQuantity(currentWeight)}
@@ -475,7 +478,7 @@ export function PartialPickingPage() {
               </div>
 
               {/* Weight range section - inline */}
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+              <div className="grid grid-cols-[130px_minmax(0,1fr)] items-center gap-3">
                 <label className={labelClass}>Weight range</label>
                 <div className="flex items-center gap-3">
                   <Input
@@ -495,7 +498,7 @@ export function PartialPickingPage() {
               </div>
 
               {/* Total needed - inline */}
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+              <div className="grid grid-cols-[130px_minmax(0,1fr)] items-center gap-3">
                 <label className={labelClass}>Total needed</label>
                 <Input
                   value={formatQuantity(currentItem?.totalNeeded)}
@@ -505,7 +508,7 @@ export function PartialPickingPage() {
               </div>
 
               {/* Remaining qty - inline */}
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+              <div className="grid grid-cols-[130px_minmax(0,1fr)] items-center gap-3">
                 <label className={labelClass}>Remaining qty</label>
                 <Input
                   value={formatQuantity(currentItem?.remainingQty)}

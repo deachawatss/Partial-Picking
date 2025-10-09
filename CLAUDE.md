@@ -217,6 +217,32 @@ export function useWeightScale(workstationId: string, scaleType: 'small' | 'big'
 **Debug SQL**: MCP query → Check data-model.md → Verify composite keys → Test production runs
 **Fix E2E Test**: Reproduce → chrome-devtools debug → Verify against OpenAPI → Fix
 
+## Git Commit Guidelines
+
+**IMPORTANT**: Always write commit messages as a professional engineer, NOT as an AI assistant.
+
+❌ **Wrong** (AI-style):
+```
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+✅ **Correct** (Professional engineer):
+```
+Improve picking form layout with consistent label alignment
+
+- Align all form labels vertically with 130px fixed width
+- Balance LOT NO and BIN NO input widths
+- Reduce form-to-table gap for tighter layout
+- Redesign selection modals with custom headers
+```
+
+**Commit Message Format**:
+- Use imperative mood: "Add feature" not "Added feature"
+- Keep first line under 72 characters
+- Use bullet points for details
+- Focus on WHAT and WHY, not HOW
+
 ## Key Files
 
 **Specs**: `specs/001-i-have-an/{contracts/openapi.yaml, contracts/websocket.md, data-model.md, quickstart.md}`
