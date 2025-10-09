@@ -7,7 +7,33 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { runsApi } from '@/services/api'
-import { RunDetailsResponse } from '@/types/api'
+import { RunDetailsResponse, RunListResponse } from '@/types/api'
+
+/**
+ * Fetch paginated list of production runs
+ *
+ * Used by Run Search Modal for displaying all available runs
+ *
+ * @param limit - Records per page (default 10, max 100)
+ * @param offset - Records to skip (default 0)
+ * @param options - Query options
+ * @returns Query result with paginated runs list
+ */
+export function useRunsList(
+  limit: number = 10,
+  offset: number = 0,
+  options?: {
+    enabled?: boolean
+  }
+) {
+  return useQuery<RunListResponse>({
+    queryKey: ['runs', 'list', limit, offset],
+    queryFn: () => runsApi.listRuns(limit, offset),
+    enabled: options?.enabled ?? true,
+    staleTime: 1000 * 60, // 1 minute (runs list should be relatively fresh)
+    retry: 2,
+  })
+}
 
 /**
  * Fetch run details by run number

@@ -146,6 +146,66 @@ paths:
   # PRODUCTION RUN ENDPOINTS
   # ============================================================================
 
+  /runs:
+    get:
+      tags: [Runs]
+      summary: List all production runs (paginated)
+      description: |
+        Retrieve paginated list of production runs for Run Search Modal.
+
+        **Filters**:
+        - Only returns runs with Status IN ('NEW', 'PRINT')
+        - Ordered by RunNo DESC (newest first)
+
+        **Pagination**:
+        - Default: 10 records per page
+        - Maximum: 100 records per page
+      operationId: listRuns
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          description: Number of records per page
+          example: 10
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of records to skip
+          example: 0
+      responses:
+        '200':
+          description: Runs retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunListResponse'
+              example:
+                runs:
+                  - runNo: 6000037
+                    formulaId: TSM2285A
+                    formulaDesc: Marinade, Savory
+                    status: NEW
+                    batchCount: 2
+                  - runNo: 213989
+                    formulaId: TB44122B
+                    formulaDesc: Battermix
+                    status: PRINT
+                    batchCount: 4
+                pagination:
+                  total: 150
+                  limit: 10
+                  offset: 0
+                  hasMore: true
+
   /runs/{runNo}:
     get:
       tags: [Runs]
@@ -757,6 +817,70 @@ components:
           items:
             type: string
           example: ["putaway", "picking", "partial-picking"]
+
+    RunListResponse:
+      type: object
+      required: [runs, pagination]
+      properties:
+        runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunListItemDTO'
+          description: Array of production runs
+        pagination:
+          $ref: '#/components/schemas/PaginationDTO'
+
+    RunListItemDTO:
+      type: object
+      required: [runNo, formulaId, formulaDesc, status, batchCount]
+      properties:
+        runNo:
+          type: integer
+          description: Production run number
+          example: 6000037
+        formulaId:
+          type: string
+          description: Formula identifier (FG Item Key)
+          example: TSM2285A
+        formulaDesc:
+          type: string
+          description: Formula description
+          example: Marinade, Savory
+        status:
+          type: string
+          enum: [NEW, PRINT]
+          description: Run status (only NEW and PRINT returned)
+          example: NEW
+        batchCount:
+          type: integer
+          minimum: 1
+          description: Number of batches in this run
+          example: 2
+
+    PaginationDTO:
+      type: object
+      required: [total, limit, offset, hasMore]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          description: Total number of runs matching the filter
+          example: 150
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Records per page
+          example: 10
+        offset:
+          type: integer
+          minimum: 0
+          description: Number of records skipped
+          example: 0
+        hasMore:
+          type: boolean
+          description: Whether more records are available
+          example: true
 
     RunDetailsResponse:
       type: object

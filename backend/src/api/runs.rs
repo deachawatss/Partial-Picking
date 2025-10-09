@@ -2,12 +2,80 @@ use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::AuthUser;
 use crate::services::run_service::{
-    get_batch_items, get_run_details, BatchItemsResponse, RunDetailsResponse,
+    get_batch_items, get_run_details, list_runs, BatchItemsResponse, RunDetailsResponse,
+    RunListResponse,
 };
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     Json,
 };
+use serde::Deserialize;
+
+/// Query parameters for list_runs endpoint
+#[derive(Debug, Deserialize)]
+pub struct ListRunsQuery {
+    #[serde(default = "default_limit")]
+    pub limit: i32,
+
+    #[serde(default = "default_offset")]
+    pub offset: i32,
+}
+
+fn default_limit() -> i32 {
+    10
+}
+
+fn default_offset() -> i32 {
+    0
+}
+
+/// GET /api/runs
+///
+/// List all production runs with pagination
+///
+/// # OpenAPI Contract
+/// - operationId: listRuns
+/// - Query parameters: limit (default 10, max 100), offset (default 0)
+/// - Response 200: RunListResponse with runs array and pagination metadata
+///
+/// # Constitutional Compliance
+/// * ✅ JWT authentication required (AuthUser extractor)
+/// * ✅ Uses composite keys (RunNo, RowNum) via GROUP BY
+/// * ✅ Filters Status IN ('NEW', 'PRINT')
+/// * ✅ Pagination with OFFSET/FETCH NEXT (10 per page default)
+pub async fn list_runs_endpoint(
+    State(pool): State<DbPool>,
+    AuthUser(claims): AuthUser,
+    Query(params): Query<ListRunsQuery>,
+) -> AppResult<Json<RunListResponse>> {
+    tracing::info!(
+        user = %claims.username,
+        limit = params.limit,
+        offset = params.offset,
+        "GET /api/runs request"
+    );
+
+    // Validate query parameters
+    if params.limit < 1 {
+        return Err(AppError::ValidationError(
+            "Limit must be greater than 0".to_string(),
+        ));
+    }
+    if params.limit > 100 {
+        return Err(AppError::ValidationError(
+            "Limit cannot exceed 100".to_string(),
+        ));
+    }
+    if params.offset < 0 {
+        return Err(AppError::ValidationError(
+            "Offset cannot be negative".to_string(),
+        ));
+    }
+
+    let response = list_runs(&pool, params.limit, params.offset).await?;
+
+    Ok(Json(response))
+}
 
 /// GET /api/runs/:runNo
 ///

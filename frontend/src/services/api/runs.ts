@@ -16,11 +16,32 @@
 import { apiClient } from './client'
 import {
   RunDetailsResponse,
+  RunListResponse,
   BatchItemsResponse,
   CompleteRunResponse,
   BatchItemDTO,
 } from '@/types/api'
 import { cacheRun, getCachedRun } from '@/services/cache'
+
+/**
+ * List all production runs with pagination
+ *
+ * OpenAPI Operation: GET /api/runs
+ *
+ * No offline cache support - always fetches fresh data from API
+ * Used by Run Search Modal for selecting production runs
+ *
+ * @param limit - Records per page (default 10, max 100)
+ * @param offset - Records to skip (default 0)
+ * @returns Promise<RunListResponse> - Paginated list of runs
+ * @throws ErrorResponse - On network error or API error
+ */
+export async function listRuns(limit: number = 10, offset: number = 0): Promise<RunListResponse> {
+  const response = await apiClient.get<RunListResponse>('/runs', {
+    params: { limit, offset },
+  })
+  return response.data
+}
 
 /**
  * Get run details with offline cache support
@@ -168,6 +189,7 @@ export async function completeRun(
  * Provides all run-related API methods
  */
 export const runsApi = {
+  listRuns,
   getRunDetails,
   getBatchItems,
   completeRun,

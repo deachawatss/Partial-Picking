@@ -44,6 +44,26 @@ export interface UserDTO {
   permissions?: string[]
 }
 
+export interface RunListResponse {
+  runs: RunListItemDTO[]
+  pagination: PaginationDTO
+}
+
+export interface RunListItemDTO {
+  runNo: number
+  formulaId: string
+  formulaDesc: string
+  status: 'NEW' | 'PRINT'
+  batchCount: number
+}
+
+export interface PaginationDTO {
+  total: number
+  limit: number
+  offset: number
+  hasMore: boolean
+}
+
 export interface RunDetailsResponse {
   runNo: number
   fgItemKey: string

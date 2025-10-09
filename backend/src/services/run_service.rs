@@ -4,6 +4,42 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tiberius::{Query, Row};
 
+/// Run list response matching OpenAPI RunListResponse schema
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunListResponse {
+    pub runs: Vec<RunListItemDTO>,
+    pub pagination: PaginationDTO,
+}
+
+/// Run list item matching OpenAPI RunListItemDTO schema
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunListItemDTO {
+    #[serde(rename = "runNo")]
+    pub run_no: i32,
+
+    #[serde(rename = "formulaId")]
+    pub formula_id: String,
+
+    #[serde(rename = "formulaDesc")]
+    pub formula_desc: String,
+
+    pub status: String, // NEW | PRINT
+
+    #[serde(rename = "batchCount")]
+    pub batch_count: i32,
+}
+
+/// Pagination metadata matching OpenAPI PaginationDTO schema
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaginationDTO {
+    pub total: i32,
+    pub limit: i32,
+    pub offset: i32,
+
+    #[serde(rename = "hasMore")]
+    pub has_more: bool,
+}
+
 /// Run details response matching OpenAPI RunDetailsResponse schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunDetailsResponse {
@@ -242,4 +278,105 @@ pub async fn get_batch_items(
     );
 
     Ok(BatchItemsResponse { items })
+}
+
+/// List all production runs with pagination
+///
+/// Uses validated SQL from PRD: Section 7.11A - Run Search Modal
+///
+/// # Arguments
+/// * `pool` - Database connection pool
+/// * `limit` - Records per page (default 10, max 100)
+/// * `offset` - Records to skip (default 0)
+///
+/// # Returns
+/// * RunListResponse with runs array and pagination metadata
+///
+/// # Constitutional Compliance
+/// * ✅ Uses composite keys (RunNo, RowNum) via GROUP BY
+/// * ✅ Filters Status IN ('NEW', 'PRINT')
+/// * ✅ FEFO-friendly ordering (RunNo DESC - newest first)
+/// * ✅ Pagination with OFFSET/FETCH NEXT
+pub async fn list_runs(pool: &DbPool, limit: i32, offset: i32) -> AppResult<RunListResponse> {
+    let mut conn = pool.get().await?;
+
+    // Validate limit (1-100)
+    let limit = limit.clamp(1, 100);
+    let offset = offset.max(0);
+
+    // SQL from PRD Section 7.11A: Run Search Modal
+    // Get total count first
+    let count_sql = r#"
+        SELECT COUNT(DISTINCT RunNo) as TotalCount
+        FROM Cust_PartialRun
+        WHERE Status IN ('NEW', 'PRINT')
+    "#;
+
+    let count_result = Query::new(count_sql).query(&mut *conn).await?;
+    let count_rows: Vec<Row> = count_result.into_first_result().await?;
+    let total: i32 = count_rows
+        .first()
+        .and_then(|row| row.get::<i32, _>("TotalCount"))
+        .unwrap_or(0);
+
+    // Get paginated runs
+    let runs_sql = r#"
+        SELECT
+            RunNo,
+            FormulaId,
+            FormulaDesc,
+            Status,
+            COUNT(*) as BatchCount
+        FROM Cust_PartialRun
+        WHERE Status IN ('NEW', 'PRINT')
+        GROUP BY RunNo, FormulaId, FormulaDesc, Status
+        ORDER BY RunNo DESC
+        OFFSET @P1 ROWS FETCH NEXT @P2 ROWS ONLY
+    "#;
+
+    let mut query = Query::new(runs_sql);
+    query.bind(offset);
+    query.bind(limit);
+
+    let rows = query.query(&mut *conn).await?;
+    let rows: Vec<Row> = rows.into_first_result().await?;
+
+    let runs: Vec<RunListItemDTO> = rows
+        .iter()
+        .map(|row| {
+            let run_no: i32 = row.get("RunNo").unwrap_or(0);
+            let formula_id: &str = row.get("FormulaId").unwrap_or("");
+            let formula_desc: &str = row.get("FormulaDesc").unwrap_or("");
+            let status: &str = row.get("Status").unwrap_or("NEW");
+            let batch_count: i32 = row.get("BatchCount").unwrap_or(0);
+
+            RunListItemDTO {
+                run_no,
+                formula_id: formula_id.to_string(),
+                formula_desc: formula_desc.to_string(),
+                status: status.to_string(),
+                batch_count,
+            }
+        })
+        .collect();
+
+    let has_more = (offset + limit) < total;
+
+    let pagination = PaginationDTO {
+        total,
+        limit,
+        offset,
+        has_more,
+    };
+
+    tracing::debug!(
+        total = total,
+        limit = limit,
+        offset = offset,
+        returned_count = runs.len(),
+        has_more = has_more,
+        "Retrieved run list"
+    );
+
+    Ok(RunListResponse { runs, pagination })
 }

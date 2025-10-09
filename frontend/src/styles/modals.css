@@ -185,7 +185,7 @@
 .modal-table th {
   padding: 10px 14px;
   text-align: left;
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -196,10 +196,10 @@
 }
 
 .modal-table td {
-  padding: 10px 14px;
+  padding: 14px 16px;
   border-bottom: 1px solid #F0F0F0;
   color: #2B1C14;
-  font-size: 0.875rem;
+  font-size: 1.125rem;
 }
 
 .modal-table td.text-center {
@@ -275,9 +275,9 @@
 
 .modal-status-badge {
   display: inline-block;
-  padding: 4px 12px;
+  padding: 6px 14px;
   border-radius: 12px;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 600;
   text-transform: uppercase;
 }

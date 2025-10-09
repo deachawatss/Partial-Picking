@@ -276,6 +276,85 @@ Get current authenticated user details.
 
 ## Production Run Endpoints
 
+### GET /runs
+
+List all production runs with pagination (for Run Search Modal).
+
+**Authentication**: Required
+
+**Query Parameters**:
+- `limit` (optional, integer, default 10): Number of records per page
+- `offset` (optional, integer, default 0): Number of records to skip
+
+**Response (200 OK)**:
+```json
+{
+  "runs": [
+    {
+      "runNo": 6000037,
+      "formulaId": "TSM2285A",
+      "formulaDesc": "Marinade, Savory",
+      "status": "NEW",
+      "batchCount": 2
+    },
+    {
+      "runNo": 213989,
+      "formulaId": "TB44122B",
+      "formulaDesc": "Battermix",
+      "status": "PRINT",
+      "batchCount": 4
+    }
+  ],
+  "pagination": {
+    "total": 150,
+    "limit": 10,
+    "offset": 0,
+    "hasMore": true
+  }
+}
+```
+
+**Fields**:
+- `runNo`: Production run number
+- `formulaId`: FG Item Key (Formula ID)
+- `formulaDesc`: FG Description (Formula Description)
+- `status`: Run status (`NEW` or `PRINT`)
+- `batchCount`: Total number of batches (COUNT(*) GROUP BY)
+- `pagination.total`: Total number of runs matching filter
+- `pagination.hasMore`: Whether more records exist
+
+**Filters**:
+- Only returns runs with Status IN ('NEW', 'PRINT')
+- Ordered by RunNo DESC (newest first)
+
+**SQL Query**:
+```sql
+SELECT DISTINCT
+    RunNo,
+    FormulaId,
+    FormulaDesc,
+    Status,
+    COUNT(*) as BatchCount
+FROM Cust_PartialRun
+WHERE Status IN ('NEW', 'PRINT')
+GROUP BY RunNo, FormulaId, FormulaDesc, Status
+ORDER BY RunNo DESC
+OFFSET @offset ROWS FETCH NEXT 10 ROWS ONLY
+```
+
+**Example Request**:
+```bash
+# Get first page (10 runs)
+curl "http://localhost:7075/api/runs?limit=10&offset=0" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Get second page
+curl "http://localhost:7075/api/runs?limit=10&offset=10" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
 ### GET /runs/{runNo}
 
 Get production run details for UI auto-population.

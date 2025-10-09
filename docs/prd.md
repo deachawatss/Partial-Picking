@@ -1285,11 +1285,13 @@ INSERT INTO Cust_PartialPalletLotPicked (
 #### A. Run No Search Modal
 
 **Columns:**
-- Run No (primary key)
-- FG Item Key (FormulaId)
-- FG Item Description (FormulaDesc)
-- Status ('NEW', 'PRINT')
-- Batch Count (COUNT)
+- Run No
+- Formula ID
+- Formula Desc
+- Status
+- Batch Count
+
+**Pagination:** 10 records per page (default)
 
 **SQL:**
 ```sql
@@ -1303,7 +1305,7 @@ FROM Cust_PartialRun
 WHERE Status IN ('NEW', 'PRINT')
 GROUP BY RunNo, FormulaId, FormulaDesc, Status
 ORDER BY RunNo DESC
-OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+OFFSET @offset ROWS FETCH NEXT 10 ROWS ONLY
 ```
 
 #### B. Item Key Search Modal
@@ -1512,7 +1514,7 @@ GET    /api/auth/me             // Get current user
 
 #### Run Management
 ```
-GET    /api/runs                     // List runs
+GET    /api/runs                     // List runs (paginated, 10 per page)
 GET    /api/runs/:runNo              // Get run with auto-population
 GET    /api/runs/:runNo/items        // Get ALL items from ALL batches
 POST   /api/runs/:runNo/complete     // Complete run (assign pallet, status→PRINT)
