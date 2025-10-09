@@ -218,19 +218,6 @@ export function WeightProgressBar({
               style={{ width: `${percentage}%` }}
             />
 
-            {/* Tolerance zone (acceptable range) */}
-            <div
-              className="pointer-events-none absolute top-1/2 h-14 -translate-y-1/2 rounded-md"
-              style={{
-                left: `${toleranceStart}%`,
-                width: `${toleranceSpanClamped}%`,
-                border: `3px solid ${toleranceColors.border}`,
-                backgroundColor: toleranceColors.background,
-                boxShadow: toleranceColors.glow,
-                zIndex: 5,
-              }}
-            />
-
             {/* Min tolerance marker (left boundary) */}
             {safeTarget > 0 && (
               <div
@@ -255,17 +242,6 @@ export function WeightProgressBar({
               </div>
             )}
 
-            {/* Target weight indicator (center line) */}
-            {safeTarget > 0 && (
-              <div
-                className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-lg"
-                style={{ left: `${(safeTarget / maxForScale) * 100}%`, zIndex: 20 }}
-              >
-                <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-white/95 rounded text-[10px] font-bold text-brand-primary whitespace-nowrap shadow-md border border-brand-primary/20">
-                  Target: {safeTarget.toFixed(3)}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
