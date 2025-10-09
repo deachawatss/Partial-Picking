@@ -180,7 +180,7 @@ export function LoginPage() {
       role="main"
     >
       {/* Base gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#8B4513] via-[#8B4513]/80 to-[#8B4513]/90"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-[#3A2920] via-[#3A2920]/80 to-[#3A2920]/90"></div>
 
       {/* Mobile Warning (hidden on desktop) */}
       <div className="md:hidden fixed top-4 left-4 right-4 z-30 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -300,7 +300,7 @@ export function LoginPage() {
           <Button
             type="submit"
             disabled={!canSubmit}
-            className="w-full min-h-[44px] px-6 py-3 flex items-center justify-center gap-2 bg-[#8B4513] hover:bg-[#A0522D]"
+            className="w-full min-h-[44px] px-6 py-3 flex items-center justify-center gap-2 bg-[#3A2920] hover:bg-[#2B1C14]"
             aria-describedby={authLoading || isPending ? 'loading-status' : undefined}
           >
             {(authLoading || isPending) && (

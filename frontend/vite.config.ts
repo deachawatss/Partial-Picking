@@ -131,7 +131,7 @@ export default defineConfig({
 
       // Development options
       devOptions: {
-        enabled: true, // Enable PWA in development
+        enabled: false, // Disable PWA in development (no caching - always fresh files)
         type: 'module'
       }
     })

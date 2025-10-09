@@ -41,15 +41,17 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        // Warm Elegant Industrial v2 Theme
-        'brand-primary': '#3E2F26',      // Darker brown for primary panel
-        'accent-green': '#43A047',       // Professional green for actions
-        'bg-main': '#FAF7F3',            // Light warm background
+        // Newly Weds Foods Brand Theme - Warm Elegant Industrial
+        'brand-primary': '#3A2920',      // NWF Primary Brown for panels/headers
+        'accent-green': '#3F7D3E',       // NWF Forest Green for actions
+        'accent-gold': '#E0AA2F',        // NWF Accent Gold (use sparingly)
+        'bg-main': '#FAF8F4',            // NWF Warm off-white background
         'surface': '#FFFFFF',            // Pure white surface
-        'text-primary': '#2D2420',       // Dark brown text with high contrast
-        'border-main': '#E0E0E0',        // Clean gray borders
-        'danger': '#D32F2F',             // Red for logout/errors
-        'highlight': '#FDD835',          // Yellow highlight
+        'text-primary': '#2B1C14',       // NWF Dark brown text (high contrast)
+        'text-secondary': '#5B4A3F',     // NWF Muted brown text
+        'border-main': '#E2DAD2',        // NWF Soft warm border
+        'danger': '#C62828',             // NWF Red for logout/errors
+        'highlight': '#E0AA2F',          // NWF Gold highlight (same as accent-gold)
 
         // Legacy Brown Theme - Coffee to Cream (kept for compatibility)
         'coffee-dark': '#3d2817',

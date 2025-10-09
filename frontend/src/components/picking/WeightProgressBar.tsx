@@ -27,30 +27,30 @@ interface WeightProgressBarProps {
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
 
 const progressFillByState: Record<string, string> = {
-  offline: 'bg-gradient-to-r from-[#9E9E9E] via-[#757575] to-[#616161]',
-  idle: 'bg-gradient-to-r from-[#E0E0E0] via-[#BDBDBD] to-[#9E9E9E]',
-  under: 'bg-gradient-to-r from-[#FF9800] via-[#FF6F00] to-[#E65100]',
-  approaching: 'bg-gradient-to-r from-[#FFC107] via-[#FFA000] to-[#FF8F00]',
-  good: 'bg-gradient-to-r from-[#66BB6A] via-[#43A047] to-[#388E3C]',
-  over: 'bg-gradient-to-r from-[#EF5350] via-[#E53935] to-[#D32F2F]',
+  offline: 'bg-gradient-to-r from-gray-500 via-gray-600 to-gray-700',
+  idle: 'bg-gradient-to-r from-border-main via-border-main/80 to-border-main/60',
+  under: 'bg-gradient-to-r from-orange-500 via-orange-600 to-orange-700',
+  approaching: 'bg-gradient-to-r from-accent-gold via-accent-gold/90 to-accent-gold/70',
+  good: 'bg-gradient-to-r from-accent-green/80 via-accent-green to-accent-green/60',
+  over: 'bg-gradient-to-r from-danger/90 via-danger to-danger/80',
 }
 
 const statusBadgeByState: Record<string, string> = {
   offline: 'bg-text-primary/10 text-text-primary/60 border border-text-primary/10',
   idle: 'bg-text-primary/5 text-text-primary',
-  under: 'bg-[#FF6F00]/15 text-[#E65100]',
-  approaching: 'bg-[#FFC107]/15 text-[#FF8F00]',
-  good: 'bg-[#43A047]/15 text-[#388E3C]',
-  over: 'bg-[#E53935]/15 text-[#D32F2F]',
+  under: 'bg-orange-600/15 text-orange-700',
+  approaching: 'bg-accent-gold/15 text-accent-gold',
+  good: 'bg-accent-green/15 text-accent-green',
+  over: 'bg-danger/15 text-danger',
 }
 
 const containerAccentByState: Record<string, string> = {
   offline: 'border-border-main shadow-soft',
   idle: 'border-border-main shadow-soft',
-  under: 'border-[#FF6F00]/40 shadow-[0_8px_20px_rgba(255,111,0,0.20)]',
-  approaching: 'border-[#FFC107]/40 shadow-[0_8px_20px_rgba(255,193,7,0.20)]',
-  good: 'border-[#43A047]/40 shadow-[0_8px_20px_rgba(67,160,71,0.25)]',
-  over: 'border-[#E53935]/40 shadow-[0_8px_20px_rgba(229,57,53,0.25)]',
+  under: 'border-orange-600/40 shadow-[0_8px_20px_rgba(255,111,0,0.20)]',
+  approaching: 'border-accent-gold/40 shadow-[0_8px_20px_rgba(224,170,47,0.22)]',
+  good: 'border-accent-green/40 shadow-[0_8px_20px_rgba(63,125,62,0.25)]',
+  over: 'border-danger/40 shadow-[0_8px_20px_rgba(198,40,40,0.25)]',
 }
 
 export function WeightProgressBar({
@@ -141,7 +141,7 @@ export function WeightProgressBar({
           key={scale}
           type="button"
           onClick={() => onScaleChange(scale)}
-          className={`${baseClasses} border-accent-green bg-accent-green text-white shadow-button-green hover:bg-[#388E3C] hover:shadow-button-green-hover focus-visible:ring-accent-green`}
+          className={`${baseClasses} border-accent-green bg-accent-green text-white shadow-button-green hover:bg-accent-green/80 hover:shadow-button-green-hover focus-visible:ring-accent-green`}
         >
           {label}
         </Button>
