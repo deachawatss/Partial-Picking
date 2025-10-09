@@ -71,7 +71,7 @@ export function ItemSelectionModal({
           <h3 className="modal-title">
             <span>📝</span>
             <span>
-              Select Item {runNo && batchNo && `(Run: ${runNo}, Batch: ${batchNo})`}
+              Select Item {runNo && batchItems?.[0]?.batchNo && `(Run: ${runNo}, Batch: ${batchItems[0].batchNo})`}
             </span>
           </h3>
           <button
@@ -124,37 +124,25 @@ export function ItemSelectionModal({
               <table className="modal-table">
                 <thead>
                   <tr>
+                    <th className="text-center">Line</th>
                     <th>Item Key</th>
                     <th>Description</th>
-                    <th className="text-center">Target (kg)</th>
-                    <th className="text-center">Picked (kg)</th>
-                    <th className="text-center">Balance (kg)</th>
-                    <th className="text-center">Status</th>
+                    <th className="text-center">Unit</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
+                  {items.map((item, index) => (
                     <tr key={item.lineId} onClick={() => handleSelect(item)}>
+                      <td className="text-center">
+                        <strong>{index + 1}</strong>
+                      </td>
                       <td>
                         <strong>{item.itemKey}</strong>
                       </td>
-                      <td title={item.description}>{item.description}</td>
-                      <td className="text-center">{item.targetQty.toFixed(3)}</td>
-                      <td className="text-center">{item.pickedQty.toFixed(3)}</td>
-                      <td
-                        className="text-center"
-                        style={{
-                          color: item.balance > 0 ? '#2B1C14' : '#2E7D32',
-                          fontWeight: item.balance === 0 ? 'bold' : 'normal',
-                        }}
-                      >
-                        {item.balance.toFixed(3)}
+                      <td className="text-left" title={item.description}>
+                        {item.description}
                       </td>
-                      <td className="text-center">
-                        <span className={`modal-status-badge ${getStatusClass(item.status)}`}>
-                          {item.status}
-                        </span>
-                      </td>
+                      <td className="text-center">KG</td>
                     </tr>
                   ))}
                 </tbody>

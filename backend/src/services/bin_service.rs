@@ -1,5 +1,6 @@
 use crate::db::DbPool;
 use crate::error::AppResult;
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use tiberius::{Query, Row};
 
@@ -148,4 +149,119 @@ pub async fn get_bins(
     );
 
     Ok(BinsResponse { bins })
+}
+
+/// Bin-Lot DTO with inventory details for a specific lot
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BinLotDTO {
+    #[serde(rename = "binNo")]
+    pub bin_no: String,
+
+    #[serde(rename = "expiryDate")]
+    pub expiry_date: String, // YYYY-MM-DD format
+
+    #[serde(rename = "qtyOnHand")]
+    pub qty_on_hand: f64,
+
+    #[serde(rename = "qtyCommitSales")]
+    pub qty_commit_sales: f64,
+
+    #[serde(rename = "availableQty")]
+    pub available_qty: f64,
+
+    #[serde(rename = "packSize")]
+    pub pack_size: f64,
+}
+
+/// Get bins for a specific lot and item
+///
+/// Used for bin override workflow: when user selects a lot, they can choose
+/// a different bin that contains inventory for the same lot.
+///
+/// # Arguments
+/// * `pool` - Database connection pool
+/// * `lot_no` - Lot number
+/// * `item_key` - Item SKU
+///
+/// # Returns
+/// * Vector of bins with inventory details for the specified lot
+///
+/// # Constitutional Compliance
+/// * ✅ Location = 'TFC1'
+/// * ✅ Includes PackSize from cust_PartialPicked JOIN
+/// * ✅ Returns inventory details (QtyOnHand, QtyCommitSales, AvailableQty)
+pub async fn get_bins_for_lot(
+    pool: &DbPool,
+    lot_no: &str,
+    item_key: &str,
+) -> AppResult<Vec<BinLotDTO>> {
+    let mut conn = pool.get().await?;
+
+    // Query bins that contain inventory for this specific lot and item
+    // JOIN with cust_PartialPicked to get PackSize
+    // INNER JOIN with BINMaster to enforce PARTIAL bin filtering (DB-Flow.md requirement)
+    let sql = r#"
+        SELECT DISTINCT
+            l.BinNo,
+            l.DateExpiry,
+            l.QtyOnHand,
+            l.QtyCommitSales,
+            (l.QtyOnHand - l.QtyCommitSales) AS AvailableQty,
+            ISNULL(p.PackSize, 0) AS PackSize
+        FROM LotMaster l
+        LEFT JOIN cust_PartialPicked p ON l.ItemKey = p.ItemKey
+        INNER JOIN BINMaster b ON l.BinNo = b.BinNo AND l.LocationKey = b.Location
+        WHERE l.LotNo = @P1
+          AND l.ItemKey = @P2
+          AND l.LocationKey = 'TFC1'
+          AND b.User1 = 'WHTFC1'
+          AND b.User4 = 'PARTIAL'
+        ORDER BY l.BinNo ASC
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(lot_no);
+    query.bind(item_key);
+
+    let rows = query.query(&mut *conn).await?;
+    let rows: Vec<Row> = rows.into_first_result().await?;
+
+    let bins: Vec<BinLotDTO> = rows
+        .iter()
+        .map(|row| {
+            let bin_no: &str = row.get("BinNo").unwrap_or("");
+            let qty_on_hand: f64 = row.get("QtyOnHand").unwrap_or(0.0);
+            let qty_commit_sales: f64 = row.get("QtyCommitSales").unwrap_or(0.0);
+            let available_qty: f64 = row.get("AvailableQty").unwrap_or(0.0);
+            let pack_size: f64 = row.try_get::<f32, _>("PackSize")
+                .ok()
+                .flatten()
+                .unwrap_or(0.0) as f64;
+
+            // SQL Server DATE fields are returned as NaiveDate
+            let expiry_date: NaiveDate = row
+                .try_get::<NaiveDate, _>("DateExpiry")
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| NaiveDate::from_ymd_opt(1900, 1, 1).unwrap());
+
+            BinLotDTO {
+                bin_no: bin_no.to_string(),
+                expiry_date: expiry_date.format("%Y-%m-%d").to_string(),
+                qty_on_hand,
+                qty_commit_sales,
+                available_qty,
+                pack_size,
+            }
+        })
+        .collect();
+
+    tracing::debug!(
+        lot_no = lot_no,
+        item_key = item_key,
+        bins_count = bins.len(),
+        "Retrieved bins for lot"
+    );
+
+    Ok(bins)
 }

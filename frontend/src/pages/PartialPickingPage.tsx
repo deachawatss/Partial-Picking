@@ -163,12 +163,15 @@ export function PartialPickingPage() {
 
   /**
    * Handle Item selection from modal or grid click
+   * Now accepts both itemKey and batchNo to select specific row
    */
-  const handleItemSelect = async (itemKey: string) => {
+  const handleItemSelect = async (itemKey: string, batchNo?: string) => {
     setShowItemModal(false)
     clearError()
     try {
-      await selectItem(itemKey)
+      // If batchNo provided, select that specific item
+      // Otherwise, select first item with that key (for modal compatibility)
+      await selectItem(itemKey, batchNo)
     } catch (error) {
       console.error('[PartialPickingPage] Item selection failed:', error)
     }
@@ -177,20 +180,54 @@ export function PartialPickingPage() {
   /**
    * Handle Lot selection from modal
    */
-  const handleLotSelect = (lot: { lotNo: string; dateExpiry: string; availableQty: number }) => {
+  const handleLotSelect = (lot: {
+    lotNo: string
+    binNo: string
+    dateExpiry: string
+    qtyOnHand: number
+    qtyCommitSales: number
+    availableQty: number
+    packSize: number
+    bagsAvailable: number
+  }) => {
     setShowLotModal(false)
     clearError()
     selectLot({
       lotNo: lot.lotNo,
       itemKey: currentItem?.itemKey || '',
-      binNo: '',
+      binNo: lot.binNo, // Auto-populate from selected lot
       locationKey: 'TFC1',
-      qtyOnHand: 0,
-      qtyCommitSales: 0,
+      qtyOnHand: lot.qtyOnHand,
+      qtyCommitSales: lot.qtyCommitSales,
       availableQty: lot.availableQty,
       expiryDate: lot.dateExpiry,
       lotStatus: 'P',
+      packSize: lot.packSize, // Include packSize
     })
+  }
+
+  /**
+   * Handle Bin selection from modal (manual override)
+   */
+  const handleBinSelect = (bin: {
+    binNo: string
+    expiryDate: string
+    qtyOnHand: number
+    qtyCommitSales: number
+    availableQty: number
+    packSize: number
+    bagsAvailable: number
+  }) => {
+    setShowBinModal(false)
+    clearError()
+
+    // Update the selected lot with the new bin
+    if (selectedLot) {
+      selectLot({
+        ...selectedLot,
+        binNo: bin.binNo, // Override bin number
+      })
+    }
   }
 
   const formatQuantity = (value?: number | null) => Number(value ?? 0).toFixed(4)
@@ -219,11 +256,23 @@ export function PartialPickingPage() {
     : currentWeight > 0
       ? 'border-danger bg-danger/5 text-danger shadow-[0_0_0_3px_rgba(198,40,40,0.12)]'
       : 'border-border-main text-text-primary'
-  const baseBatchItems = currentBatchItems.map((item, index) => ({
+
+  // Sort items by quantity descending (pick largest first), then BatchNo descending
+  // This matches official app behavior for efficient warehouse picking
+  const sortedBatchItems = [...currentBatchItems].sort((a, b) => {
+    // Primary: Sort by totalNeeded (Partial KG) descending (largest first)
+    const qtyCompare = b.totalNeeded - a.totalNeeded
+    if (qtyCompare !== 0) return qtyCompare
+
+    // Secondary: Sort by BatchNo descending (850417 before 850416)
+    return b.batchNo.localeCompare(a.batchNo)
+  })
+
+  const baseBatchItems = sortedBatchItems.map((item, index) => ({
     lineId: index + 1,
     itemKey: item.itemKey,
     description: item.description,
-    batchNo: currentBatchRowNum || 0,
+    batchNo: item.batchNo,
     targetQty: item.totalNeeded,
     pickedQty: item.pickedQty,
     balance: item.remainingQty,
@@ -236,9 +285,9 @@ export function PartialPickingPage() {
   const pendingCount = pendingGridItems.length
   const pickedCount = pickedGridItems.length
   const runNumberDisplay = currentRun?.runNo?.toString() ?? ''
-  const batchNumberDisplay = currentBatchRowNum?.toString() ?? ''
+  const batchNumberDisplay = currentItem?.batchNo || currentBatchItems[0]?.batchNo || ''
   const productionDateDisplay = currentRun?.productionDate || ''
-  const availableQtyDisplay = selectedLot ? formatQuantity(selectedLot.availableQty) : '0.0000'
+  const availableQtyDisplay = currentItem ? formatQuantity(currentItem.totalAvailableSOH) : '0.0000'
   const handleScaleSelection = (scale: 'small' | 'big') => {
     setSelectedScale(scale)
     setManualWeight(null)
@@ -334,23 +383,12 @@ export function PartialPickingPage() {
           <div className="border-b-2 border-border-main px-4 pt-2 pb-4 lg:col-span-2">
             <div className="grid grid-cols-1 items-center gap-3 md:grid-cols-[auto_200px_auto_120px_auto_minmax(0,1fr)] md:gap-x-4">
               <label className={labelClass}>Batch No</label>
-              <div className="relative">
-                <Input
-                  value={batchNumberDisplay}
-                  placeholder="Select batch"
-                  readOnly
-                  className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary"
-                />
-                <Button
-                  type="button"
-                  onClick={() => setShowBatchModal(true)}
-                  className={lookupButtonInsideInputClass}
-                  disabled={!currentRun || isLoading}
-                  aria-label="Lookup batch number"
-                >
-                  <Search className="w-5 h-5" strokeWidth={2.5} />
-                </Button>
-              </div>
+              <Input
+                value={batchNumberDisplay}
+                readOnly
+                placeholder="Auto from items"
+                className="h-12 rounded-lg border-2 border-border-main bg-surface text-base uppercase tracking-wide text-text-primary"
+              />
 
               <label className={labelClass}>Batches</label>
               <div className="flex h-12 items-center rounded-lg border-2 border-border-main bg-bg-main px-4 shadow-soft">
@@ -518,13 +556,6 @@ export function PartialPickingPage() {
               </div>
             </div>
 
-            {selectedLot && (
-              <div className="mt-6 rounded-lg border-2 border-accent-gold/40 bg-gradient-to-br from-[#FFF9EC] to-[#FFEDC4] px-6 py-4 text-sm font-semibold uppercase tracking-wide text-text-primary shadow-soft">
-                Lot {selectedLot.lotNo} · Bin {selectedLot.binNo || '—'} · Available{' '}
-                {availableQtyDisplay} KG
-              </div>
-            )}
-
             {/* 5 Button Layout */}
             <div className="mt-6 grid gap-3">
               <div className="grid gap-3 md:grid-cols-2">
@@ -581,14 +612,15 @@ export function PartialPickingPage() {
           </div>
 
           {/* Table Section (Right Column) */}
-          <div className="flex flex-col p-5">
+          <div className="flex h-full flex-col p-5">
             <BatchTicketGrid
               items={gridItems}
               filter={gridFilter}
               onFilterChange={setGridFilter}
               pendingCount={pendingCount}
               pickedCount={pickedCount}
-              onItemClick={item => handleItemSelect(item.itemKey)}
+              selectedRowKey={currentItem ? `${currentItem.itemKey}-${currentItem.batchNo}` : null}
+              onItemClick={item => handleItemSelect(item.itemKey, item.batchNo)}
             />
           </div>
         </section>
@@ -617,13 +649,16 @@ export function PartialPickingPage() {
         onOpenChange={setShowLotModal}
         onSelect={handleLotSelect}
         itemKey={currentItem?.itemKey}
+        runNo={currentRun?.runNo || null}
+        rowNum={currentBatchRowNum}
         targetQty={currentItem?.totalNeeded}
       />
       <BinSelectionModal
         open={showBinModal}
         onOpenChange={setShowBinModal}
-        onSelect={bin => console.log('[PartialPickingPage] Bin selected:', bin)}
-        lotNo={selectedLot?.lotNo}
+        onSelect={handleBinSelect}
+        lotNo={selectedLot?.lotNo || null}
+        itemKey={currentItem?.itemKey || null}
       />
     </div>
   )

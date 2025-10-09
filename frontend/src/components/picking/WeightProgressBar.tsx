@@ -69,22 +69,43 @@ export function WeightProgressBar({
   const toleranceLow = Math.max(safeTarget - safeTolerance, 0)
   const toleranceHigh = safeTarget + safeTolerance
 
-  // Position the acceptable tolerance range at 60-70% of the bar width
-  // This ensures consistent visual positioning regardless of actual weight values
-  const TOLERANCE_POSITION = 0.65 // Position center of tolerance at 65% of bar
-  const maxForScale = safeTarget > 0
-    ? Math.max(toleranceHigh / TOLERANCE_POSITION, 50) // Scale so high tolerance is at ~65%
-    : 50 // Default 50 KG when no target selected
+  // Fixed tolerance marker positions - ALWAYS at same visual location regardless of item weight
+  const TOLERANCE_MIN_PERCENT = 60 // Left marker always at 60%
+  const TOLERANCE_MAX_PERCENT = 70 // Right marker always at 70%
 
-  const percentage = clamp((safeWeight / maxForScale) * 100, 0, 100)
-  const toleranceStart = clamp((toleranceLow / maxForScale) * 100, 0, 100)
-  const toleranceEnd = clamp((toleranceHigh / maxForScale) * 100, 0, 100)
-  const toleranceSpanPercent = clamp(toleranceEnd - toleranceStart, 0, 100)
-  const toleranceSpanClamped = clamp(toleranceSpanPercent, 1, 100 - toleranceStart)
+  // Calculate weight bar percentage relative to fixed tolerance markers
+  const calculateWeightPercentage = (
+    weight: number,
+    toleranceLow: number,
+    toleranceHigh: number
+  ): number => {
+    if (weight <= 0) return 0
 
-  // Tolerance marker positions (vertical lines at min/max boundaries)
-  const toleranceMinPosition = toleranceStart
-  const toleranceMaxPosition = toleranceEnd
+    if (weight <= toleranceLow) {
+      // Below tolerance: map [0, toleranceLow] → [0%, 60%]
+      return (weight / toleranceLow) * TOLERANCE_MIN_PERCENT
+    } else if (weight <= toleranceHigh) {
+      // Within tolerance: map [toleranceLow, toleranceHigh] → [60%, 70%]
+      const rangeProgress = (weight - toleranceLow) / (toleranceHigh - toleranceLow)
+      return TOLERANCE_MIN_PERCENT + rangeProgress * (TOLERANCE_MAX_PERCENT - TOLERANCE_MIN_PERCENT)
+    } else {
+      // Above tolerance: map [toleranceHigh, maxWeight] → [70%, 100%]
+      const maxWeight = toleranceHigh * 1.5 // 150% of high tolerance as max scale
+      const excessWeight = weight - toleranceHigh
+      const excessRange = maxWeight - toleranceHigh
+      const excessProgress = Math.min(excessWeight / excessRange, 1)
+      return TOLERANCE_MAX_PERCENT + excessProgress * (100 - TOLERANCE_MAX_PERCENT)
+    }
+  }
+
+  // Calculate bar fill percentage based on weight relative to tolerance
+  const percentage = safeTarget > 0
+    ? clamp(calculateWeightPercentage(safeWeight, toleranceLow, toleranceHigh), 0, 100)
+    : clamp((safeWeight / 50) * 100, 0, 100) // Default scale to 50 KG when no target
+
+  // Tolerance markers are FIXED at 60% and 70% (not dependent on weight values)
+  const toleranceMinPosition = TOLERANCE_MIN_PERCENT
+  const toleranceMaxPosition = TOLERANCE_MAX_PERCENT
 
   const activeScaleStatus = scaleStatuses[selectedScale] ?? { online: false, stable: false }
   const { online, stable } = activeScaleStatus

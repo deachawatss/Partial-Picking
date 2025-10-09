@@ -1,6 +1,6 @@
 use crate::db::DbPool;
 use crate::error::AppResult;
-use chrono::{DateTime, Utc};
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use tiberius::{Query, Row};
 
@@ -42,6 +42,9 @@ pub struct LotAvailabilityDTO {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rack: Option<String>,
+
+    #[serde(rename = "packSize")]
+    pub pack_size: f64,
 }
 
 /// Lots response wrapper
@@ -53,10 +56,13 @@ pub struct LotsResponse {
 /// Get available lots for item (FEFO-sorted, TFC1 PARTIAL bins only)
 ///
 /// Uses validated SQL from Database Specialist: fefo_lot_selection.sql
+/// Enhanced with PackSize JOIN to cust_PartialPicked
 ///
 /// # Arguments
 /// * `pool` - Database connection pool
 /// * `item_key` - Item SKU to search for
+/// * `run_no` - Production run number (for PackSize lookup)
+/// * `row_num` - Batch number (for PackSize lookup)
 /// * `min_qty` - Optional minimum available quantity required
 ///
 /// # Returns
@@ -69,57 +75,85 @@ pub struct LotsResponse {
 /// * ✅ Filters: Location='TFC1', Available qty >= target
 /// * ✅ LotStatus IN ('P', 'C', '', NULL) - only usable lots
 /// * ✅ Returns TOP 1 for specific target qty, or all available lots
+/// * ✅ Includes PackSize from cust_PartialPicked JOIN
 pub async fn get_available_lots(
     pool: &DbPool,
     item_key: &str,
+    run_no: i32,
+    row_num: i32,
     min_qty: Option<f64>,
 ) -> AppResult<LotsResponse> {
     let mut conn = pool.get().await?;
 
     // SQL from Database Specialist: fefo_lot_selection.sql
-    // Modified to return all lots (not just TOP 1) for listing
+    // Enhanced with PackSize JOIN to cust_PartialPicked
+    // INNER JOIN with BINMaster to enforce PARTIAL bin filtering (DB-Flow.md requirement)
     let sql = if let Some(_qty) = min_qty {
         r#"
         SELECT TOP 1
-            LotNo,
-            BinNo,
-            DateExpiry,
-            QtyOnHand,
-            QtyCommitSales,
-            (QtyOnHand - QtyCommitSales) AS AvailableQty,
-            LocationKey,
-            LotStatus
-        FROM LotMaster
-        WHERE ItemKey = @P1
-          AND LocationKey = 'TFC1'
-          AND (QtyOnHand - QtyCommitSales) >= @P2
-          AND (LotStatus = 'P' OR LotStatus = 'C' OR LotStatus = '' OR LotStatus IS NULL)
-        ORDER BY DateExpiry ASC, LocationKey ASC
+            l.LotNo,
+            l.BinNo,
+            l.DateExpiry,
+            l.QtyOnHand,
+            l.QtyCommitSales,
+            (l.QtyOnHand - l.QtyCommitSales) AS AvailableQty,
+            l.LocationKey,
+            l.LotStatus,
+            ISNULL(p.PackSize, 0) AS PackSize
+        FROM LotMaster l
+        LEFT JOIN cust_PartialPicked p
+            ON l.ItemKey = p.ItemKey
+            AND p.RunNo = @P3
+            AND p.RowNum = @P4
+        INNER JOIN BINMaster b ON l.BinNo = b.BinNo AND l.LocationKey = b.Location
+        WHERE l.ItemKey = @P1
+          AND l.LocationKey = 'TFC1'
+          AND (l.QtyOnHand - l.QtyCommitSales) >= @P2
+          AND (l.LotStatus = 'P' OR l.LotStatus = 'C' OR l.LotStatus = '' OR l.LotStatus IS NULL)
+          AND b.User1 = 'WHTFC1'
+          AND b.User4 = 'PARTIAL'
+        ORDER BY l.DateExpiry ASC, l.LocationKey ASC
         "#
     } else {
         r#"
         SELECT
-            LotNo,
-            BinNo,
-            DateExpiry,
-            QtyOnHand,
-            QtyCommitSales,
-            (QtyOnHand - QtyCommitSales) AS AvailableQty,
-            LocationKey,
-            LotStatus
-        FROM LotMaster
-        WHERE ItemKey = @P1
-          AND LocationKey = 'TFC1'
-          AND (QtyOnHand - QtyCommitSales) > 0
-          AND (LotStatus = 'P' OR LotStatus = 'C' OR LotStatus = '' OR LotStatus IS NULL)
-        ORDER BY DateExpiry ASC, LocationKey ASC
+            l.LotNo,
+            l.BinNo,
+            l.DateExpiry,
+            l.QtyOnHand,
+            l.QtyCommitSales,
+            (l.QtyOnHand - l.QtyCommitSales) AS AvailableQty,
+            l.LocationKey,
+            l.LotStatus,
+            ISNULL(p.PackSize, 0) AS PackSize
+        FROM LotMaster l
+        LEFT JOIN cust_PartialPicked p
+            ON l.ItemKey = p.ItemKey
+            AND p.RunNo = @P1
+            AND p.RowNum = @P2
+        INNER JOIN BINMaster b ON l.BinNo = b.BinNo AND l.LocationKey = b.Location
+        WHERE l.ItemKey = @P3
+          AND l.LocationKey = 'TFC1'
+          AND (l.QtyOnHand - l.QtyCommitSales) > 0
+          AND (l.LotStatus = 'P' OR l.LotStatus = 'C' OR l.LotStatus = '' OR l.LotStatus IS NULL)
+          AND b.User1 = 'WHTFC1'
+          AND b.User4 = 'PARTIAL'
+        ORDER BY l.DateExpiry ASC, l.LocationKey ASC
         "#
     };
 
     let mut query = Query::new(sql);
-    query.bind(item_key);
     if let Some(qty) = min_qty {
+        // With minQty: @P1=itemKey, @P2=qty, @P3=runNo, @P4=rowNum
+        query.bind(item_key);
         query.bind(qty);
+        query.bind(run_no);
+        query.bind(row_num);
+    } else {
+        // Without minQty: @P1=runNo, @P2=rowNum, @P3=itemKey
+        query.bind(run_no);
+        query.bind(row_num);
+        query.bind(item_key);
     }
 
     let rows = query.query(&mut *conn).await?;
@@ -134,8 +168,20 @@ pub async fn get_available_lots(
             let qty_on_hand: f64 = row.get("QtyOnHand").unwrap_or(0.0);
             let qty_commit_sales: f64 = row.get("QtyCommitSales").unwrap_or(0.0);
             let available_qty: f64 = row.get("AvailableQty").unwrap_or(0.0);
-            let expiry_date: DateTime<Utc> = row.get("DateExpiry").unwrap_or(Utc::now());
+
+            // SQL Server DATE fields are returned as NaiveDate (not DateTime)
+            // Use try_get to handle NULL or invalid dates gracefully
+            let expiry_date: NaiveDate = row
+                .try_get::<NaiveDate, _>("DateExpiry")
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| NaiveDate::from_ymd_opt(1900, 1, 1).unwrap());
+
             let lot_status: &str = row.get("LotStatus").unwrap_or("P");
+
+            // Get PackSize from cust_PartialPicked JOIN
+            let pack_size: f64 = row.try_get::<f32, _>("PackSize")
+                .ok().flatten().unwrap_or(0.0) as f64;
 
             // Parse bin location components (e.g., "PWBB-12" -> PW, B, 12)
             let (aisle, row_char, rack) = parse_bin_location(bin_no);
@@ -153,6 +199,7 @@ pub async fn get_available_lots(
                 aisle,
                 row: row_char,
                 rack,
+                pack_size,
             }
         })
         .collect();
