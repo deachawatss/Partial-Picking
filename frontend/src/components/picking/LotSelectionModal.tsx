@@ -9,6 +9,8 @@ interface Lot {
   qtyCommitSales: number
   availableQty: number
   binNo: string
+  packSize: number
+  bagsAvailable: number
 }
 
 interface LotSelectionModalProps {
@@ -16,6 +18,8 @@ interface LotSelectionModalProps {
   onOpenChange: (open: boolean) => void
   onSelect: (lot: Lot) => void
   itemKey: string | null
+  runNo: number | null
+  rowNum: number | null
   targetQty?: number
 }
 
@@ -24,11 +28,19 @@ export function LotSelectionModal({
   onOpenChange,
   onSelect,
   itemKey,
+  runNo,
+  rowNum,
   targetQty,
 }: LotSelectionModalProps) {
-  const { data: lotData, isLoading, error } = useAvailableLots(itemKey, targetQty, {
-    enabled: open && !!itemKey
-  })
+  const { data: lotData, isLoading, error } = useAvailableLots(
+    itemKey,
+    runNo,
+    rowNum,
+    targetQty,
+    {
+      enabled: open && !!itemKey && !!runNo && !!rowNum
+    }
+  )
 
   // Map LotAvailabilityDTO to Lot (API returns FEFO sorted already)
   const lots = useMemo<Lot[]>(() => {
@@ -41,6 +53,8 @@ export function LotSelectionModal({
       qtyCommitSales: lot.qtyCommitSales,
       availableQty: lot.availableQty,
       binNo: lot.binNo,
+      packSize: lot.packSize,
+      bagsAvailable: lot.packSize > 0 ? lot.availableQty / lot.packSize : 0,
     }))
   }, [lotData])
 
@@ -76,16 +90,6 @@ export function LotSelectionModal({
           </button>
         </div>
 
-        {/* Item Context Bar */}
-        {itemKey && targetQty && (
-          <div className="modal-item-context">
-            <span className="modal-context-label">Item:</span>
-            <span className="modal-context-value">{itemKey}</span>
-            <span className="modal-context-label">• Target:</span>
-            <span className="modal-context-value">{targetQty.toFixed(2)} kg</span>
-            <span className="modal-context-label">• FEFO: First Expired First Out</span>
-          </div>
-        )}
 
         {/* Results Section */}
         <div className="modal-content">
@@ -128,11 +132,11 @@ export function LotSelectionModal({
                 <thead>
                   <tr>
                     <th>Lot No</th>
-                    <th>Expiry Date</th>
-                    <th className="text-center">On Hand (kg)</th>
-                    <th className="text-center">Committed (kg)</th>
-                    <th className="text-center">Available (kg)</th>
-                    <th className="text-center">Bin</th>
+                    <th className="text-center">Bin No</th>
+                    <th>Date Exp</th>
+                    <th className="text-right">On Hand</th>
+                    <th className="text-right">Committed</th>
+                    <th className="text-right">Available</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -150,19 +154,19 @@ export function LotSelectionModal({
                           <strong>{lot.lotNo}</strong>
                         </div>
                       </td>
+                      <td className="text-center">{lot.binNo}</td>
                       <td>{lot.dateExpiry}</td>
-                      <td className="text-center">{lot.qtyOnHand.toFixed(3)}</td>
-                      <td className="text-center">{lot.qtyCommitSales.toFixed(3)}</td>
+                      <td className="text-right">{lot.qtyOnHand.toFixed(2)}</td>
+                      <td className="text-right">{lot.qtyCommitSales.toFixed(2)}</td>
                       <td
-                        className="text-center"
+                        className="text-right"
                         style={{
                           color: '#2E7D32',
                           fontWeight: 'bold',
                         }}
                       >
-                        {lot.availableQty.toFixed(3)}
+                        {lot.availableQty.toFixed(2)}
                       </td>
-                      <td className="text-center">{lot.binNo}</td>
                     </tr>
                   ))}
                 </tbody>

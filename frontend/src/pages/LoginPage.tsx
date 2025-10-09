@@ -205,7 +205,7 @@ export function LoginPage() {
               width="256"
               height="128"
               loading="eager"
-              className="w-80 h-auto max-w-full rounded-lg shadow-lg"
+              className="w-64 h-auto max-w-full"
             />
           </div>
           <div>

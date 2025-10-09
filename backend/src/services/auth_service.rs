@@ -2,7 +2,6 @@ use crate::config::Config;
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
 use crate::models::user::{AuthSource, User};
-use bcrypt::verify;
 use ldap3::{LdapConnAsync, LdapConnSettings, Scope, SearchEntry};
 use std::time::Duration;
 use tiberius::{Query, Row};
@@ -75,7 +74,7 @@ pub async fn authenticate_ldap(
     // Spawn connection driver
     tokio::spawn(async move {
         if let Err(e) = conn.drive().await {
-            tracing::error!(error = %e, "LDAP connection driver failed");
+            tracing::debug!(error = %e, "LDAP connection driver terminated");
         }
     });
 
@@ -210,11 +209,15 @@ pub async fn authenticate_ldap(
 ///
 /// # T048: SQL Fallback Authentication Service
 ///
-/// Authenticates user credentials against local database using bcrypt password hashing.
+/// Authenticates user credentials against local database using plain text password comparison.
+///
+/// **SECURITY WARNING**: This implementation uses plain text password comparison
+/// because the database stores passwords in plain text. This is NOT secure for
+/// production environments and should be migrated to bcrypt or argon2 hashing.
 ///
 /// # Arguments
 /// * `username` - Username (must match tbl_user.uname)
-/// * `password` - Plain text password (will be verified against bcrypt hash)
+/// * `password` - Plain text password (compared directly with database value)
 /// * `pool` - Database connection pool
 ///
 /// # Returns
@@ -226,13 +229,13 @@ pub async fn authenticate_ldap(
 /// 2. If user not found: Return InvalidCredentials
 /// 3. If user.auth_source != 'LOCAL': Return InvalidCredentials (LDAP-only user)
 /// 4. If user.pword is NULL: Return InvalidCredentials (password not set)
-/// 5. Verify password using bcrypt::verify(password, user.pword)
-/// 6. If verification succeeds: Return user
-/// 7. If verification fails: Return InvalidCredentials
+/// 5. Compare password with user.pword (plain text comparison)
+/// 6. If passwords match: Return user
+/// 7. If passwords don't match: Return InvalidCredentials
 ///
 /// # Example
 /// ```rust
-/// let user = authenticate_sql("warehouse_user", "SecurePassword456", &pool).await?;
+/// let user = authenticate_sql("UAT1", "1234", &pool).await?;
 /// assert_eq!(user.auth_source, AuthSource::Local);
 /// ```
 pub async fn authenticate_sql(username: &str, password: &str, pool: &DbPool) -> AppResult<User> {
@@ -284,20 +287,17 @@ pub async fn authenticate_sql(username: &str, password: &str, pool: &DbPool) -> 
         return Err(AppError::InvalidCredentials);
     }
 
-    // Get password hash from database
-    let password_hash: Option<&str> = row.get("pword");
-    let password_hash = password_hash.ok_or_else(|| {
+    // Get password from database
+    let password_db: Option<&str> = row.get("pword");
+    let password_db = password_db.ok_or_else(|| {
         tracing::warn!(username = %username, "User has no password set");
         AppError::InvalidCredentials
     })?;
 
-    // Verify password using bcrypt
-    let password_valid = verify(password, &password_hash).map_err(|e| {
-        tracing::error!(error = %e, "Bcrypt verification error");
-        AppError::InternalError(format!("Password verification failed: {}", e))
-    })?;
-
-    if !password_valid {
+    // SECURITY NOTE: Database stores plain text passwords for LOCAL users
+    // This is NOT secure for production and should be migrated to bcrypt hashes
+    // For now, we use plain text comparison to match existing database schema
+    if password != password_db {
         tracing::warn!(username = %username, "Password verification failed");
         return Err(AppError::InvalidCredentials);
     }
@@ -316,7 +316,7 @@ pub async fn authenticate_sql(username: &str, password: &str, pool: &DbPool) -> 
         last_ldap_sync: row.get("last_ldap_sync"),
         ad_enabled: row.get::<bool, _>("ad_enabled").unwrap_or(true),
         app_permissions: row.get::<&str, _>("app_permissions").map(|s| s.to_string()),
-        pword: Some(password_hash.to_string()),
+        pword: Some(password_db.to_string()),
         created_at: row.get("created_at"),
     };
 
