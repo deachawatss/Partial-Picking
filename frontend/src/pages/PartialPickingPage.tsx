@@ -12,7 +12,7 @@
  * WCAG 2.2 AA compliant
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { usePicking } from '@/contexts/PickingContext'
@@ -80,6 +80,101 @@ export function PartialPickingPage() {
   // Success notification state
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [gridFilter, setGridFilter] = useState<'pending' | 'picked'>('pending')
+
+  // Run No manual input state
+  const [runInputValue, setRunInputValue] = useState('')
+  const [previousRunValue, setPreviousRunValue] = useState('')
+  const [isRunFieldActive, setIsRunFieldActive] = useState(false)
+  const [isSearchButtonClicked, setIsSearchButtonClicked] = useState(false)
+
+  // Sync runInputValue with currentRun
+  useEffect(() => {
+    if (currentRun?.runNo) {
+      setRunInputValue(currentRun.runNo.toString())
+    } else {
+      setRunInputValue('')
+    }
+  }, [currentRun?.runNo])
+
+  /**
+   * Handle Run field click - clear for manual input/scanning
+   */
+  const handleRunFieldClick = () => {
+    setPreviousRunValue(runInputValue)
+    setIsRunFieldActive(true)
+    setRunInputValue('')
+  }
+
+  /**
+   * Handle Run field blur - restore previous value if empty and not searching
+   */
+  const handleRunFieldBlur = () => {
+    const currentValue = runInputValue.trim()
+
+    // Skip restoration if user is clicking search button
+    if (isSearchButtonClicked) {
+      setIsRunFieldActive(false)
+      setPreviousRunValue('')
+      return
+    }
+
+    // Restore previous value if field is empty
+    if (isRunFieldActive && !currentValue) {
+      setRunInputValue(previousRunValue)
+    }
+
+    setIsRunFieldActive(false)
+    setPreviousRunValue('')
+  }
+
+  /**
+   * Handle search button mouse down - prevent blur restoration
+   */
+  const handleSearchButtonMouseDown = () => {
+    setIsSearchButtonClicked(true)
+  }
+
+  /**
+   * Handle Run field key down - trigger search on Enter
+   */
+  const handleRunFieldKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleRunSearch(false)
+    }
+  }
+
+  /**
+   * Handle Run search - open modal or perform direct search
+   */
+  const handleRunSearch = async (fromButton: boolean) => {
+    // Reset all field interaction states
+    setIsSearchButtonClicked(false)
+    setIsRunFieldActive(false)
+    setPreviousRunValue('')
+
+    // Always open modal when clicked via Search button
+    if (fromButton) {
+      setShowRunModal(true)
+      return
+    }
+
+    // Enter key behavior: process input field value for direct lookup
+    const runNumber = runInputValue.trim()
+
+    // Show modal if run number field is blank
+    if (!runNumber) {
+      setShowRunModal(true)
+      return
+    }
+
+    // Direct search with entered run number
+    clearError()
+    try {
+      await selectRun(parseInt(runNumber, 10))
+    } catch (error) {
+      console.error('[PartialPickingPage] Direct run search failed:', error)
+    }
+  }
 
   /**
    * Handle Save Pick button
@@ -284,7 +379,6 @@ export function PartialPickingPage() {
   const gridItems = gridFilter === 'pending' ? pendingGridItems : pickedGridItems
   const pendingCount = pendingGridItems.length
   const pickedCount = pickedGridItems.length
-  const runNumberDisplay = currentRun?.runNo?.toString() ?? ''
   const batchNumberDisplay = currentItem?.batchNo || currentBatchItems[0]?.batchNo || ''
   const productionDateDisplay = currentRun?.productionDate || ''
   const availableQtyDisplay = currentItem ? formatQuantity(currentItem.totalAvailableSOH) : '0.0000'
@@ -345,14 +439,18 @@ export function PartialPickingPage() {
               <label className={labelClass}>Run No</label>
               <div className="relative">
                 <Input
-                  value={runNumberDisplay}
-                  placeholder="Select run"
-                  readOnly
+                  value={runInputValue}
+                  onChange={e => setRunInputValue(e.target.value)}
+                  onClick={handleRunFieldClick}
+                  onBlur={handleRunFieldBlur}
+                  onKeyDown={handleRunFieldKeyDown}
+                  placeholder="Enter or scan run number"
                   className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary"
                 />
                 <Button
                   type="button"
-                  onClick={() => setShowRunModal(true)}
+                  onMouseDown={handleSearchButtonMouseDown}
+                  onClick={() => handleRunSearch(true)}
                   className={lookupButtonInsideInputClass}
                   disabled={isLoading}
                   aria-label="Lookup run number"
@@ -366,7 +464,7 @@ export function PartialPickingPage() {
                 value={currentRun?.fgItemKey || ''}
                 readOnly
                 placeholder="Item key"
-                className="h-12 rounded-lg border-2 border-border-main bg-surface text-base uppercase tracking-wide text-text-primary"
+                className="h-12 rounded-lg border-2 border-border-main bg-bg-main text-base uppercase tracking-wide text-text-primary"
               />
 
               <label className={labelClass}>Description</label>
@@ -374,7 +472,7 @@ export function PartialPickingPage() {
                 value={currentRun?.fgDescription || ''}
                 readOnly
                 placeholder="Description"
-                className="h-12 rounded-lg border-2 border-border-main bg-surface text-base text-text-primary"
+                className="h-12 rounded-lg border-2 border-border-main bg-bg-main text-base text-text-primary"
               />
             </div>
           </div>
@@ -387,7 +485,7 @@ export function PartialPickingPage() {
                 value={batchNumberDisplay}
                 readOnly
                 placeholder="Auto from items"
-                className="h-12 rounded-lg border-2 border-border-main bg-surface text-base uppercase tracking-wide text-text-primary"
+                className="h-12 rounded-lg border-2 border-border-main bg-bg-main text-base uppercase tracking-wide text-text-primary"
               />
 
               <label className={labelClass}>Batches</label>
@@ -522,7 +620,7 @@ export function PartialPickingPage() {
                   <Input
                     value={formatQuantity(weightRangeLow)}
                     readOnly
-                    className="h-12 flex-1 rounded-lg border-2 border-border-main bg-surface font-body text-base font-medium tabular-nums text-text-primary"
+                    className="h-12 flex-1 rounded-lg border-2 border-border-main bg-bg-main font-body text-base font-medium tabular-nums text-text-primary"
                   />
                   <span className="text-sm font-semibold uppercase tracking-wide text-text-primary/60">
                     to
@@ -530,7 +628,7 @@ export function PartialPickingPage() {
                   <Input
                     value={formatQuantity(weightRangeHigh)}
                     readOnly
-                    className="h-12 flex-1 rounded-lg border-2 border-border-main bg-surface font-body text-base font-medium tabular-nums text-text-primary"
+                    className="h-12 flex-1 rounded-lg border-2 border-border-main bg-bg-main font-body text-base font-medium tabular-nums text-text-primary"
                   />
                 </div>
               </div>
@@ -541,7 +639,7 @@ export function PartialPickingPage() {
                 <Input
                   value={formatQuantity(currentItem?.totalNeeded)}
                   readOnly
-                  className="h-12 rounded-lg border-2 border-border-main bg-surface font-body text-base font-medium tabular-nums text-text-primary"
+                  className="h-12 rounded-lg border-2 border-border-main bg-bg-main font-body text-base font-medium tabular-nums text-text-primary"
                 />
               </div>
 
@@ -551,7 +649,7 @@ export function PartialPickingPage() {
                 <Input
                   value={formatQuantity(currentItem?.remainingQty)}
                   readOnly
-                  className="h-12 rounded-lg border-2 border-border-main bg-surface font-body text-base font-medium tabular-nums text-text-primary"
+                  className="h-12 rounded-lg border-2 border-border-main bg-bg-main font-body text-base font-medium tabular-nums text-text-primary"
                 />
               </div>
             </div>

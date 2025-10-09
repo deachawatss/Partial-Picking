@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Clear Service Worker</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    button {
+      background: #0ea5e9;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #0284c7;
+    }
+    .log {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    .success { color: #10b981; }
+    .error { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <h1>🧹 Clear Service Worker & Caches</h1>
+  <p>This will unregister all service workers and clear all caches.</p>
+
+  <button onclick="clearAll()">Clear Everything</button>
+  <button onclick="location.reload()">Reload Page</button>
+
+  <div class="log" id="log">Ready to clear...</div>
+
+  <script>
+    const log = document.getElementById('log');
+
+    function addLog(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const className = type === 'success' ? 'success' : type === 'error' ? 'error' : '';
+      log.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+    }
+
+    async function clearAll() {
+      log.innerHTML = '<div>Starting cleanup...</div>';
+
+      try {
+        // 1. Unregister all service workers
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          addLog(`Found ${registrations.length} service worker(s)`);
+
+          for (let registration of registrations) {
+            await registration.unregister();
+            addLog('✓ Unregistered service worker', 'success');
+          }
+        }
+
+        // 2. Clear all caches
+        if ('caches' in window) {
+          const cacheNames = await caches.keys();
+          addLog(`Found ${cacheNames.length} cache(s): ${cacheNames.join(', ')}`);
+
+          for (let cacheName of cacheNames) {
+            await caches.delete(cacheName);
+            addLog(`✓ Deleted cache: ${cacheName}`, 'success');
+          }
+        }
+
+        // 3. Clear localStorage
+        localStorage.clear();
+        addLog('✓ Cleared localStorage', 'success');
+
+        // 4. Clear sessionStorage
+        sessionStorage.clear();
+        addLog('✓ Cleared sessionStorage', 'success');
+
+        addLog('🎉 All cleared! Please close this tab and restart your dev server.', 'success');
+
+      } catch (error) {
+        addLog(`❌ Error: ${error.message}`, 'error');
+      }
+    }
+
+    // Auto-run on load
+    window.addEventListener('load', () => {
+      addLog('Page loaded. Click "Clear Everything" to proceed.');
+    });
+  </script>
+</body>
+</html>

@@ -58,6 +58,9 @@ export default defineConfig({
         // Precache patterns (app shell + static assets)
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webp}'],
 
+        // Navigation preload for faster first loads
+        navigationPreload: true,
+
         // Runtime caching strategies
         runtimeCaching: [
           // API calls: Network-first (fresh data when online, cache fallback)
@@ -94,15 +97,18 @@ export default defineConfig({
             }
           },
 
-          // Static assets: Cache-first
+          // Static assets: StaleWhileRevalidate (fixes first-load issue)
           {
             urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate', // Serve from cache + update in background
             options: {
               cacheName: 'images-cache',
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
               }
             }
           },
@@ -131,8 +137,9 @@ export default defineConfig({
 
       // Development options
       devOptions: {
-        enabled: false, // Disable PWA in development (no caching - always fresh files)
-        type: 'module'
+        enabled: true, // Enable PWA in development for testing
+        type: 'module',
+        navigateFallback: '/'
       }
     })
   ],

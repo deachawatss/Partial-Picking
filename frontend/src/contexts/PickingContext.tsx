@@ -122,28 +122,31 @@ export function PickingProvider({ children }: PickingProviderProps) {
           setCurrentBatchRowNum(runDetails.batches[0])
           setCurrentBatchItems(sortedItems)
 
-          // Auto-select first item (highest quantity)
-          if (sortedItems.length > 0) {
-            const firstItem = sortedItems[0]
-            console.log('[Picking] Auto-selecting first item:', firstItem.itemKey, 'from batch:', firstItem.batchNo)
+          // Filter for FULLY UNPICKED items only (not partially picked)
+          const unpickedItems = sortedItems.filter(item => item.pickedQty === 0)
+
+          // Auto-select first fully unpicked item (highest quantity that needs picking)
+          if (unpickedItems.length > 0) {
+            const firstUnpickedItem = unpickedItems[0]
+            console.log('[Picking] Auto-selecting first unpicked item:', firstUnpickedItem.itemKey, 'from batch:', firstUnpickedItem.batchNo, 'totalNeeded:', firstUnpickedItem.totalNeeded)
 
             try {
-              // Load FEFO lots for first item
-              const itemBatchRowNum = parseInt(firstItem.batchNo, 10)
+              // Load FEFO lots for first unpicked item
+              const itemBatchRowNum = parseInt(firstUnpickedItem.batchNo, 10)
               const lots = await lotsApi.getAvailableLots(
-                firstItem.itemKey,
+                firstUnpickedItem.itemKey,
                 runDetails.runNo,
                 itemBatchRowNum,
-                firstItem.remainingQty
+                firstUnpickedItem.remainingQty
               )
 
-              console.log('[Picking] FEFO lots loaded for first item:', {
+              console.log('[Picking] FEFO lots loaded for first unpicked item:', {
                 count: lots.length,
                 firstLot: lots[0]?.lotNo,
               })
 
               // Set current item
-              setCurrentItem(firstItem)
+              setCurrentItem(firstUnpickedItem)
 
               // Auto-select first FEFO lot if available
               if (lots.length > 0) {
@@ -152,11 +155,16 @@ export function PickingProvider({ children }: PickingProviderProps) {
                 setSelectedLot(null)
               }
             } catch (lotError) {
-              console.warn('[Picking] Failed to load lots for first item:', lotError)
+              console.warn('[Picking] Failed to load lots for first unpicked item:', lotError)
               // Still set the item even if lot loading fails
-              setCurrentItem(firstItem)
+              setCurrentItem(firstUnpickedItem)
               setSelectedLot(null)
             }
+          } else {
+            console.log('[Picking] No unpicked items to auto-select (all items have been picked)')
+            // Don't auto-select anything when all items are picked
+            setCurrentItem(null)
+            setSelectedLot(null)
           }
         } catch (batchError) {
           console.warn('[Picking] Failed to load batch items:', batchError)
