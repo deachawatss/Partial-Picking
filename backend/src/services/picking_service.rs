@@ -743,9 +743,10 @@ pub async fn get_picked_lots_for_run(pool: &DbPool, run_no: i32) -> AppResult<Pi
             CONVERT(VARCHAR, lm.DateExpiry, 103) AS DateExp,
             cplp.QtyReceived,
             cplp.BinNo,
-            lm.PackSize,
+            cplp.PackSize,
             cpp.RowNum,
-            cpp.LineId
+            cpp.LineId,
+            cplp.RecDate
         FROM Cust_PartialLotPicked cplp
         INNER JOIN cust_PartialPicked cpp
             ON cplp.RunNo = cpp.RunNo
@@ -780,6 +781,7 @@ pub async fn get_picked_lots_for_run(pool: &DbPool, run_no: i32) -> AppResult<Pi
         let pack_size: f64 = row.get::<f64, _>(8).unwrap_or(0.0);
         let row_num: i32 = row.get(9).unwrap_or(0);
         let line_id: i32 = row.get(10).unwrap_or(0);
+        let rec_date: Option<DateTime<Utc>> = row.try_get(11).ok().flatten();
 
         picked_lots.push(PickedLotDTO {
             lot_tran_no,
@@ -793,6 +795,7 @@ pub async fn get_picked_lots_for_run(pool: &DbPool, run_no: i32) -> AppResult<Pi
             pack_size,
             row_num,
             line_id,
+            rec_date,
         });
     }
 

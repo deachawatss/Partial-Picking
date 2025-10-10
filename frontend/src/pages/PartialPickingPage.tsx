@@ -29,6 +29,8 @@ import { BinSelectionModal } from '@/components/picking/BinSelectionModal'
 import { ViewLotsModal } from '@/components/picking/ViewLotsModal'
 import { BatchTicketGrid } from '@/components/picking/BatchTicketGrid'
 import { NumericKeyboard } from '@/components/picking/NumericKeyboard'
+import { usePickedLots } from '@/hooks/usePickedLotsQuery'
+import { printLabels } from '@/utils/printLabel'
 
 export function PartialPickingPage() {
   // Navigation and auth
@@ -84,6 +86,11 @@ export function PartialPickingPage() {
   // Success notification state
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [gridFilter, setGridFilter] = useState<'pending' | 'picked'>('pending')
+
+  // Fetch picked lots for delete all and re-print operations
+  const { data: pickedLotsData } = usePickedLots(currentRun?.runNo || null, {
+    enabled: !!currentRun?.runNo,
+  })
 
   // Run No manual input state
   const [runInputValue, setRunInputValue] = useState('')
@@ -235,18 +242,63 @@ export function PartialPickingPage() {
    * Handle Delete all lots from View Lots modal
    */
   const handleDeleteAllLots = async () => {
-    if (!confirm('Are you sure you want to delete ALL picked lots for this run?')) return
+    if (!pickedLotsData || pickedLotsData.pickedLots.length === 0) {
+      alert('No picked lots to delete')
+      return
+    }
 
-    // TODO: Implement delete all lots logic
-    alert('Delete All Lots functionality is under development')
+    const totalCount = pickedLotsData.pickedLots.length
+    const confirmed = window.confirm(
+      `Delete ALL ${totalCount} picked lot(s)? This will restore inventory and cannot be undone.`
+    )
+
+    if (!confirmed) return
+
+    try {
+      // Delete each lot sequentially
+      for (const lot of pickedLotsData.pickedLots) {
+        await unpickItem(lot.lineId, lot.rowNum)
+      }
+
+      setSuccessMessage(`Successfully deleted ${totalCount} picked lot(s)`)
+      setTimeout(() => setSuccessMessage(null), 3000)
+      setShowViewLotsModal(false)
+    } catch (error) {
+      console.error('[PartialPickingPage] Delete all lots failed:', error)
+      alert('Failed to delete some lots. Please try again.')
+    }
   }
 
   /**
    * Handle Re-Print from View Lots modal
    */
-  const handleRePrint = () => {
-    // TODO: Implement re-print logic
-    alert('Re-Print functionality is under development')
+  const handleRePrint = async () => {
+    if (!pickedLotsData || pickedLotsData.pickedLots.length === 0) {
+      alert('No picked lots to print')
+      return
+    }
+
+    try {
+      // Format picked lots data for labels
+      const labelData = pickedLotsData.pickedLots.map((lot) => ({
+        itemKey: lot.itemKey,
+        qtyReceived: lot.qtyReceived,
+        batchNo: lot.batchNo,
+        lotNo: lot.lotNo,
+        picker: workstationId || 'UNKNOWN',
+        date: lot.recDate ? new Date(lot.recDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'),
+        time: lot.recDate ? new Date(lot.recDate).toLocaleTimeString('en-US') : new Date().toLocaleTimeString('en-US'),
+      }))
+
+      // Print all labels
+      await printLabels(labelData)
+
+      setSuccessMessage(`Printing ${labelData.length} label(s)...`)
+      setTimeout(() => setSuccessMessage(null), 3000)
+    } catch (error) {
+      console.error('[PartialPickingPage] Re-print failed:', error)
+      alert('Failed to print labels. Please try again.')
+    }
   }
 
   /**

@@ -936,8 +936,11 @@ async fn save_picking(
 │   DECHAWAT 06/10/2025       │  ← User + Date (PickingDate)
 │   10:04:18AM                │  ← Time
 │                             │
-│  *INSAPP01--7.01*           │  ← Barcode Text
-│  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓        │  ← Code 128 Barcode
+│   ┌─────────────┐           │
+│   │  ▓▓▓▓▓▓▓▓  │           │  ← QR Code (150×150px)
+│   │  ▓▓  ▓▓▓▓  │           │  Data: INSAPP01--7.01
+│   │  ▓▓▓▓▓▓▓▓  │           │
+│   └─────────────┘           │
 └─────────────────────────────┘
 ```
 
@@ -952,7 +955,7 @@ SELECT
     cpl.LotNo,
     cpl.BinNo,
     cpl.DateExpiry,
-    '*' + cp.ItemKey + '--' + CAST(cp.PickedPartialQty AS VARCHAR(20)) + '*' AS BarcodeText
+    cp.ItemKey + '--' + CAST(cp.PickedPartialQty AS VARCHAR(20)) AS QRCodeData
 FROM cust_PartialPicked cp
 INNER JOIN Cust_PartialLotPicked cpl
     ON cp.RunNo = cpl.RunNo
@@ -967,7 +970,9 @@ WHERE cp.RunNo = @RunNo
 **Print Function:**
 ```typescript
 async function printIndividualLabel(pickData: PickedItem) {
-  // Generate HTML from template
+  // Generate HTML from template with QR code
+  const qrCodeData = `${pickData.itemKey}--${pickData.pickedQty.toFixed(2)}`;
+
   const labelHtml = generateLabelHtml({
     ItemKey: pickData.itemKey,
     PickedQty: pickData.pickedQty.toFixed(2),
@@ -975,7 +980,8 @@ async function printIndividualLabel(pickData: PickedItem) {
     LotNo: pickData.lotNo,
     User: pickData.modifiedBy,
     Date: formatDate(pickData.pickingDate),
-    Time: formatTime(pickData.pickingDate)
+    Time: formatTime(pickData.pickingDate),
+    QRCodeData: qrCodeData  // e.g., "INSAPP01--7.01"
   });
 
   // Print via hidden iframe
@@ -1840,15 +1846,16 @@ SELECT * FROM Cust_PartialLotPicked   -- uppercase 'C'
 SELECT * FROM Cust_PartialPicked      -- Wrong casing!
 ```
 
-### 14.5 Label Barcode Format
+### 14.5 Label QR Code Format
 
 **Individual Item Label:**
-- Pattern: `*{ItemKey}--{PickedQty}*`
+- Pattern: `{ItemKey}--{PickedQty}`
 - Examples:
-  - `*INSAPP01--7.01*`
-  - `*INSALT02--20.00*`
-  - `*INCORS01--14.50*`
-- Type: Code 128 (alphanumeric + special chars)
+  - `INSAPP01--7.01`
+  - `INSALT02--20.00`
+  - `INCORS01--14.50`
+- Type: QR Code 2D (150×150px, error correction level M)
+- Encoding: Simple string format (no JSON)
 
 ---
 

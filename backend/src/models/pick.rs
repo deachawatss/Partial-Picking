@@ -165,6 +165,9 @@ pub struct PickedLotDTO {
 
     #[serde(rename = "lineId")]
     pub line_id: i32,
+
+    #[serde(rename = "recDate")]
+    pub rec_date: Option<DateTime<Utc>>,
 }
 
 /// Response DTO for all picked lots in a run

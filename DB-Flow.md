@@ -701,8 +701,9 @@ INSALT02 (Target: 20.000 KG, Tolerance: 0.025 KG):
 
 **Label Specifications**:
 - Size: 4" x 4" thermal label
-- Barcode: Code 128 (*ITEMKEY--QTY* format)
-- Printer: Default thermal printer
+- QR Code: 2D QR code (ITEMKEY--QTY format, 150×150px)
+- Error Correction: Medium level (M)
+- Printer: Default thermal printer (Windows native print)
 - Quantity: 1 label per pick
 
 **Label Content**:
@@ -715,8 +716,11 @@ INSALT02 (Target: 20.000 KG, Tolerance: 0.025 KG):
 ║   Bin: PWBB-12                 ║
 ║   Weight: 20.025 KG            ║
 ║                                ║
-║   [Code 128 Barcode]           ║
-║   *INSALT02--20.025*           ║
+║   ┌───────────────┐            ║
+║   │  QR Code      │            ║
+║   │  (INSALT02--  │            ║
+║   │   20.025)     │            ║
+║   └───────────────┘            ║
 ║                                ║
 ║   Run: 213972  Batch: 2        ║
 ║   Date: 2025-01-20 14:32       ║
@@ -724,18 +728,11 @@ INSALT02 (Target: 20.000 KG, Tolerance: 0.025 KG):
 ╚════════════════════════════════╝
 ```
 
-**ZPL Example**:
-```zpl
-^XA
-^FO50,50^ADN,36,20^FDItem: INSALT02^FS
-^FO50,90^ADN,24,12^FDLot: 2510403-1  Bin: PWBB-12^FS
-^FO50,120^ADN,32,16^FDWeight: 20.025 KG^FS
-^FO50,170^BCN,100,Y,N,N^FD*INSALT02--20.025*^FS
-^FO50,290^ADN,18,10^FDRun: 213972  Batch: 2^FS
-^FO50,315^ADN,18,10^FDDate: 2025-01-20 14:32^FS
-^FO50,340^ADN,18,10^FDPicker: deachawat^FS
-^XZ
-```
+**Implementation Note**:
+- Uses HTML/CSS template with `@media print` for 4×4" sizing
+- QR Code generated with `qrcode.react` library (QRCodeCanvas component)
+- Print via browser `window.print()` for Windows native print dialog
+- Data format: Simple string `ITEMKEY--QTY` (e.g., "INSALT02--20.025")
 
 ---
 

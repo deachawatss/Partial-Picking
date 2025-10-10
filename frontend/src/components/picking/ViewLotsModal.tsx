@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { usePickedLots } from '@/hooks/usePickedLotsQuery'
+import { useQueryClient } from '@tanstack/react-query'
 import type { PickedLotDTO } from '@/types/api'
 
 interface ViewLotsModalProps {
@@ -21,8 +22,10 @@ export function ViewLotsModal({
 }: ViewLotsModalProps) {
   const [activeTab, setActiveTab] = useState<'picked' | 'pending'>('picked')
   const [selectedLots, setSelectedLots] = useState<Set<number>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
+  const queryClient = useQueryClient()
 
-  const { data, isLoading, error } = usePickedLots(runNo, {
+  const { data, isLoading, error, refetch } = usePickedLots(runNo, {
     enabled: open && !!runNo,
   })
 
@@ -44,13 +47,45 @@ export function ViewLotsModal({
     })
   }
 
-  const handleDelete = () => {
-    if (selectedLots.size === 0 || !data) return
+  const handleDelete = async () => {
+    if (selectedLots.size === 0 || !data || !onDelete) return
 
-    const selectedLot = data.pickedLots.find((lot) => selectedLots.has(lot.lotTranNo))
-    if (selectedLot && onDelete) {
-      onDelete(selectedLot.lotTranNo, selectedLot.rowNum, selectedLot.lineId)
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Delete ${selectedLots.size} picked item(s)? This will restore inventory and remove the picked records.`
+    )
+
+    if (!confirmed) return
+
+    setIsDeleting(true)
+    try {
+      // Get all selected lot details
+      const lotsToDelete = data.pickedLots.filter((lot) => selectedLots.has(lot.lotTranNo))
+
+      // Delete each lot sequentially
+      for (const lot of lotsToDelete) {
+        await new Promise<void>((resolve, reject) => {
+          try {
+            onDelete(lot.lotTranNo, lot.rowNum, lot.lineId)
+            resolve()
+          } catch (error) {
+            reject(error)
+          }
+        })
+      }
+
+      // Invalidate queries to refresh data
+      await queryClient.invalidateQueries({ queryKey: ['picked-lots', runNo] })
+      await queryClient.invalidateQueries({ queryKey: ['run-details', runNo] })
+      await refetch()
+
+      // Clear selection
       setSelectedLots(new Set())
+    } catch (error) {
+      console.error('Error deleting lots:', error)
+      alert('Failed to delete some items. Please try again.')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -252,10 +287,10 @@ export function ViewLotsModal({
             <button
               type="button"
               onClick={handleDelete}
-              disabled={selectedLots.size === 0}
+              disabled={selectedLots.size === 0 || isDeleting}
               className="tw-px-4 tw-py-2 tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-font-semibold tw-rounded-lg tw-transition-colors disabled:tw-opacity-50 disabled:tw-cursor-not-allowed tw-text-sm"
             >
-              🗑️ Delete
+              {isDeleting ? '⏳ Deleting...' : '🗑️ Delete'}
             </button>
             <button
               type="button"
