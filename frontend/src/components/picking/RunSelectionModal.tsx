@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useDeferredValue } from 'react'
 import { useRunsList, useRunDetails } from '@/hooks/useRunsQuery'
 import type { RunDetailsResponse, RunListItemDTO } from '@/types/api'
 
@@ -12,25 +12,20 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
   const [currentPage, setCurrentPage] = useState(0)
   const limit = 10
 
-  // Auto-filter search state
+  // Search state with React 19 useDeferredValue for non-blocking updates
   const [searchInput, setSearchInput] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  // Deferred value allows input to update immediately while filtering is lower priority
+  const deferredSearch = useDeferredValue(searchInput)
 
-  // Debounce search input (400ms)
+  // Reset to page 0 when search changes
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchInput)
-      // Reset to page 0 when search changes
-      if (searchInput !== debouncedSearch) {
-        setCurrentPage(0)
-      }
-    }, 400)
+    if (searchInput !== deferredSearch && searchInput.trim() !== deferredSearch.trim()) {
+      setCurrentPage(0)
+    }
+  }, [searchInput, deferredSearch])
 
-    return () => clearTimeout(timer)
-  }, [searchInput])
-
-  // Use debounced search for filtering
-  const searchParam = debouncedSearch.trim() !== '' ? debouncedSearch : undefined
+  // Use deferred search for filtering (non-blocking, lower priority)
+  const searchParam = deferredSearch.trim() !== '' ? deferredSearch : undefined
 
   // Paginated list query with optional search
   const { data: runsList, isLoading, error } = useRunsList(
@@ -56,7 +51,6 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
       onOpenChange(false)
       setSelectedRunNo(null)
       setSearchInput('')
-      setDebouncedSearch('')
       setCurrentPage(0)
     }
   }, [runDetails, selectedRunNo, onSelect, onOpenChange])
@@ -65,7 +59,6 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
     onOpenChange(false)
     setSelectedRunNo(null)
     setSearchInput('')
-    setDebouncedSearch('')
     setCurrentPage(0)
   }
 
@@ -119,17 +112,14 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
               className="modal-search-input"
               autoFocus
             />
-            {searchInput && searchInput !== debouncedSearch && (
+            {searchInput && searchInput !== deferredSearch && (
               <span className="modal-search-btn" style={{ pointerEvents: 'none' }}>
                 ⏳
               </span>
             )}
-            {searchInput && searchInput === debouncedSearch && (
+            {searchInput && searchInput === deferredSearch && (
               <button
-                onClick={() => {
-                  setSearchInput('')
-                  setDebouncedSearch('')
-                }}
+                onClick={() => setSearchInput('')}
                 className="modal-search-btn"
                 aria-label="Clear search"
               >
@@ -173,7 +163,7 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
                   fontSize: '13px',
                   color: '#0369a1'
                 }}>
-                  🔍 Filtering by: <strong>{debouncedSearch}</strong> ({runsList.pagination.total} results)
+                  🔍 Filtering by: <strong>{deferredSearch}</strong> ({runsList.pagination.total} results)
                 </div>
               )}
               <table className="modal-table">
@@ -193,7 +183,7 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
                         <div className="modal-empty-icon">📋</div>
                         <p className="modal-empty-text">
                           {searchParam
-                            ? `No runs found matching "${debouncedSearch}"`
+                            ? `No runs found matching "${deferredSearch}"`
                             : 'No production runs found'}
                         </p>
                       </td>

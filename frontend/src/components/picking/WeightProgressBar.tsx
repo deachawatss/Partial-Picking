@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Button } from '@/components/ui/button'
 
 type ScaleKey = 'small' | 'big'
@@ -53,7 +54,17 @@ const containerAccentByState: Record<string, string> = {
   over: 'border-danger/40 shadow-[0_8px_20px_rgba(198,40,40,0.25)]',
 }
 
-export function WeightProgressBar({
+/**
+ * Memoized WeightProgressBar - Performance Optimization Phase 2
+ *
+ * Prevents unnecessary re-renders during:
+ * - Parent component state updates
+ * - Other component re-renders
+ *
+ * Only re-renders when weight, ranges, or scale status actually changes
+ * Expected gain: Reduced CPU usage during real-time weight updates
+ */
+export const WeightProgressBar = memo(function WeightProgressBar({
   weight,
   weightRangeLow,
   weightRangeHigh,
@@ -274,4 +285,4 @@ export function WeightProgressBar({
       </div>
     </section>
   )
-}
+})
