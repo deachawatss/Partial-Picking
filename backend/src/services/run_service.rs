@@ -55,7 +55,7 @@ pub struct RunDetailsResponse {
     pub batches: Vec<i32>,
 
     #[serde(rename = "productionDate")]
-    pub production_date: String, // YYYY-MM-DD format
+    pub production_date: String, // DD/MM/YYYY format (e.g., "10/10/2025")
 
     pub status: String, // NEW | PRINT
 
@@ -157,7 +157,7 @@ pub async fn get_run_details(pool: &DbPool, run_no: i32) -> AppResult<RunDetails
     let fg_item_key: &str = first_row.get("FormulaId").unwrap_or("");
     let fg_description: &str = first_row.get("FormulaDesc").unwrap_or("");
     let no_of_batches: i32 = first_row.get("NoOfBatches").unwrap_or(0);
-    // Production date is always today (formatted as DD/MM/YY on frontend)
+    // Production date is always today (DD/MM/YYYY format)
     let production_date: DateTime<Utc> = Utc::now();
     let status: &str = first_row.get("Status").unwrap_or("NEW");
 
@@ -180,7 +180,7 @@ pub async fn get_run_details(pool: &DbPool, run_no: i32) -> AppResult<RunDetails
         fg_item_key: fg_item_key.to_string(),
         fg_description: fg_description.to_string(),
         batches,
-        production_date: production_date.format("%Y-%m-%d").to_string(),
+        production_date: production_date.format("%d/%m/%Y").to_string(),
         status: status.to_string(),
         no_of_batches,
     })

@@ -397,6 +397,32 @@ Improve picking form layout with consistent label alignment
 ❌ **Missing key**: `WHERE RunNo AND LineId` → ✅ `WHERE RunNo AND RowNum AND LineId` (all 3!)
 ❌ **Audit trail**: Don't set `ItemBatchStatus=NULL` on unpick → ✅ Only update `PickedPartialQty=0`
 
+### ⚠️ Date Format Standard
+
+**ALL dates MUST use DD/MM/YYYY format** (e.g., "10/10/2025"):
+
+```rust
+// ✅ CORRECT - All date formatting
+expiry_date.format("%d/%m/%Y").to_string()  // "10/10/2025"
+
+// ❌ WRONG - ISO format
+date.format("%Y-%m-%d").to_string()  // "2025-10-10"
+
+// ❌ WRONG - 2-digit year
+date.format("%d/%m/%y").to_string()  // "10/10/25"
+```
+
+**Examples in codebase:**
+- `backend/src/services/run_service.rs:183` - Production dates
+- `backend/src/services/lot_service.rs:197` - Expiry dates
+- `backend/src/services/bin_service.rs:250` - Bin lot expiry dates
+
+**Why DD/MM/YYYY:**
+- Consistent with existing lot and bin expiry dates
+- Matches regional standard (Thailand/Bangkok timezone)
+- Full 4-digit year prevents Y2K-style ambiguity
+- Frontend displays dates as-is from backend (no transformation)
+
 ### ⚠️ CRITICAL: Tiberius Type Conversion and SOH Calculation
 
 **Problem #1: Tiberius Type Mismatch Returns 0.0**
