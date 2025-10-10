@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
 
 /**
@@ -19,6 +20,12 @@ import path from 'path'
 export default defineConfig({
   plugins: [
     react(),
+    visualizer({
+      open: true, // Automatically open the report in browser
+      filename: 'dist/stats.html', // Output file
+      gzipSize: true, // Show gzipped size
+      brotliSize: true, // Show brotli size
+    }),
     VitePWA({
       // Prompt user for updates (constitutional requirement)
       registerType: 'prompt',
