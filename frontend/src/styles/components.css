@@ -16,16 +16,12 @@
   @apply absolute right-[1px] top-1/2 -translate-y-1/2 h-[47px] w-[47px];
   @apply rounded-md bg-brand-primary hover:bg-accent-gold text-white;
   @apply disabled:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50;
-  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1), background-color 200ms ease;
+  transition: background-color 200ms ease;
   box-shadow: 0 0 0 3px rgba(224, 170, 47, 0.3) transparent;
 }
 
-.picking-btn-lookup-inline:hover:not(:disabled) {
-  transform: translateY(-50%) scale(1.08);
-}
-
-.picking-btn-lookup-inline:active:not(:disabled) {
-  transform: translateY(-50%) scale(0.95);
+.picking-btn-lookup-inline:disabled {
+  pointer-events: auto !important;
 }
 
 .picking-btn-lookup-inline:focus-visible {
@@ -75,10 +71,51 @@
   @apply bg-gray-300 text-gray-500 cursor-not-allowed opacity-60;
   box-shadow: none;
   transform: none !important;
+  pointer-events: auto !important;
 }
 
 .picking-btn-action-secondary {
-  @apply picking-btn-action-primary;
+  @apply inline-flex h-12 w-full items-center justify-center rounded-lg;
+  @apply text-sm font-semibold uppercase tracking-wide;
+  @apply text-white;
+  position: relative;
+  background: linear-gradient(135deg, #3A2920 0%, #2B1C14 100%);
+  box-shadow: 0 8px 16px -6px rgba(224, 170, 47, 0.28), 0 2px 6px -2px rgba(224, 170, 47, 0.14);
+  overflow: hidden;
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.picking-btn-action-secondary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(224, 170, 47, 0) 0%, rgba(224, 170, 47, 0.2) 100%);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.picking-btn-action-secondary:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.picking-btn-action-secondary:hover:not(:disabled) {
+  transform: scale(1.03);
+}
+
+.picking-btn-action-secondary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.picking-btn-action-secondary:focus-visible {
+  @apply outline-none;
+  box-shadow: 0 0 0 3px rgba(224, 170, 47, 0.3), 0 0 0 1px #E0AA2F;
+}
+
+.picking-btn-action-secondary:disabled {
+  @apply bg-gray-300 text-gray-500 cursor-not-allowed opacity-60;
+  box-shadow: none;
+  transform: none !important;
+  pointer-events: auto !important;
 }
 
 .picking-btn-action-danger {
@@ -108,6 +145,22 @@
   @apply bg-gray-300 text-gray-500 cursor-not-allowed opacity-60;
   box-shadow: none;
   transform: none !important;
+  pointer-events: auto !important;
+}
+
+/* Explicit disabled hover prevention for all button types */
+.picking-btn-action-primary:disabled:hover,
+.picking-btn-action-secondary:disabled:hover,
+.picking-btn-action-danger:disabled:hover {
+  cursor: not-allowed !important;
+  transform: none !important;
+  opacity: 0.60;
+}
+
+.picking-btn-lookup-inline:disabled:hover {
+  cursor: not-allowed !important;
+  transform: translateY(-50%) !important;
+  opacity: 0.50;
 }
 
 /* Display Fields */

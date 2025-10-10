@@ -350,7 +350,13 @@ export function PartialPickingPage() {
     ? 'border-accent-green bg-accent-green/5 text-accent-green shadow-[0_0_0_3px_rgba(63,125,62,0.12)]'
     : currentWeight > 0
       ? 'border-danger bg-danger/5 text-danger shadow-[0_0_0_3px_rgba(198,40,40,0.12)]'
-      : 'border-border-main text-text-primary'
+      : 'border-border-main bg-surface text-text-primary'
+
+  // Check if live scale weight (before Fetch) is within range
+  const scaleWeightInRange =
+    currentScale.weight > 0 &&
+    currentScale.weight >= weightRangeLow &&
+    currentScale.weight <= weightRangeHigh
 
   // Sort items by quantity descending (pick largest first), then BatchNo descending
   // This matches official app behavior for efficient warehouse picking
@@ -601,12 +607,12 @@ export function PartialPickingPage() {
                 <Input
                   value={formatQuantity(currentWeight)}
                   readOnly
-                  className={`h-12 rounded-lg border-2 bg-surface font-body text-xl font-semibold tabular-nums tracking-tight transition-smooth ${weightFieldClass}`}
+                  className={`h-12 rounded-lg border-2 font-body text-xl font-semibold tabular-nums tracking-tight transition-smooth ${weightFieldClass}`}
                 />
                 <Button
                   type="button"
                   onClick={() => setManualWeight(currentScale.weight)}
-                  disabled={!currentScale.online}
+                  disabled={!currentScale.online || !scaleWeightInRange}
                   className={fetchButtonClass}
                 >
                   Fetch weight
@@ -660,7 +666,7 @@ export function PartialPickingPage() {
                 <Button
                   type="button"
                   onClick={handleAddLot}
-                  disabled={isLoading || !currentItem}
+                  disabled={isLoading || !currentItem || !weightInRange}
                   className={secondaryButtonClass}
                 >
                   Add Lot
