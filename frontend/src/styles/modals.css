@@ -321,6 +321,18 @@
   min-width: 200px;
 }
 
+.modal-footer-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .modal-footer-info {
   color: #2B1C14;
   font-size: 0.875rem;

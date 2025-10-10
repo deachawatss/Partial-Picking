@@ -1,6 +1,6 @@
 use crate::db::DbPool;
 use crate::error::AppResult;
-use chrono::NaiveDate;
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use tiberius::{Query, Row};
 
@@ -238,16 +238,16 @@ pub async fn get_bins_for_lot(
                 .flatten()
                 .unwrap_or(0.0) as f64;
 
-            // SQL Server DATE fields are returned as NaiveDate
-            let expiry_date: NaiveDate = row
-                .try_get::<NaiveDate, _>("DateExpiry")
+            // SQL Server DATETIME fields are returned as NaiveDateTime
+            let expiry_date: NaiveDateTime = row
+                .try_get::<NaiveDateTime, _>("DateExpiry")
                 .ok()
                 .flatten()
-                .unwrap_or_else(|| NaiveDate::from_ymd_opt(1900, 1, 1).unwrap());
+                .unwrap_or_default();
 
             BinLotDTO {
                 bin_no: bin_no.to_string(),
-                expiry_date: expiry_date.format("%Y-%m-%d").to_string(),
+                expiry_date: expiry_date.format("%d/%m/%Y").to_string(),
                 qty_on_hand,
                 qty_commit_sales,
                 available_qty,

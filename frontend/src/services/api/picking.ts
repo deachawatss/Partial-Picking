@@ -10,7 +10,7 @@
  */
 
 import { apiClient } from './client'
-import { PickRequest, PickResponse, UnpickResponse } from '@/types/api'
+import { PickRequest, PickResponse, PickedLotsResponse, UnpickResponse } from '@/types/api'
 
 /**
  * Execute 4-phase atomic picking transaction
@@ -70,12 +70,34 @@ export async function unpickItem(
 }
 
 /**
+ * Get all picked lots for a run (for View Lots Modal)
+ *
+ * OpenAPI Operation: GET /api/picks/run/{runNo}/lots
+ * Fetches all picked lots for the specified production run.
+ * Used in View Lots Modal to display picked items with delete capability.
+ *
+ * Returns:
+ * - Batch No, Lot No, Item Key, Location Key, Expiry Date (DD/MM/YYYY)
+ * - Qty Received, Bin No, Pack Size
+ * - Row Num, Line ID (for composite key operations)
+ *
+ * @param runNo - Production run number
+ * @returns Promise<PickedLotsResponse> - List of picked lots with run info
+ * @throws ErrorResponse - On not found (404) or query error
+ */
+export async function getPickedLotsForRun(runNo: number): Promise<PickedLotsResponse> {
+  const response = await apiClient.get<PickedLotsResponse>(`/picks/run/${runNo}/lots`)
+  return response.data
+}
+
+/**
  * Picking API Service Object
  * Provides all picking-related API methods
  */
 export const pickingApi = {
   savePick,
   unpickItem,
+  getPickedLotsForRun,
 }
 
 export default pickingApi

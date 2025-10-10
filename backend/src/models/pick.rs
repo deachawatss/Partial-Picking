@@ -128,3 +128,51 @@ pub struct LotAllocationData {
     pub date_received: Option<DateTime<Utc>>,
     pub date_expiry: Option<DateTime<Utc>>,
 }
+
+/// Response DTO for picked lot details
+/// Used in View Lots Modal
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PickedLotDTO {
+    #[serde(rename = "lotTranNo")]
+    pub lot_tran_no: i32,
+
+    #[serde(rename = "batchNo")]
+    pub batch_no: String,
+
+    #[serde(rename = "lotNo")]
+    pub lot_no: String,
+
+    #[serde(rename = "itemKey")]
+    pub item_key: String,
+
+    #[serde(rename = "locationKey")]
+    pub location_key: String,
+
+    #[serde(rename = "dateExp")]
+    pub date_exp: Option<String>, // DD/MM/YYYY format
+
+    #[serde(rename = "qtyReceived")]
+    pub qty_received: f64,
+
+    #[serde(rename = "binNo")]
+    pub bin_no: String,
+
+    #[serde(rename = "packSize")]
+    pub pack_size: f64,
+
+    #[serde(rename = "rowNum")]
+    pub row_num: i32,
+
+    #[serde(rename = "lineId")]
+    pub line_id: i32,
+}
+
+/// Response DTO for all picked lots in a run
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PickedLotsResponse {
+    #[serde(rename = "pickedLots")]
+    pub picked_lots: Vec<PickedLotDTO>,
+
+    #[serde(rename = "runNo")]
+    pub run_no: i32,
+}

@@ -1,8 +1,8 @@
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ItemPickedStatus, LotAllocationData, PickRequest, PickResponse, ToleranceValidation,
-    UnpickResponse,
+    ItemPickedStatus, LotAllocationData, PickRequest, PickResponse, PickedLotDTO,
+    PickedLotsResponse, ToleranceValidation, UnpickResponse,
 };
 use crate::services::sequence_service;
 use chrono::{DateTime, Utc};
@@ -715,5 +715,95 @@ pub async fn unpick_item(
         picked_qty: 0.0,
         status: "Allocated".to_string(), // Preserved for audit
         unpicked_at: Utc::now(),
+    })
+}
+
+/// Get all picked lots for a run
+/// Used in View Lots Modal to display picked items with delete capability
+///
+/// # Arguments
+/// * `pool` - Database connection pool
+/// * `run_no` - Production run number
+///
+/// # Returns
+/// * `Ok(PickedLotsResponse)` - List of picked lots with run information
+/// * `Err(AppError)` - Query error or no data found
+pub async fn get_picked_lots_for_run(pool: &DbPool, run_no: i32) -> AppResult<PickedLotsResponse> {
+    let mut conn = pool.get().await?;
+
+    // Query to get all picked lots for the run
+    // Joins Cust_PartialLotPicked with cust_PartialPicked and LotMaster
+    let sql = r#"
+        SELECT
+            cplp.LotTranNo,
+            cpp.BatchNo,
+            cplp.LotNo,
+            cplp.ItemKey,
+            cplp.LocationKey,
+            CONVERT(VARCHAR, lm.DateExpiry, 103) AS DateExp,
+            cplp.QtyReceived,
+            cplp.BinNo,
+            lm.PackSize,
+            cpp.RowNum,
+            cpp.LineId
+        FROM Cust_PartialLotPicked cplp
+        INNER JOIN cust_PartialPicked cpp
+            ON cplp.RunNo = cpp.RunNo
+            AND cplp.RowNum = cpp.RowNum
+            AND cplp.LineId = cpp.LineId
+        LEFT JOIN LotMaster lm
+            ON cplp.LotNo = lm.LotNo
+            AND cplp.ItemKey = lm.ItemKey
+            AND cplp.LocationKey = lm.LocationKey
+            AND cplp.BinNo = lm.BinNo
+        WHERE cplp.RunNo = @P1
+        ORDER BY cpp.BatchNo, cplp.LotNo
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(run_no);
+
+    let stream = query.query(&mut *conn).await?;
+    let rows = stream.into_first_result().await?;
+
+    let mut picked_lots = Vec::new();
+
+    for row in rows {
+        let lot_tran_no: i32 = row.get(0).unwrap_or(0);
+        let batch_no: &str = row.get(1).unwrap_or("");
+        let lot_no: &str = row.get(2).unwrap_or("");
+        let item_key: &str = row.get(3).unwrap_or("");
+        let location_key: &str = row.get(4).unwrap_or("TFC1");
+        let date_exp: Option<&str> = row.get(5);
+        let qty_received: f64 = row.get::<f64, _>(6).unwrap_or(0.0);
+        let bin_no: &str = row.get(7).unwrap_or("");
+        let pack_size: f64 = row.get::<f64, _>(8).unwrap_or(0.0);
+        let row_num: i32 = row.get(9).unwrap_or(0);
+        let line_id: i32 = row.get(10).unwrap_or(0);
+
+        picked_lots.push(PickedLotDTO {
+            lot_tran_no,
+            batch_no: batch_no.to_string(),
+            lot_no: lot_no.to_string(),
+            item_key: item_key.to_string(),
+            location_key: location_key.to_string(),
+            date_exp: date_exp.map(|s| s.to_string()),
+            qty_received,
+            bin_no: bin_no.to_string(),
+            pack_size,
+            row_num,
+            line_id,
+        });
+    }
+
+    tracing::info!(
+        run_no = %run_no,
+        lot_count = %picked_lots.len(),
+        "Fetched picked lots for run"
+    );
+
+    Ok(PickedLotsResponse {
+        picked_lots,
+        run_no,
     })
 }

@@ -40,7 +40,7 @@ interface PickingContextType {
 
   // Action methods
   savePick: (weight: number) => Promise<void>
-  unpickItem: (lineId: number) => Promise<void>
+  unpickItem: (lineId: number, rowNum?: number) => Promise<void>
   completeRun: () => Promise<void>
 
   // Reset methods

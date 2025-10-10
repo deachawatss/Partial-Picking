@@ -229,3 +229,26 @@ export interface BinLotsResponse {
 export interface WorkstationsResponse {
   workstations: WorkstationDTO[]
 }
+
+// ============================================================================
+// PICKED LOTS (View Lots Modal)
+// ============================================================================
+
+export interface PickedLotDTO {
+  lotTranNo: number
+  batchNo: string
+  lotNo: string
+  itemKey: string
+  locationKey: string
+  dateExp?: string // DD/MM/YYYY format
+  qtyReceived: number
+  binNo: string
+  packSize: number
+  rowNum: number
+  lineId: number
+}
+
+export interface PickedLotsResponse {
+  pickedLots: PickedLotDTO[]
+  runNo: number
+}

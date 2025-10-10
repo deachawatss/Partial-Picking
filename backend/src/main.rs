@@ -81,6 +81,10 @@ async fn main() {
             axum::routing::delete(api::picks::unpick_item_endpoint),
         )
         .route(
+            "/picks/run/:runNo/lots",
+            get(api::picks::get_picked_lots_endpoint),
+        )
+        .route(
             "/lots/available",
             get(api::lots::get_available_lots_endpoint),
         )

@@ -76,16 +76,6 @@ export function BinSelectionModal({
           </button>
         </div>
 
-        {/* Lot Context Bar */}
-        {lotNo && itemKey && (
-          <div className="modal-item-context">
-            <span className="modal-context-label">Lot:</span>
-            <span className="modal-context-value">{lotNo}</span>
-            <span className="modal-context-label">• Item:</span>
-            <span className="modal-context-value">{itemKey}</span>
-          </div>
-        )}
-
         {/* Results Section */}
         <div className="modal-content">
           {/* Error State */}
@@ -171,7 +161,7 @@ export function BinSelectionModal({
           <div className="modal-footer">
             <div className="modal-footer-left">
               <p className="modal-footer-info">
-                Showing {bins.length} bin{bins.length !== 1 ? 's' : ''} for lot {lotNo}
+                Showing {bins.length} bin{bins.length !== 1 ? 's' : ''}
               </p>
             </div>
 

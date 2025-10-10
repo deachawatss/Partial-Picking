@@ -1,6 +1,6 @@
 use crate::db::DbPool;
 use crate::error::AppResult;
-use chrono::NaiveDate;
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use tiberius::{Query, Row};
 
@@ -169,13 +169,13 @@ pub async fn get_available_lots(
             let qty_commit_sales: f64 = row.get("QtyCommitSales").unwrap_or(0.0);
             let available_qty: f64 = row.get("AvailableQty").unwrap_or(0.0);
 
-            // SQL Server DATE fields are returned as NaiveDate (not DateTime)
+            // SQL Server DATETIME fields are returned as NaiveDateTime
             // Use try_get to handle NULL or invalid dates gracefully
-            let expiry_date: NaiveDate = row
-                .try_get::<NaiveDate, _>("DateExpiry")
+            let expiry_date: NaiveDateTime = row
+                .try_get::<NaiveDateTime, _>("DateExpiry")
                 .ok()
                 .flatten()
-                .unwrap_or_else(|| NaiveDate::from_ymd_opt(1900, 1, 1).unwrap());
+                .unwrap_or_default();
 
             let lot_status: &str = row.get("LotStatus").unwrap_or("P");
 
@@ -194,7 +194,7 @@ pub async fn get_available_lots(
                 qty_on_hand,
                 qty_commit_sales,
                 available_qty,
-                expiry_date: expiry_date.format("%Y-%m-%d").to_string(),
+                expiry_date: expiry_date.format("%d/%m/%Y").to_string(),
                 lot_status: lot_status.to_string(),
                 aisle,
                 row: row_char,

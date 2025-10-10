@@ -6,7 +6,7 @@ use axum::{
 
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
-use crate::models::{PickRequest, PickResponse, UnpickResponse};
+use crate::models::{PickRequest, PickResponse, PickedLotsResponse, UnpickResponse};
 use crate::services::picking_service;
 
 /// POST /api/picks
@@ -104,6 +104,29 @@ pub async fn unpick_item_endpoint(
     // Execute unpick service
     let response =
         picking_service::unpick_item(&pool, run_no, row_num, line_id, workstation_id).await?;
+
+    Ok(Json(response))
+}
+
+/// GET /api/picks/run/:runNo/lots
+/// Get all picked lots for a run (for View Lots Modal)
+///
+/// # Path Parameters
+/// - runNo: Production run number
+///
+/// # Response
+/// - 200 OK: List of picked lots with run information
+/// - 404 Not Found: Run not found or no picked lots
+/// - 500 Internal Server Error: Query failed
+///
+/// # Returns
+/// - pickedLots: Array of PickedLotDTO
+/// - runNo: Production run number
+pub async fn get_picked_lots_endpoint(
+    State(pool): State<DbPool>,
+    Path(run_no): Path<i32>,
+) -> AppResult<Json<PickedLotsResponse>> {
+    let response = picking_service::get_picked_lots_for_run(&pool, run_no).await?;
 
     Ok(Json(response))
 }
