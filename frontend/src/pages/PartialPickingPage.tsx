@@ -26,7 +26,9 @@ import { BatchSelectionModal } from '@/components/picking/BatchSelectionModal'
 import { ItemSelectionModal } from '@/components/picking/ItemSelectionModal'
 import { LotSelectionModal } from '@/components/picking/LotSelectionModal'
 import { BinSelectionModal } from '@/components/picking/BinSelectionModal'
+import { ViewLotsModal } from '@/components/picking/ViewLotsModal'
 import { BatchTicketGrid } from '@/components/picking/BatchTicketGrid'
+import { NumericKeyboard } from '@/components/picking/NumericKeyboard'
 
 export function PartialPickingPage() {
   // Navigation and auth
@@ -59,6 +61,8 @@ export function PartialPickingPage() {
   const [showItemModal, setShowItemModal] = useState(false)
   const [showLotModal, setShowLotModal] = useState(false)
   const [showBinModal, setShowBinModal] = useState(false)
+  const [showViewLotsModal, setShowViewLotsModal] = useState(false)
+  const [showKeyboard, setShowKeyboard] = useState(false)
 
   // Dual scale WebSocket integration
   const [selectedScale, setSelectedScale] = useState<'small' | 'big'>('small')
@@ -205,8 +209,44 @@ export function PartialPickingPage() {
    * Handle View Lots button
    */
   const handleViewLots = () => {
-    // TODO: Implement View Lots modal
-    console.log('[PartialPickingPage] View Lots clicked')
+    if (!currentRun) {
+      alert('Please select a run first')
+      return
+    }
+    setShowViewLotsModal(true)
+  }
+
+  /**
+   * Handle Delete single lot from View Lots modal
+   */
+  const handleDeleteLot = async (lotTranNo: number, rowNum: number, lineId: number) => {
+    if (!confirm('Are you sure you want to delete this lot?')) return
+
+    try {
+      await unpickItem(lineId, rowNum)
+      setSuccessMessage('Lot deleted successfully!')
+      setTimeout(() => setSuccessMessage(null), 3000)
+    } catch (error) {
+      console.error('[PartialPickingPage] Delete lot failed:', error)
+    }
+  }
+
+  /**
+   * Handle Delete all lots from View Lots modal
+   */
+  const handleDeleteAllLots = async () => {
+    if (!confirm('Are you sure you want to delete ALL picked lots for this run?')) return
+
+    // TODO: Implement delete all lots logic
+    alert('Delete All Lots functionality is under development')
+  }
+
+  /**
+   * Handle Re-Print from View Lots modal
+   */
+  const handleRePrint = () => {
+    // TODO: Implement re-print logic
+    alert('Re-Print functionality is under development')
   }
 
   /**
@@ -335,15 +375,9 @@ export function PartialPickingPage() {
   const secondaryButtonClass = 'picking-btn-action-secondary'
   const dangerButtonClass = 'picking-btn-action-danger'
 
-  // Default weight values when no run/item is selected (for progress bar testing)
-  const DEFAULT_TARGET_WEIGHT = 31 // KG (center of 30-32 range)
-  const DEFAULT_TOLERANCE = 1 // KG (±1 KG gives 30-32 range)
-
-  // Calculate weight values for progress bar
-  const targetWeight = currentItem?.totalNeeded ?? DEFAULT_TARGET_WEIGHT
-  const toleranceValue = currentItem?.toleranceKG ?? DEFAULT_TOLERANCE
-  const weightRangeLow = currentItem?.weightRangeLow ?? (DEFAULT_TARGET_WEIGHT - DEFAULT_TOLERANCE)
-  const weightRangeHigh = currentItem?.weightRangeHigh ?? (DEFAULT_TARGET_WEIGHT + DEFAULT_TOLERANCE)
+  // Weight range values from backend (used for progress bar and validation)
+  const weightRangeLow = currentItem?.weightRangeLow ?? 30
+  const weightRangeHigh = currentItem?.weightRangeHigh ?? 32
   const weightInRange =
     currentWeight > 0 && currentWeight >= weightRangeLow && currentWeight <= weightRangeHigh
   const weightFieldClass = weightInRange
@@ -430,8 +464,8 @@ export function PartialPickingPage() {
           <div className="p-4 lg:col-span-2">
             <WeightProgressBar
               weight={currentWeight}
-              targetWeight={targetWeight}
-              tolerance={toleranceValue}
+              weightRangeLow={weightRangeLow}
+              weightRangeHigh={weightRangeHigh}
               selectedScale={selectedScale}
               onScaleChange={handleScaleSelection}
               scaleStatuses={scaleStatuses}
@@ -607,7 +641,9 @@ export function PartialPickingPage() {
                 <Input
                   value={formatQuantity(currentWeight)}
                   readOnly
-                  className={`h-12 rounded-lg border-2 font-body text-xl font-semibold tabular-nums tracking-tight transition-smooth ${weightFieldClass}`}
+                  onClick={() => setShowKeyboard(true)}
+                  className={`h-12 rounded-lg border-2 font-body text-xl font-semibold tabular-nums tracking-tight transition-smooth cursor-pointer hover:border-accent-gold ${weightFieldClass}`}
+                  title="Click to enter weight manually"
                 />
                 <Button
                   type="button"
@@ -763,6 +799,22 @@ export function PartialPickingPage() {
         onSelect={handleBinSelect}
         lotNo={selectedLot?.lotNo || null}
         itemKey={currentItem?.itemKey || null}
+      />
+      <NumericKeyboard
+        open={showKeyboard}
+        onOpenChange={setShowKeyboard}
+        onConfirm={(weight) => setManualWeight(weight)}
+        currentValue={manualWeight || currentWeight}
+        minValue={weightRangeLow}
+        maxValue={weightRangeHigh}
+      />
+      <ViewLotsModal
+        open={showViewLotsModal}
+        onOpenChange={setShowViewLotsModal}
+        runNo={currentRun?.runNo || null}
+        onDelete={handleDeleteLot}
+        onDeleteAll={handleDeleteAllLots}
+        onRePrint={handleRePrint}
       />
     </div>
   )

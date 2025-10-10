@@ -10,10 +10,10 @@ interface ScaleStatus {
 interface WeightProgressBarProps {
   /** Current live weight from the selected scale */
   weight: number
-  /** Target weight in KG */
-  targetWeight: number
-  /** Allowed ± tolerance in KG */
-  tolerance: number
+  /** Minimum acceptable weight (pre-calculated by backend) */
+  weightRangeLow: number
+  /** Maximum acceptable weight (pre-calculated by backend) */
+  weightRangeHigh: number
   /** Currently selected scale */
   selectedScale: ScaleKey
   /** Handler to switch between scales */
@@ -55,19 +55,20 @@ const containerAccentByState: Record<string, string> = {
 
 export function WeightProgressBar({
   weight,
-  targetWeight,
-  tolerance,
+  weightRangeLow,
+  weightRangeHigh,
   selectedScale,
   onScaleChange,
   scaleStatuses,
   workstationLabel: _workstationLabel,
 }: WeightProgressBarProps) {
   const safeWeight = Number.isFinite(weight) ? weight : 0
-  const safeTarget = targetWeight > 0 ? targetWeight : 0
-  const safeTolerance = tolerance > 0 ? tolerance : 0
+  const safeWeightLow = weightRangeLow > 0 ? weightRangeLow : 0
+  const safeWeightHigh = weightRangeHigh > 0 ? weightRangeHigh : 0
 
-  const toleranceLow = Math.max(safeTarget - safeTolerance, 0)
-  const toleranceHigh = safeTarget + safeTolerance
+  // Use backend-calculated tolerance range directly (no recalculation)
+  const toleranceLow = safeWeightLow
+  const toleranceHigh = safeWeightHigh
 
   // Fixed tolerance marker positions - ALWAYS at same visual location regardless of item weight
   const TOLERANCE_MIN_PERCENT = 60 // Left marker always at 60%
@@ -99,9 +100,9 @@ export function WeightProgressBar({
   }
 
   // Calculate bar fill percentage based on weight relative to tolerance
-  const percentage = safeTarget > 0
+  const percentage = toleranceHigh > 0
     ? clamp(calculateWeightPercentage(safeWeight, toleranceLow, toleranceHigh), 0, 100)
-    : clamp((safeWeight / 50) * 100, 0, 100) // Default scale to 50 KG when no target
+    : clamp((safeWeight / 50) * 100, 0, 100) // Default scale to 50 KG when no range set
 
   // Tolerance markers are FIXED at 60% and 70% (not dependent on weight values)
   const toleranceMinPosition = TOLERANCE_MIN_PERCENT
@@ -240,7 +241,7 @@ export function WeightProgressBar({
             />
 
             {/* Min tolerance marker (left boundary) */}
-            {safeTarget > 0 && (
+            {toleranceHigh > 0 && (
               <div
                 className="pointer-events-none absolute top-0 bottom-0 w-1 bg-gradient-to-b from-accent-gold via-accent-gold to-accent-gold/50 shadow-lg"
                 style={{ left: `${toleranceMinPosition}%`, zIndex: 10 }}
@@ -252,7 +253,7 @@ export function WeightProgressBar({
             )}
 
             {/* Max tolerance marker (right boundary) */}
-            {safeTarget > 0 && (
+            {toleranceHigh > 0 && (
               <div
                 className="pointer-events-none absolute top-0 bottom-0 w-1 bg-gradient-to-b from-accent-gold via-accent-gold to-accent-gold/50 shadow-lg"
                 style={{ left: `${toleranceMaxPosition}%`, zIndex: 10 }}
