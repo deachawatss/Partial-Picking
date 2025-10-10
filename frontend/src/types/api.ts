@@ -252,3 +252,20 @@ export interface PickedLotsResponse {
   pickedLots: PickedLotDTO[]
   runNo: number
 }
+
+// ============================================================================
+// PENDING ITEMS (View Lots Modal - Pending Tab)
+// ============================================================================
+
+export interface PendingItemDTO {
+  batchNo: string
+  itemKey: string
+  toPickedQty: number
+  rowNum: number
+  lineId: number
+}
+
+export interface PendingItemsResponse {
+  pendingItems: PendingItemDTO[]
+  runNo: number
+}

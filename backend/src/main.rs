@@ -85,6 +85,10 @@ async fn main() {
             get(api::picks::get_picked_lots_endpoint),
         )
         .route(
+            "/picks/run/:runNo/pending",
+            get(api::picks::get_pending_items_endpoint),
+        )
+        .route(
             "/lots/available",
             get(api::lots::get_available_lots_endpoint),
         )

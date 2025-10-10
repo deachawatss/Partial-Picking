@@ -10,7 +10,13 @@
  */
 
 import { apiClient } from './client'
-import { PickRequest, PickResponse, PickedLotsResponse, UnpickResponse } from '@/types/api'
+import {
+  PendingItemsResponse,
+  PickRequest,
+  PickResponse,
+  PickedLotsResponse,
+  UnpickResponse,
+} from '@/types/api'
 
 /**
  * Execute 4-phase atomic picking transaction
@@ -91,6 +97,26 @@ export async function getPickedLotsForRun(runNo: number): Promise<PickedLotsResp
 }
 
 /**
+ * Get all pending (unpicked or partially picked) items for a run
+ *
+ * OpenAPI Operation: GET /api/picks/run/{runNo}/pending
+ * Fetches items where PickedPartialQty < ToPickedPartialQty.
+ * Used in View Lots Modal - Pending Tab to display items still needing to be picked.
+ *
+ * Returns:
+ * - Batch No, Item Key, To Picked Qty
+ * - Row Num, Line ID (for composite key operations)
+ *
+ * @param runNo - Production run number
+ * @returns Promise<PendingItemsResponse> - List of pending items with run info
+ * @throws ErrorResponse - On query error
+ */
+export async function getPendingItemsForRun(runNo: number): Promise<PendingItemsResponse> {
+  const response = await apiClient.get<PendingItemsResponse>(`/picks/run/${runNo}/pending`)
+  return response.data
+}
+
+/**
  * Picking API Service Object
  * Provides all picking-related API methods
  */
@@ -98,6 +124,7 @@ export const pickingApi = {
   savePick,
   unpickItem,
   getPickedLotsForRun,
+  getPendingItemsForRun,
 }
 
 export default pickingApi

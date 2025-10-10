@@ -179,3 +179,33 @@ pub struct PickedLotsResponse {
     #[serde(rename = "runNo")]
     pub run_no: i32,
 }
+
+/// Pending item DTO for View Lots Modal - Pending Tab
+/// Shows items that haven't been fully picked yet
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PendingItemDTO {
+    #[serde(rename = "batchNo")]
+    pub batch_no: String,
+
+    #[serde(rename = "itemKey")]
+    pub item_key: String,
+
+    #[serde(rename = "toPickedQty")]
+    pub to_picked_qty: f64,
+
+    #[serde(rename = "rowNum")]
+    pub row_num: i32,
+
+    #[serde(rename = "lineId")]
+    pub line_id: i32,
+}
+
+/// Response DTO for all pending items in a run
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PendingItemsResponse {
+    #[serde(rename = "pendingItems")]
+    pub pending_items: Vec<PendingItemDTO>,
+
+    #[serde(rename = "runNo")]
+    pub run_no: i32,
+}

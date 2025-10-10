@@ -1,8 +1,8 @@
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    ItemPickedStatus, LotAllocationData, PickRequest, PickResponse, PickedLotDTO,
-    PickedLotsResponse, ToleranceValidation, UnpickResponse,
+    ItemPickedStatus, LotAllocationData, PendingItemDTO, PendingItemsResponse, PickRequest,
+    PickResponse, PickedLotDTO, PickedLotsResponse, ToleranceValidation, UnpickResponse,
 };
 use crate::services::sequence_service;
 use chrono::{DateTime, Utc};
@@ -733,6 +733,8 @@ pub async fn get_picked_lots_for_run(pool: &DbPool, run_no: i32) -> AppResult<Pi
 
     // Query to get all picked lots for the run
     // Joins Cust_PartialLotPicked with cust_PartialPicked and LotMaster
+    // NOTE: PackSize comes from cpp (cust_PartialPicked) not cplp (Cust_PartialLotPicked)
+    // to avoid "Invalid column name" errors on some SQL Server instances
     let sql = r#"
         SELECT
             cplp.LotTranNo,
@@ -743,7 +745,7 @@ pub async fn get_picked_lots_for_run(pool: &DbPool, run_no: i32) -> AppResult<Pi
             CONVERT(VARCHAR, lm.DateExpiry, 103) AS DateExp,
             cplp.QtyReceived,
             cplp.BinNo,
-            cplp.PackSize,
+            cpp.PackSize,
             cpp.RowNum,
             cpp.LineId,
             cplp.RecDate
@@ -807,6 +809,74 @@ pub async fn get_picked_lots_for_run(pool: &DbPool, run_no: i32) -> AppResult<Pi
 
     Ok(PickedLotsResponse {
         picked_lots,
+        run_no,
+    })
+}
+
+/// Get all pending (unpicked or partially picked) items for a run
+/// Used in View Lots Modal - Pending Tab
+///
+/// # Arguments
+/// * `pool` - Database connection pool
+/// * `run_no` - Production run number
+///
+/// # Returns
+/// * `Ok(PendingItemsResponse)` - List of pending items where PickedPartialQty < ToPickedPartialQty
+/// * `Err(AppError)` - Query error
+pub async fn get_pending_items_for_run(
+    pool: &DbPool,
+    run_no: i32,
+) -> AppResult<PendingItemsResponse> {
+    let mut conn = pool.get().await?;
+
+    // Query cust_PartialPicked for items not fully picked
+    // Items where PickedPartialQty < ToPickedPartialQty
+    let sql = r#"
+        SELECT
+            BatchNo,
+            ItemKey,
+            ToPickedPartialQty,
+            RowNum,
+            LineId
+        FROM cust_PartialPicked
+        WHERE RunNo = @P1
+          AND PickedPartialQty < ToPickedPartialQty
+        ORDER BY BatchNo, ItemKey
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(run_no);
+
+    let stream = query.query(&mut *conn).await?;
+    let rows = stream.into_first_result().await?;
+
+    let mut pending_items = Vec::new();
+
+    for row in rows {
+        let batch_no: &str = row.get(0).unwrap_or("");
+        let item_key: &str = row.get(1).unwrap_or("");
+        // Use f64 for SQL Server FLOAT(53) - CRITICAL: f32 causes type mismatch returning 0.0
+        let to_picked_qty: f64 = row.try_get::<f64, _>(2).ok().flatten().unwrap_or(0.0);
+        let row_num: i32 = row.get(3).unwrap_or(0);
+        let line_id: i32 = row.get(4).unwrap_or(0);
+
+        pending_items.push(PendingItemDTO {
+            batch_no: batch_no.to_string(),
+            item_key: item_key.to_string(),
+            to_picked_qty,
+            row_num,
+            line_id,
+        });
+    }
+
+    tracing::info!(
+        run_no = %run_no,
+        pending_count = %pending_items.len(),
+        "Fetched pending items for run"
+    );
+
+    Ok(PendingItemsResponse {
+        pending_items,
         run_no,
     })
 }

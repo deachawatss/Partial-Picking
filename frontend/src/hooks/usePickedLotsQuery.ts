@@ -1,13 +1,13 @@
 /**
- * Picked Lots Query Hook
+ * Picked Lots and Pending Items Query Hooks
  *
- * TanStack Query hook for fetching picked lots for a run
+ * TanStack Query hooks for fetching picked lots and pending items for a run
  * Used by ViewLotsModal
  */
 
 import { useQuery } from '@tanstack/react-query'
 import { pickingApi } from '@/services/api'
-import { PickedLotsResponse } from '@/types/api'
+import { PickedLotsResponse, PendingItemsResponse } from '@/types/api'
 
 /**
  * Fetch all picked lots for a production run
@@ -30,6 +30,34 @@ export function usePickedLots(
     queryFn: () => {
       if (!runNo) throw new Error('Run number is required')
       return pickingApi.getPickedLotsForRun(runNo)
+    },
+    enabled: (options?.enabled ?? true) && !!runNo,
+    staleTime: 1000 * 30, // 30 seconds (refetch when modal reopens)
+    refetchOnWindowFocus: true, // Refetch when user returns to window
+  })
+}
+
+/**
+ * Fetch all pending (unpicked or partially picked) items for a production run
+ *
+ * Returns items where PickedPartialQty < ToPickedPartialQty.
+ * Used in View Lots Modal - Pending Tab to display items still needing to be picked.
+ *
+ * @param runNo - Production run number
+ * @param options - Query options
+ * @returns Query result with pending items (sorted by batch and item)
+ */
+export function usePendingItems(
+  runNo: number | null,
+  options?: {
+    enabled?: boolean
+  }
+) {
+  return useQuery<PendingItemsResponse>({
+    queryKey: ['picks', 'run', runNo, 'pending'],
+    queryFn: () => {
+      if (!runNo) throw new Error('Run number is required')
+      return pickingApi.getPendingItemsForRun(runNo)
     },
     enabled: (options?.enabled ?? true) && !!runNo,
     staleTime: 1000 * 30, // 30 seconds (refetch when modal reopens)

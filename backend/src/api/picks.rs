@@ -6,7 +6,9 @@ use axum::{
 
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
-use crate::models::{PickRequest, PickResponse, PickedLotsResponse, UnpickResponse};
+use crate::models::{
+    PendingItemsResponse, PickRequest, PickResponse, PickedLotsResponse, UnpickResponse,
+};
 use crate::services::picking_service;
 
 /// POST /api/picks
@@ -127,6 +129,29 @@ pub async fn get_picked_lots_endpoint(
     Path(run_no): Path<i32>,
 ) -> AppResult<Json<PickedLotsResponse>> {
     let response = picking_service::get_picked_lots_for_run(&pool, run_no).await?;
+
+    Ok(Json(response))
+}
+
+/// GET /api/picks/run/:runNo/pending
+/// Get all pending (unpicked or partially picked) items for a run
+/// Used in View Lots Modal - Pending Tab
+///
+/// # Path Parameters
+/// - runNo: Production run number
+///
+/// # Response
+/// - 200 OK: List of pending items
+/// - 500 Internal Server Error: Query failed
+///
+/// # Returns
+/// - pendingItems: Array of PendingItemDTO (batchNo, itemKey, toPickedQty)
+/// - runNo: Production run number
+pub async fn get_pending_items_endpoint(
+    State(pool): State<DbPool>,
+    Path(run_no): Path<i32>,
+) -> AppResult<Json<PendingItemsResponse>> {
+    let response = picking_service::get_pending_items_for_run(&pool, run_no).await?;
 
     Ok(Json(response))
 }
