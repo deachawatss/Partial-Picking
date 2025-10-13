@@ -423,6 +423,34 @@ date.format("%d/%m/%y").to_string()  // "10/10/25"
 - Full 4-digit year prevents Y2K-style ambiguity
 - Frontend displays dates as-is from backend (no transformation)
 
+### ⚠️ CRITICAL: Tiberius Transaction Control (Error 266 Fix)
+
+**Problem**: SQL Server Error 266 - "Transaction count after EXECUTE indicates a mismatching number of BEGIN and COMMIT statements"
+
+**Root Cause**: Using `.execute()` or `.query()` + `.into_results()` for transaction control statements causes Error 266 with Tiberius TDS protocol.
+
+**Solution**: Use `simple_query()` for ALL transaction control statements:
+```rust
+// ✅ CORRECT - Official Tiberius pattern
+conn.simple_query("BEGIN TRAN").await?;
+// ... execute queries with .execute() ...
+conn.simple_query("COMMIT").await?;
+
+// For rollback
+let _ = conn.simple_query("ROLLBACK").await;
+
+// ❌ WRONG - Causes Error 266
+conn.query("BEGIN TRANSACTION").execute().await?;  // DON'T DO THIS
+```
+
+**Additional Requirements for Tiberius**:
+1. **IDENTITY Columns**: NEVER insert explicit values into IDENTITY columns (e.g., LotTranNo in Cust_PartialLotPicked and LotTransaction)
+2. **Parameter Numbering**: Must be SEQUENTIAL (@P1, @P2, @P3, ...) - NO GAPS (e.g., @P1, @P2, @P4 causes errors)
+3. **Type Matching**: Use `u8` for SQL Server `bit` type (not `i8` or string)
+4. **DateTime Handling**: Use `try_get().ok().flatten()` for nullable DateTime columns
+
+**Reference**: `backend/src/services/picking_service.rs:302-304` (save_pick function)
+
 ### ⚠️ CRITICAL: Tiberius Type Conversion and SOH Calculation
 
 **Problem #1: Tiberius Type Mismatch Returns 0.0**

@@ -37,7 +37,7 @@ pub async fn validate_weight_tolerance(
             (cpp.ToPickedPartialQty + ISNULL(im.User9, 0)) AS WeightRangeHigh,
             cpp.PickedPartialQty AS CurrentPickedWeight,
             cpp.ItemBatchStatus,
-            im.Description AS ItemDescription
+            im.Desc1 AS ItemDescription
         FROM
             cust_PartialPicked cpp
             INNER JOIN INMAST im ON cpp.ItemKey = im.ItemKey
@@ -64,13 +64,15 @@ pub async fn validate_weight_tolerance(
             ))
         })?;
 
-    let target_weight: f64 = row.get(0).unwrap_or(0.0);
+    // Use try_get::<f64> for SQL Server FLOAT(53) and NUMERIC columns
+    // CRITICAL: Direct .get().unwrap_or() fails on NUMERIC types (e.g., INMAST.User9 tolerance)
+    let target_weight: f64 = row.try_get::<f64, _>(0).ok().flatten().unwrap_or(0.0);
     let item_key: &str = row.get(1).unwrap_or("");
     let unit: Option<&str> = row.get(2);
-    let tolerance_kg: f64 = row.get(3).unwrap_or(0.0);
-    let weight_range_low: f64 = row.get(4).unwrap_or(0.0);
-    let weight_range_high: f64 = row.get(5).unwrap_or(0.0);
-    let current_picked_weight: f64 = row.get(6).unwrap_or(0.0);
+    let tolerance_kg: f64 = row.try_get::<f64, _>(3).ok().flatten().unwrap_or(0.0);
+    let weight_range_low: f64 = row.try_get::<f64, _>(4).ok().flatten().unwrap_or(0.0);
+    let weight_range_high: f64 = row.try_get::<f64, _>(5).ok().flatten().unwrap_or(0.0);
+    let current_picked_weight: f64 = row.try_get::<f64, _>(6).ok().flatten().unwrap_or(0.0);
     let item_batch_status: Option<&str> = row.get(7);
     let item_description: Option<&str> = row.get(8);
 
@@ -155,10 +157,12 @@ pub async fn validate_item_not_picked(
         })?;
 
     let item_key: &str = row.get(3).unwrap_or("");
-    let target_weight: f64 = row.get(4).unwrap_or(0.0);
-    let actual_weight: f64 = row.get(5).unwrap_or(0.0);
+    // Use try_get::<f64> for SQL Server FLOAT(53) columns
+    let target_weight: f64 = row.try_get::<f64, _>(4).ok().flatten().unwrap_or(0.0);
+    let actual_weight: f64 = row.try_get::<f64, _>(5).ok().flatten().unwrap_or(0.0);
     let item_batch_status: Option<&str> = row.get(6);
-    let picking_date: Option<DateTime<Utc>> = row.get(7);
+    // Use try_get for SQL Server DateTime columns that can be NULL
+    let picking_date: Option<DateTime<Utc>> = row.try_get(7).ok().flatten();
     let picked_by_workstation: Option<&str> = row.get(8);
     let is_picked: i32 = row.get(9).unwrap_or(0);
     let was_unpicked: i32 = row.get(10).unwrap_or(0);
@@ -224,8 +228,9 @@ async fn get_lot_allocation_data(
         bin_no: row.get::<&str, _>(1).unwrap_or("").to_string(),
         item_key: row.get::<&str, _>(2).unwrap_or("").to_string(),
         location_key: row.get::<&str, _>(3).unwrap_or("TFC1").to_string(),
-        date_received: row.get(4),
-        date_expiry: row.get(5),
+        // Use try_get for DateTime columns that may have invalid SQL Server dates
+        date_received: row.try_get(4).ok().flatten(),
+        date_expiry: row.try_get(5).ok().flatten(),
     })
 }
 
@@ -292,11 +297,11 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
     // Get connection for transaction
     let mut conn = pool.get().await?;
 
-    // BEGIN TRANSACTION
-    Query::new("BEGIN TRANSACTION")
-        .execute(&mut *conn)
+    // BEGIN TRANSACTION using simple_query() - Official Tiberius pattern
+    // Reference: https://github.com/prisma/tiberius/blob/main/tests/query.rs
+    conn.simple_query("BEGIN TRAN")
         .await
-        .map_err(|e| AppError::TransactionFailed(format!("BEGIN TRANSACTION failed: {}", e)))?;
+        .map_err(|e| AppError::TransactionFailed(format!("BEGIN TRAN failed: {}", e)))?;
 
     // Get lot allocation data
     let lot_data = match get_lot_allocation_data(
@@ -309,10 +314,7 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
     {
         Ok(data) => data,
         Err(e) => {
-            Query::new("ROLLBACK TRANSACTION")
-                .execute(&mut *conn)
-                .await
-                .ok();
+            let _ = conn.simple_query("ROLLBACK").await;
             return Err(e);
         }
     };
@@ -321,10 +323,7 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
     let batch_no = match get_batch_no(&mut *conn, request.run_no, request.row_num).await {
         Ok(batch) => batch,
         Err(e) => {
-            Query::new("ROLLBACK TRANSACTION")
-                .execute(&mut *conn)
-                .await
-                .ok();
+            let _ = conn.simple_query("ROLLBACK").await;
             return Err(e);
         }
     };
@@ -332,59 +331,60 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
     // ========================================================================
     // PHASE 1: LOT ALLOCATION
     // ========================================================================
-    // SQL from: phase1_lot_allocation.sql
+    // SQL from: phase1_lot_allocation.sql (complete INSERT with all required columns)
+    // NOTE: LotTranNo is IDENTITY column (auto-generated), do NOT insert explicitly
     let phase1_sql = r#"
         INSERT INTO Cust_PartialLotPicked (
-            LotTranNo, RunNo, RowNum, LineId, BatchNo, LotNo, SuggestedLotNo, ItemKey,
-            LocationKey, DateReceived, DateExpiry, TransactionType, ReceiptDocNo, ReceiptDocLineNo,
-            QtyReceived, Vendorkey, VendorlotNo, IssueDocNo, IssueDocLineNo, IssueDate, QtyIssued,
-            CustomerKey, RecUserid, RecDate, ModifiedBy, ModifiedDate, Processed, TempQty,
-            QtyForLotAssignment, BinNo, QtyUsed, DateQuarantine, PackSize, QtyOnHand,
-            User1, User2, User3, User4, User5, User6, User7, User8, User9, User10, User11, User12,
-            QtyReceivedKG, AllocLotQty, LotStatus,
-            CUSTOM1, CUSTOM2, CUSTOM3, CUSTOM4, CUSTOM5, CUSTOM6, CUSTOM7, CUSTOM8, CUSTOM9, CUSTOM10,
-            ESG_REASON, ESG_APPROVER
+            RunNo, RowNum, LineId, BatchNo, ItemKey, LotNo, SuggestedLotNo, LocationKey, BinNo,
+            DateReceived, DateExpiry, TransactionType, ReceiptDocNo, ReceiptDocLineNo,
+            QtyReceived, Vendorkey, VendorlotNo, IssueDocNo, IssueDocLineNo, IssueDate,
+            QtyIssued, QtyUsed, AllocLotQty, CustomerKey, RecUserid, RecDate, ModifiedBy, ModifiedDate,
+            Processed, TempQty, QtyForLotAssignment, PackSize, QtyOnHand, QtyReceivedKG,
+            User1, User2, User3, User4, User5, User7, User8, User9, User10, User11, User12,
+            LotStatus, ESG_REASON, ESG_APPROVER
         )
         VALUES (
-            @P1, @P2, @P3, @P4, @P5, @P6, @P6, @P7, @P8, @P10, @P11, 5, '', 0, 0, '', '',
-            @P14, @P15, GETDATE(), @P12, '', @P13, GETDATE(), @P13, GETDATE(), 'N', 0, 0, @P9,
-            0, NULL, 0, 0, '', '', '', '', '', NULL, 0, 0, 0, 0, 0, 0, 0, @P12, '', 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, '', ''
+            @P1, @P2, @P3, @P4, @P5, @P6, @P6, @P7, @P8,
+            @P11, @P12, 5, '', 0,
+            0, '', '', '', 0, GETDATE(),
+            @P9, @P9, @P9, '', @P10, GETDATE(), @P10, GETDATE(),
+            'N', 0, 0, 0, 0, 0,
+            '', '', '', '', '', 0, 0, 0, 0, 1, 0,
+            'Allocated', '', ''
         )
     "#;
 
     let mut phase1_query = Query::new(phase1_sql);
-    phase1_query.bind(lot_tran_no); // @P1
-    phase1_query.bind(request.run_no); // @P2
-    phase1_query.bind(request.row_num); // @P3
-    phase1_query.bind(request.line_id); // @P4
-    phase1_query.bind(batch_no.as_str()); // @P5
-    phase1_query.bind(lot_data.lot_no.as_str()); // @P6
-    phase1_query.bind(lot_data.item_key.as_str()); // @P7
-    phase1_query.bind(lot_data.location_key.as_str()); // @P8
-    phase1_query.bind(lot_data.bin_no.as_str()); // @P9
-    phase1_query.bind(lot_data.date_received); // @P10
-    phase1_query.bind(lot_data.date_expiry); // @P11
-    phase1_query.bind(request.weight); // @P12 (QtyIssued)
-    phase1_query.bind(request.workstation_id.as_str()); // @P13
-    phase1_query.bind(batch_no.as_str()); // @P14 (IssueDocNo)
-    phase1_query.bind(request.line_id as i16); // @P15 (IssueDocLineNo)
+    phase1_query.bind(request.run_no); // @P1
+    phase1_query.bind(request.row_num); // @P2
+    phase1_query.bind(request.line_id); // @P3
+    phase1_query.bind(batch_no.as_str()); // @P4
+    phase1_query.bind(lot_data.item_key.as_str()); // @P5
+    phase1_query.bind(lot_data.lot_no.as_str()); // @P6 (also used for SuggestedLotNo)
+    phase1_query.bind(lot_data.location_key.as_str()); // @P7
+    phase1_query.bind(lot_data.bin_no.as_str()); // @P8
+    phase1_query.bind(request.weight); // @P9 (QtyIssued, QtyUsed, AllocLotQty)
+    phase1_query.bind(request.workstation_id.as_str()); // @P10 (RecUserid, ModifiedBy)
+    phase1_query.bind(lot_data.date_received); // @P11
+    phase1_query.bind(lot_data.date_expiry); // @P12
 
+    // Execute Phase 1
     if let Err(e) = phase1_query.execute(&mut *conn).await {
-        Query::new("ROLLBACK TRANSACTION")
-            .execute(&mut *conn)
-            .await
-            .ok();
-        return Err(AppError::TransactionFailed(format!(
-            "Phase 1 failed: {}",
-            e
-        )));
+        let _ = conn.simple_query("ROLLBACK").await;
+        return Err(AppError::TransactionFailed(format!("Phase 1 failed: {}", e)));
     }
 
     // ========================================================================
-    // PHASE 2: WEIGHT UPDATE
+    // PHASE 2: WEIGHT UPDATE (with CUSTOM1 audit field)
     // ========================================================================
     // SQL from: phase2_weight_update.sql
+    // CUSTOM1 audit trail: 1 (bit TRUE) when manual entry, 0 (bit FALSE) when automatic (scale)
+    let custom1_value: u8 = if request.weight_source.to_lowercase() == "manual" {
+        1 // Manual = TRUE (bit 1)
+    } else {
+        0 // Automatic = FALSE (bit 0)
+    };
+
     let phase2_sql = r#"
         UPDATE cust_PartialPicked
         SET
@@ -392,7 +392,8 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
             ItemBatchStatus = 'Allocated',
             PickingDate = GETDATE(),
             ModifiedBy = @P5,
-            ModifiedDate = GETDATE()
+            ModifiedDate = GETDATE(),
+            CUSTOM1 = @P6
         WHERE
             RunNo = @P1 AND RowNum = @P2 AND LineId = @P3
     "#;
@@ -403,25 +404,23 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
     phase2_query.bind(request.line_id); // @P3
     phase2_query.bind(request.weight); // @P4
     phase2_query.bind(request.workstation_id.as_str()); // @P5
+    phase2_query.bind(custom1_value); // @P6 - 0 or 1 (bit)
 
+    // Execute Phase 2
     if let Err(e) = phase2_query.execute(&mut *conn).await {
-        Query::new("ROLLBACK TRANSACTION")
-            .execute(&mut *conn)
-            .await
-            .ok();
-        return Err(AppError::TransactionFailed(format!(
-            "Phase 2 failed: {}",
-            e
-        )));
+        let _ = conn.simple_query("ROLLBACK").await;
+        return Err(AppError::TransactionFailed(format!("Phase 2 failed: {}", e)));
     }
 
     // ========================================================================
     // PHASE 3: TRANSACTION RECORDING
     // ========================================================================
     // SQL from: phase3_transaction_record.sql
+    // CRITICAL: LotTransaction.LotTranNo is IDENTITY column (auto-generated), do NOT insert explicitly
+    // NOTE: The lot_tran_no from sequence service is NOT used in Phase 3
     let phase3_sql = r#"
         INSERT INTO LotTransaction (
-            LotTranNo, LotNo, ItemKey, LocationKey, DateReceived, DateExpiry, TransactionType,
+            LotNo, ItemKey, LocationKey, DateReceived, DateExpiry, TransactionType,
             ReceiptDocNo, ReceiptDocLineNo, QtyReceived, Vendorkey, VendorlotNo, IssueDocNo,
             IssueDocLineNo, IssueDate, QtyIssued, CustomerKey, RecUserid, RecDate, Processed,
             TempQty, QtyForLotAssignment, BinNo, QtyUsed, DateQuarantine,
@@ -430,33 +429,27 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
             CUSTOM1, CUSTOM2, CUSTOM3, CUSTOM4, CUSTOM5, CUSTOM6, CUSTOM7, CUSTOM8, CUSTOM9, CUSTOM10
         )
         VALUES (
-            @P1, @P2, @P3, @P4, NULL, @P6, 5, '', 0, 0, '', '', @P9, @P10, GETDATE(), @P8, '',
-            @P11, GETDATE(), 'N', 0, 0, @P7, 0, NULL, '', '', '', '', 'Picking Customization',
+            @P1, @P2, @P3, NULL, @P4, 5, '', 0, 0, '', '', @P5, @P6, GETDATE(), @P7, '',
+            @P8, GETDATE(), 'N', 0, 0, @P9, 0, NULL, '', '', '', '', 'Picking Customization',
             NULL, 0, 0, 0, 0, 0, 0, '', '', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         )
     "#;
 
     let mut phase3_query = Query::new(phase3_sql);
-    phase3_query.bind(lot_tran_no); // @P1
-    phase3_query.bind(lot_data.lot_no.as_str()); // @P2
-    phase3_query.bind(lot_data.item_key.as_str()); // @P3
-    phase3_query.bind(lot_data.location_key.as_str()); // @P4
-    phase3_query.bind(lot_data.date_expiry); // @P6
-    phase3_query.bind(lot_data.bin_no.as_str()); // @P7
-    phase3_query.bind(request.weight); // @P8 (QtyIssued)
-    phase3_query.bind(batch_no.as_str()); // @P9 (IssueDocNo)
-    phase3_query.bind(request.line_id as i16); // @P10 (IssueDocLineNo)
-    phase3_query.bind(request.workstation_id.as_str()); // @P11
+    phase3_query.bind(lot_data.lot_no.as_str()); // @P1 - LotNo
+    phase3_query.bind(lot_data.item_key.as_str()); // @P2 - ItemKey
+    phase3_query.bind(lot_data.location_key.as_str()); // @P3 - LocationKey
+    phase3_query.bind(lot_data.date_expiry); // @P4 - DateExpiry
+    phase3_query.bind(batch_no.as_str()); // @P5 - IssueDocNo
+    phase3_query.bind(request.line_id as i16); // @P6 - IssueDocLineNo
+    phase3_query.bind(request.weight); // @P7 - QtyIssued
+    phase3_query.bind(request.workstation_id.as_str()); // @P8 - RecUserid
+    phase3_query.bind(lot_data.bin_no.as_str()); // @P9 - BinNo
 
+    // Execute Phase 3
     if let Err(e) = phase3_query.execute(&mut *conn).await {
-        Query::new("ROLLBACK TRANSACTION")
-            .execute(&mut *conn)
-            .await
-            .ok();
-        return Err(AppError::TransactionFailed(format!(
-            "Phase 3 failed: {}",
-            e
-        )));
+        let _ = conn.simple_query("ROLLBACK").await;
+        return Err(AppError::TransactionFailed(format!("Phase 3 failed: {}", e)));
     }
 
     // ========================================================================
@@ -476,22 +469,16 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
     phase4_query.bind(lot_data.bin_no.as_str()); // @P4
     phase4_query.bind(request.weight); // @P5
 
+    // Execute Phase 4
     if let Err(e) = phase4_query.execute(&mut *conn).await {
-        Query::new("ROLLBACK TRANSACTION")
-            .execute(&mut *conn)
-            .await
-            .ok();
-        return Err(AppError::TransactionFailed(format!(
-            "Phase 4 failed: {}",
-            e
-        )));
+        let _ = conn.simple_query("ROLLBACK").await;
+        return Err(AppError::TransactionFailed(format!("Phase 4 failed: {}", e)));
     }
 
     // ========================================================================
-    // COMMIT TRANSACTION
+    // COMMIT TRANSACTION using simple_query() - Official Tiberius pattern
     // ========================================================================
-    Query::new("COMMIT TRANSACTION")
-        .execute(&mut *conn)
+    conn.simple_query("COMMIT")
         .await
         .map_err(|e| AppError::TransactionFailed(format!("COMMIT failed: {}", e)))?;
 
@@ -502,7 +489,9 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
         item_key = %tolerance.item_key,
         lot_tran_no = %lot_tran_no,
         weight = %request.weight,
-        "Pick saved successfully (4-phase atomic transaction)"
+        weight_source = %request.weight_source,
+        custom1 = ?custom1_value,
+        "Pick saved successfully (4-phase atomic transaction with CUSTOM1 audit)"
     );
 
     // Build response
@@ -579,7 +568,8 @@ pub async fn unpick_item(
         })?;
 
     let item_key: String = row.get::<&str, _>(0).unwrap_or("").to_string();
-    let picked_qty: f64 = row.get(1).unwrap_or(0.0);
+    // Use try_get::<f64> for SQL Server FLOAT(53) columns
+    let picked_qty: f64 = row.try_get::<f64, _>(1).ok().flatten().unwrap_or(0.0);
 
     // Get lot allocation data to reverse Phase 4
     let get_lot_sql = r#"
@@ -595,11 +585,10 @@ pub async fn unpick_item(
 
     let lot_row = get_lot_query.query(&mut *conn).await?.into_row().await?;
 
-    // BEGIN TRANSACTION
-    Query::new("BEGIN TRANSACTION")
-        .execute(&mut *conn)
+    // BEGIN TRANSACTION using simple_query() - Official Tiberius pattern
+    conn.simple_query("BEGIN TRAN")
         .await
-        .map_err(|e| AppError::TransactionFailed(format!("BEGIN TRANSACTION failed: {}", e)))?;
+        .map_err(|e| AppError::TransactionFailed(format!("BEGIN TRAN failed: {}", e)))?;
 
     // ========================================================================
     // UNPICK PHASE 1: RESET WEIGHT (Audit Trail Preserved)
@@ -620,15 +609,10 @@ pub async fn unpick_item(
     unpick_phase1_query.bind(line_id);
     unpick_phase1_query.bind(workstation_id);
 
+    // Execute Unpick Phase 1
     if let Err(e) = unpick_phase1_query.execute(&mut *conn).await {
-        Query::new("ROLLBACK TRANSACTION")
-            .execute(&mut *conn)
-            .await
-            .ok();
-        return Err(AppError::TransactionFailed(format!(
-            "Unpick Phase 1 failed: {}",
-            e
-        )));
+        let _ = conn.simple_query("ROLLBACK").await;
+        return Err(AppError::TransactionFailed(format!("Unpick Phase 1 failed: {}", e)));
     }
 
     // ========================================================================
@@ -643,15 +627,10 @@ pub async fn unpick_item(
     unpick_phase2_query.bind(row_num);
     unpick_phase2_query.bind(line_id);
 
+    // Execute Unpick Phase 2
     if let Err(e) = unpick_phase2_query.execute(&mut *conn).await {
-        Query::new("ROLLBACK TRANSACTION")
-            .execute(&mut *conn)
-            .await
-            .ok();
-        return Err(AppError::TransactionFailed(format!(
-            "Unpick Phase 2 failed: {}",
-            e
-        )));
+        let _ = conn.simple_query("ROLLBACK").await;
+        return Err(AppError::TransactionFailed(format!("Unpick Phase 2 failed: {}", e)));
     }
 
     // ========================================================================
@@ -680,21 +659,15 @@ pub async fn unpick_item(
         unpick_phase4_query.bind(bin_no.as_str());
         unpick_phase4_query.bind(picked_qty);
 
+        // Execute Unpick Phase 4
         if let Err(e) = unpick_phase4_query.execute(&mut *conn).await {
-            Query::new("ROLLBACK TRANSACTION")
-                .execute(&mut *conn)
-                .await
-                .ok();
-            return Err(AppError::TransactionFailed(format!(
-                "Unpick Phase 4 failed: {}",
-                e
-            )));
+            let _ = conn.simple_query("ROLLBACK").await;
+            return Err(AppError::TransactionFailed(format!("Unpick Phase 4 failed: {}", e)));
         }
     }
 
-    // COMMIT TRANSACTION
-    Query::new("COMMIT TRANSACTION")
-        .execute(&mut *conn)
+    // COMMIT TRANSACTION using simple_query() - Official Tiberius pattern
+    conn.simple_query("COMMIT")
         .await
         .map_err(|e| AppError::TransactionFailed(format!("COMMIT failed: {}", e)))?;
 
