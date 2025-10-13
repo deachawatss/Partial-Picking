@@ -346,7 +346,7 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
         VALUES (
             @P1, @P2, @P3, @P4, @P5, @P6, @P6, @P7, @P8,
             @P11, @P12, 5, '', 0,
-            0, '', '', '', 0, GETDATE(),
+            @P9, '', '', '', 0, GETDATE(),
             @P9, @P9, @P9, '', @P10, GETDATE(), @P10, GETDATE(),
             'N', 0, 0, 0, 0, 0,
             '', '', '', '', '', 0, 0, 0, 0, 1, 0,
@@ -804,6 +804,7 @@ pub async fn get_pending_items_for_run(
 
     // Query cust_PartialPicked for items not fully picked
     // Items where PickedPartialQty < ToPickedPartialQty
+    // ORDER BY matches Batch table sorting: largest quantities first (efficient picking), then newer batches
     let sql = r#"
         SELECT
             BatchNo,
@@ -814,7 +815,7 @@ pub async fn get_pending_items_for_run(
         FROM cust_PartialPicked
         WHERE RunNo = @P1
           AND PickedPartialQty < ToPickedPartialQty
-        ORDER BY BatchNo, ItemKey
+        ORDER BY ToPickedPartialQty DESC, BatchNo DESC
     "#;
 
     let mut query = Query::new(sql);

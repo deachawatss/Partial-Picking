@@ -43,14 +43,23 @@ export function ViewLotsModal({
     onOpenChange(false)
   }
 
-  const handleRowClick = (lotTranNo: number) => {
+  const handleRowClick = (lotTranNo: number, event: React.MouseEvent) => {
     setSelectedLots((prev) => {
       const newSet = new Set(prev)
-      if (newSet.has(lotTranNo)) {
-        newSet.delete(lotTranNo)
+
+      // Shift+Click: Toggle selection (multi-select mode)
+      if (event.shiftKey) {
+        if (newSet.has(lotTranNo)) {
+          newSet.delete(lotTranNo)
+        } else {
+          newSet.add(lotTranNo)
+        }
       } else {
+        // Normal Click: Select ONLY this row (deselect all others)
+        newSet.clear()
         newSet.add(lotTranNo)
       }
+
       return newSet
     })
   }
@@ -72,19 +81,13 @@ export function ViewLotsModal({
 
       // Delete each lot sequentially
       for (const lot of lotsToDelete) {
-        await new Promise<void>((resolve, reject) => {
-          try {
-            onDelete(lot.lotTranNo, lot.rowNum, lot.lineId)
-            resolve()
-          } catch (error) {
-            reject(error)
-          }
-        })
+        await onDelete(lot.lotTranNo, lot.rowNum, lot.lineId)
       }
 
-      // Invalidate queries to refresh data
+      // Invalidate queries to refresh data immediately
       await queryClient.invalidateQueries({ queryKey: ['picked-lots', runNo] })
       await queryClient.invalidateQueries({ queryKey: ['run-details', runNo] })
+      await queryClient.invalidateQueries({ queryKey: ['pending-items', runNo] })
       await refetch()
 
       // Clear selection
@@ -97,9 +100,16 @@ export function ViewLotsModal({
     }
   }
 
-  const handleDeleteAll = () => {
+  const handleDeleteAll = async () => {
     if (onDeleteAll) {
-      onDeleteAll()
+      await onDeleteAll()
+
+      // Invalidate queries to refresh data immediately
+      await queryClient.invalidateQueries({ queryKey: ['picked-lots', runNo] })
+      await queryClient.invalidateQueries({ queryKey: ['run-details', runNo] })
+      await queryClient.invalidateQueries({ queryKey: ['pending-items', runNo] })
+      await refetch()
+
       setSelectedLots(new Set())
     }
   }
@@ -198,7 +208,7 @@ export function ViewLotsModal({
                             <th>Item Key</th>
                             <th>Location Key</th>
                             <th>Expiry Date</th>
-                            <th style={{ textAlign: 'right' }}>Qty Received</th>
+                            <th style={{ textAlign: 'right' }}>Qty Picked</th>
                             <th>Bin No</th>
                             <th style={{ textAlign: 'right' }}>Pack Size</th>
                           </tr>
@@ -207,7 +217,7 @@ export function ViewLotsModal({
                           {data.pickedLots.map((lot) => (
                             <tr
                               key={lot.lotTranNo}
-                              onClick={() => handleRowClick(lot.lotTranNo)}
+                              onClick={(e) => handleRowClick(lot.lotTranNo, e)}
                               className={selectedLots.has(lot.lotTranNo) ? 'selected' : ''}
                             >
                               <td>{lot.batchNo}</td>
