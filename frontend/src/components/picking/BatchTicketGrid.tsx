@@ -92,15 +92,7 @@ const BatchItemRow = memo(({ item, onItemClick, selectedRowKey, filter }: BatchI
           <span className="text-text-primary/50">0.000</span>
         )}
       </td>
-      <td className="w-[13%] border-r border-border-main px-4 py-3 text-right font-body text-sm font-semibold tabular-nums">
-        {item.pickedQty > 0 ? (
-          <span className={item.balance > 0.1 ? 'text-danger' : 'text-accent-green'}>
-            {formatQty(item.balance)}
-          </span>
-        ) : (
-          <span className="text-text-primary">{formatQty(item.balance)}</span>
-        )}
-      </td>
+      {/* Balance column hidden per user request */}
       <td className="w-[10%] px-4 py-3">
         {item.allergens ? (
           <span className="inline-flex rounded-lg border-2 border-highlight/30 bg-gradient-to-b from-[#fff8e1] to-[#ffeaa7] px-2.5 py-1.5 text-xs font-bold uppercase tracking-wide text-text-primary shadow-soft">
@@ -164,7 +156,7 @@ export function BatchTicketGrid({
         <table className="w-full border-separate border-spacing-0 text-sm text-text-primary">
           <thead className="sticky top-0 z-10">
             <tr className="bg-brand-primary text-white">
-              <th colSpan={6} className="px-6 py-2.5">
+              <th colSpan={5} className="px-6 py-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-xl font-bold tracking-[0.08em]">Batch Partial</p>
@@ -217,7 +209,7 @@ export function BatchTicketGrid({
               <th className="w-[12%] border-r border-border-main px-4 py-1.5 text-center">Batch no.</th>
               <th className="w-[13%] border-r border-border-main px-4 py-1.5 text-right">Partial</th>
               <th className="w-[13%] border-r border-border-main px-4 py-1.5 text-right">Weighted</th>
-              <th className="w-[13%] border-r border-border-main px-4 py-1.5 text-right">Balance</th>
+              {/* Balance column hidden per user request */}
               <th className="w-[10%] px-4 py-1.5 text-left">Allergens</th>
             </tr>
           </thead>
@@ -225,7 +217,7 @@ export function BatchTicketGrid({
           <tbody className="bg-surface">
             {items.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-0">
+                <td colSpan={5} className="p-0">
                   <EmptyState
                     variant="empty"
                     title={filter === 'picked' ? 'No picked items yet' : 'No pending items'}

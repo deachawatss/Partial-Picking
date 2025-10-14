@@ -522,6 +522,24 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+.modal-btn-secondary:disabled {
+  background: #F5F5F5;
+  border-color: #E2DAD2;
+  color: #9CA3AF;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
+.modal-btn-secondary:disabled:hover {
+  background: #F5F5F5;
+  border-color: #E2DAD2;
+  color: #9CA3AF;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Danger Action Button (Delete, Remove) */
 .modal-btn-danger {
   background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);

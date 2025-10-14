@@ -20,13 +20,13 @@ export function NumericKeyboard({
   const [inputValue, setInputValue] = useState('')
   const [validationError, setValidationError] = useState<string | null>(null)
 
-  // Initialize input value when modal opens
+  // Initialize input value when modal opens - always start blank
   useEffect(() => {
     if (open) {
-      setInputValue(currentValue ? currentValue.toFixed(4) : '')
+      setInputValue('')  // Always clear for easy manual entry
       setValidationError(null)
     }
-  }, [open, currentValue])
+  }, [open])
 
   const handleNumberClick = (num: string) => {
     setValidationError(null)
