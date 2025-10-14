@@ -20,7 +20,7 @@ export async function printLabel(label: LabelData): Promise<void> {
   return new Promise((resolve, reject) => {
     try {
       // Create QR code data: ITEMKEY--QTY
-      const qrCodeData = `${label.itemKey}--${label.qtyReceived.toFixed(2)}`
+      const qrCodeData = `${label.itemKey}--${label.qtyReceived.toFixed(3)}`
 
       // Create hidden iframe for printing
       const printFrame = document.createElement('iframe')
@@ -190,7 +190,7 @@ function generateLabelHTML(label: LabelData): string {
 <body>
   <div class="label-content">
     <div class="item-key">${label.itemKey}</div>
-    <div class="qty-display">${label.qtyReceived.toFixed(2)} KG</div>
+    <div class="qty-display">${label.qtyReceived.toFixed(3)} KG</div>
     <div class="batch-no">${label.batchNo}</div>
     <div class="lot-no">${label.lotNo}</div>
     <div class="picker-datetime">${label.picker} ${label.date} ${label.time}</div>
