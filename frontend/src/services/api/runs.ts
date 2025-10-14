@@ -193,6 +193,24 @@ export async function completeRun(
 }
 
 /**
+ * Get ALL items across ALL batches for a run
+ *
+ * OpenAPI Operation: GET /api/runs/{runNo}/items
+ *
+ * Used by ItemSelectionModal to show all unpicked items across all batches
+ *
+ * No offline cache support - always fetches fresh data from API
+ *
+ * @param runNo - Production run number
+ * @returns Promise<BatchItemDTO[]> - All items from all batches
+ * @throws ErrorResponse - On not found (404) or network error
+ */
+export async function getAllRunItems(runNo: number): Promise<BatchItemDTO[]> {
+  const response = await apiClient.get<BatchItemsResponse>(`/runs/${runNo}/items`)
+  return response.data.items
+}
+
+/**
  * Runs API Service Object
  * Provides all run-related API methods
  */
@@ -200,6 +218,7 @@ export const runsApi = {
   listRuns,
   getRunDetails,
   getBatchItems,
+  getAllRunItems,
   completeRun,
 }
 

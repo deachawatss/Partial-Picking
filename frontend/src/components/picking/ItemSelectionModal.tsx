@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
-import { useBatchItems } from '@/hooks/useItemsQuery'
+import { useBatchItems, useAllRunItems } from '@/hooks/useItemsQuery'
 import type { BatchItemDTO } from '@/types/api'
 
 interface PickItem {
   lineId: number
   itemKey: string
+  batchNo: string
   description: string
   targetQty: number
   pickedQty: number
@@ -17,7 +18,7 @@ interface ItemSelectionModalProps {
   onOpenChange: (open: boolean) => void
   onSelect: (item: PickItem) => void
   runNo: number | null
-  batchNo: number | null
+  batchNo: number | null  // null = show all items across all batches
 }
 
 export function ItemSelectionModal({
@@ -27,25 +28,47 @@ export function ItemSelectionModal({
   runNo,
   batchNo,
 }: ItemSelectionModalProps) {
-  const { data: batchItems, isLoading, error } = useBatchItems(runNo, batchNo, {
-    enabled: open && !!runNo && !!batchNo
+  // Query: If batchNo provided, get items for that batch only
+  //        If batchNo is null, get ALL items across ALL batches
+  const { data: specificBatchItems, isLoading: isLoadingBatch, error: errorBatch } = useBatchItems(
+    runNo,
+    batchNo,
+    {
+      enabled: open && !!runNo && batchNo !== null,
+    }
+  )
+  const { data: allRunItems, isLoading: isLoadingAll, error: errorAll } = useAllRunItems(runNo, {
+    enabled: open && !!runNo && batchNo === null,
   })
+
+  // Use appropriate data source based on whether batchNo was provided
+  const batchItems = batchNo === null ? allRunItems : specificBatchItems
+  const isLoading = batchNo === null ? isLoadingAll : isLoadingBatch
+  const error = batchNo === null ? errorAll : errorBatch
 
   // Map BatchItemDTO to PickItem - Filter to only show unpicked items
   const items = useMemo<PickItem[]>(() => {
     if (!batchItems) return []
 
     return batchItems
-      .filter((item) => item.status !== 'Allocated') // Only show unpicked items
+      .filter((item) => item.pickedQty === 0) // Only show unpicked items (pickedQty = 0)
       .map((item, index) => ({
         lineId: index + 1, // Generate lineId from index
         itemKey: item.itemKey,
+        batchNo: item.batchNo,
         description: item.description,
         targetQty: item.totalNeeded,
         pickedQty: item.pickedQty,
         balance: item.remainingQty,
         status: 'unpicked', // All items shown are unpicked
       }))
+  }, [batchItems])
+
+  // Count unique batches when showing all items
+  const batchCount = useMemo(() => {
+    if (!batchItems) return 0
+    const uniqueBatches = new Set(batchItems.map(item => item.batchNo))
+    return uniqueBatches.size
   }, [batchItems])
 
   const handleSelect = (item: PickItem) => {
@@ -73,7 +96,11 @@ export function ItemSelectionModal({
           <h3 className="modal-title">
             <span>📝</span>
             <span>
-              Select Item {runNo && batchItems?.[0]?.batchNo && `(Run: ${runNo}, Batch: ${batchItems[0].batchNo})`}
+              Select Item{' '}
+              {runNo &&
+                (batchNo !== null
+                  ? batchItems?.[0]?.batchNo && `(Run: ${runNo}, Batch: ${batchItems[0].batchNo})`
+                  : `(Run: ${runNo})`)}
             </span>
           </h3>
           <button
@@ -113,9 +140,11 @@ export function ItemSelectionModal({
               <div className="modal-empty-icon">📋</div>
               <p className="modal-empty-text">No unpicked items</p>
               <p className="modal-empty-hint">
-                {runNo && batchNo
+                {runNo && batchNo !== null
                   ? `All items in batch ${batchNo} have been picked`
-                  : 'Please select a run and batch first'}
+                  : runNo
+                    ? `All items in run ${runNo} have been picked`
+                    : 'Please select a run first'}
               </p>
             </div>
           )}
@@ -127,6 +156,7 @@ export function ItemSelectionModal({
                 <thead>
                   <tr>
                     <th className="text-center">Line</th>
+                    {batchNo === null && <th className="text-center">Batch No</th>}
                     <th>Item Key</th>
                     <th>Description</th>
                     <th className="text-center">Unit</th>
@@ -138,6 +168,11 @@ export function ItemSelectionModal({
                       <td className="text-center">
                         <strong>{index + 1}</strong>
                       </td>
+                      {batchNo === null && (
+                        <td className="text-center">
+                          <strong>{item.batchNo}</strong>
+                        </td>
+                      )}
                       <td>
                         <strong>{item.itemKey}</strong>
                       </td>
@@ -159,6 +194,7 @@ export function ItemSelectionModal({
             <div className="modal-footer-left">
               <p className="modal-footer-info">
                 Showing {items.length} unpicked item{items.length !== 1 ? 's' : ''}
+                {batchNo === null && batchCount > 1 && ` across ${batchCount} batches`}
               </p>
             </div>
 

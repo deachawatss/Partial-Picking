@@ -67,6 +67,7 @@ async fn main() {
     let protected_routes = Router::new()
         .route("/runs", get(api::runs::list_runs_endpoint))
         .route("/runs/:runNo", get(api::runs::get_run_details_endpoint))
+        .route("/runs/:runNo/items", get(api::runs::get_all_run_items_endpoint))
         .route(
             "/runs/:runNo/batches/:rowNum/items",
             get(api::runs::get_batch_items_endpoint),

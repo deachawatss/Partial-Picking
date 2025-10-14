@@ -79,7 +79,12 @@ export function PartialPickingPage() {
 
   // Weight input state (can be manually entered or auto-populated from scale)
   const [manualWeight, setManualWeight] = useState<number | null>(null)
-  const currentWeight = manualWeight !== null ? manualWeight : currentScale.weight
+  const [isManualEntryActive, setIsManualEntryActive] = useState(false)
+  const [frozenWeight, setFrozenWeight] = useState<number>(0)
+
+  const currentWeight = isManualEntryActive
+    ? frozenWeight  // Use frozen weight during manual entry
+    : (manualWeight !== null ? manualWeight : currentScale.weight)
 
   const scaleStatuses = {
     small: { online: smallScale.online, stable: smallScale.stable },
@@ -1067,7 +1072,11 @@ export function PartialPickingPage() {
                 <Input
                   value={formatQuantity(currentWeight)}
                   readOnly
-                  onClick={() => setShowKeyboard(true)}
+                  onClick={() => {
+                    setFrozenWeight(currentWeight)  // Freeze current weight
+                    setIsManualEntryActive(true)
+                    setShowKeyboard(true)
+                  }}
                   className={`h-12 rounded-lg border-2 font-body text-xl font-semibold tabular-nums tracking-tight transition-smooth cursor-pointer hover:border-accent-gold ${weightFieldClass}`}
                   title="Click to enter weight manually"
                 />
@@ -1202,7 +1211,7 @@ export function PartialPickingPage() {
         onOpenChange={setShowItemModal}
         onSelect={item => handleItemSelect(item.itemKey)}
         runNo={currentRun?.runNo}
-        batchNo={currentBatchRowNum || undefined}
+        batchNo={null}
       />
       <LotSelectionModal
         open={showLotModal}
@@ -1238,9 +1247,17 @@ export function PartialPickingPage() {
       />
       <NumericKeyboard
         open={showKeyboard}
-        onOpenChange={setShowKeyboard}
-        onConfirm={(weight) => setManualWeight(weight)}
-        currentValue={manualWeight || currentWeight}
+        onOpenChange={(open) => {
+          setShowKeyboard(open)
+          if (!open) {
+            setIsManualEntryActive(false)  // Clear manual entry mode when closing
+          }
+        }}
+        onConfirm={(weight) => {
+          setManualWeight(weight)
+          setIsManualEntryActive(false)  // Clear manual entry mode after confirming
+        }}
+        currentValue={0}  // Always start blank for easy entry
         minValue={weightRangeLow}
         maxValue={weightRangeHigh}
       />

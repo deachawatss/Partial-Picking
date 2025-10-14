@@ -318,6 +318,125 @@ pub async fn get_batch_items(
     Ok(BatchItemsResponse { items })
 }
 
+/// Get ALL items across ALL batches for a run
+///
+/// Used by ItemSelectionModal to show all unpicked items across all batches
+///
+/// # Arguments
+/// * `pool` - Database connection pool
+/// * `run_no` - Production run number
+///
+/// # Returns
+/// * BatchItemsResponse with all items from all batches, sorted by RowNum then LineId
+/// * 404 if run not found
+///
+/// # Constitutional Compliance
+/// * ✅ Uses composite keys (RunNo, RowNum, LineId)
+/// * ✅ Uses PickedPartialQty (NOT PickedPartialQtyKG which is always NULL)
+/// * ✅ JOIN INMAST for description and tolerance (User9)
+/// * ✅ Weight range = ToPickedPartialQty ± tolerance
+pub async fn get_all_run_items(
+    pool: &DbPool,
+    run_no: i32,
+) -> AppResult<BatchItemsResponse> {
+    let mut conn = pool.get().await?;
+
+    // Same SQL as get_batch_items but WITHOUT RowNum filter
+    // Returns ALL items across ALL batches
+    let sql = r#"
+        SELECT
+            p.RunNo,
+            p.RowNum,
+            p.LineId,
+            p.BatchNo,
+            p.ItemKey,
+            i.Desc1 AS ItemDescription,
+            p.ToPickedPartialQty,
+            p.PickedPartialQty,
+            p.ItemBatchStatus,
+            p.Allergen,
+            ISNULL(i.User9, 0) AS Tolerance,
+            (p.ToPickedPartialQty - ISNULL(i.User9, 0)) AS WeightRangeLow,
+            (p.ToPickedPartialQty + ISNULL(i.User9, 0)) AS WeightRangeHigh,
+            (p.ToPickedPartialQty - p.PickedPartialQty) AS RemainingQty,
+            ISNULL(
+                (SELECT loc.Qtyonhand
+                 FROM INLOC loc
+                 WHERE loc.Itemkey = p.ItemKey AND loc.Location = 'TFC1'
+                ), 0
+            ) AS TotalAvailableSOH
+        FROM cust_PartialPicked p
+        LEFT JOIN INMAST i ON p.ItemKey = i.Itemkey
+        WHERE p.RunNo = @P1
+        ORDER BY p.RowNum ASC, p.LineId ASC
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(run_no);
+
+    let rows = query.query(&mut *conn).await?;
+    let rows: Vec<Row> = rows.into_first_result().await?;
+
+    if rows.is_empty() {
+        return Err(AppError::RecordNotFound(format!(
+            "Run No {} not found or has no items",
+            run_no
+        )));
+    }
+
+    let items: Vec<BatchItemDTO> = rows
+        .iter()
+        .map(|row| {
+            let item_key: &str = row.get("ItemKey").unwrap_or("");
+            let batch_no: &str = row.get("BatchNo").unwrap_or("");
+            let row_num: i32 = row.get("RowNum").unwrap_or(0);
+            let line_id: i32 = row.get("LineId").unwrap_or(0);
+            let description: &str = row.get("ItemDescription").unwrap_or("");
+            let total_needed: f64 = row.try_get::<f64, _>("ToPickedPartialQty")
+                .ok().flatten().unwrap_or(0.0);
+            let picked_qty: f64 = row.try_get::<f64, _>("PickedPartialQty")
+                .ok().flatten().unwrap_or(0.0);
+            let remaining_qty: f64 = row.try_get::<f64, _>("RemainingQty")
+                .ok().flatten().unwrap_or(0.0);
+            let tolerance: f64 = row.try_get::<f64, _>("Tolerance")
+                .ok().flatten().unwrap_or(0.0);
+            let weight_low: f64 = row.try_get::<f64, _>("WeightRangeLow")
+                .ok().flatten().unwrap_or(0.0);
+            let weight_high: f64 = row.try_get::<f64, _>("WeightRangeHigh")
+                .ok().flatten().unwrap_or(0.0);
+            let allergen: &str = row.get("Allergen").unwrap_or("");
+            let status: Option<&str> = row.get("ItemBatchStatus");
+            let total_available_soh: f64 = row.try_get::<f64, _>("TotalAvailableSOH")
+                .ok().flatten().unwrap_or(0.0);
+
+            BatchItemDTO {
+                item_key: item_key.to_string(),
+                batch_no: batch_no.to_string(),
+                row_num,
+                line_id,
+                description: description.to_string(),
+                total_needed,
+                picked_qty,
+                remaining_qty,
+                weight_range_low: weight_low,
+                weight_range_high: weight_high,
+                tolerance_kg: tolerance,
+                allergen: allergen.to_string(),
+                status: status.map(|s| s.to_string()),
+                total_available_soh,
+            }
+        })
+        .collect();
+
+    tracing::debug!(
+        run_no = run_no,
+        items_count = items.len(),
+        "Retrieved all items across all batches"
+    );
+
+    Ok(BatchItemsResponse { items })
+}
+
 /// List all production runs with pagination and optional search
 ///
 /// Uses validated SQL from PRD: Section 7.11A - Run Search Modal
