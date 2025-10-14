@@ -39,7 +39,7 @@ interface PickingContextType {
   setWorkstation: (workstationId: string) => void
 
   // Action methods
-  savePick: (weight: number) => Promise<void>
+  savePick: (weight: number, weightSource: 'automatic' | 'manual') => Promise<void>
   unpickItem: (lineId: number, rowNum?: number) => Promise<void>
   completeRun: () => Promise<void>
 
@@ -132,7 +132,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
 
             try {
               // Load FEFO lots for first unpicked item
-              const itemBatchRowNum = parseInt(firstUnpickedItem.batchNo, 10)
+              const itemBatchRowNum = firstUnpickedItem.rowNum
               const lots = await lotsApi.getAvailableLots(
                 firstUnpickedItem.itemKey,
                 runDetails.runNo,
@@ -242,29 +242,61 @@ export function PickingProvider({ children }: PickingProviderProps) {
    * Calls GET /api/lots/available?itemKey={itemKey}&minQty={remainingQty}
    */
   const selectItem = async (itemKey: string, batchNo?: string): Promise<void> => {
+    // DEFENSIVE VALIDATION: Log all parameters received
+    console.log('[Picking] selectItem called with:', {
+      itemKey,
+      batchNo,
+      batchNoType: typeof batchNo,
+      batchNoIsTruthy: !!batchNo,
+    })
+
     if (!currentRun) {
       setErrorMessage('Please select a run first')
       return
     }
+
+    // DEFENSIVE VALIDATION: Log current batch items to see what's available
+    console.log('[Picking] Available items in currentBatchItems:',
+      currentBatchItems.map(i => ({
+        itemKey: i.itemKey,
+        batchNo: i.batchNo,
+        rowNum: i.rowNum,
+        lineId: i.lineId,
+        pickedQty: i.pickedQty,
+        remainingQty: i.remainingQty,
+      }))
+    )
 
     // Find specific item by itemKey AND batchNo (for individual row selection)
     // If batchNo not provided, find first item with matching itemKey (for modal compatibility)
     const item = currentBatchItems.find(i =>
       i.itemKey === itemKey && (!batchNo || i.batchNo === batchNo)
     )
+
+    // DEFENSIVE VALIDATION: Log which item was found (or not found)
     if (!item) {
-      setErrorMessage('Item not found in current batch')
+      console.error('[Picking] Item NOT FOUND! Search criteria:', { itemKey, batchNo })
+      setErrorMessage(`Item ${itemKey} ${batchNo ? `(batch ${batchNo})` : ''} not found in current batch`)
       return
     }
+
+    console.log('[Picking] Found item:', {
+      itemKey: item.itemKey,
+      batchNo: item.batchNo,
+      rowNum: item.rowNum,
+      lineId: item.lineId,
+      pickedQty: item.pickedQty,
+      remainingQty: item.remainingQty,
+    })
 
     setIsLoading(true)
     setErrorMessage(null)
 
     try {
-      console.log('[Picking] Loading FEFO lots for item:', itemKey, 'from batch:', item.batchNo)
+      console.log('[Picking] Loading FEFO lots for item:', itemKey, 'from batch:', item.batchNo, 'rowNum:', item.rowNum)
 
-      // Use the item's actual batch number (convert batchNo string to number)
-      const itemBatchRowNum = parseInt(item.batchNo, 10)
+      // Use the item's actual rowNum (batch row number from database)
+      const itemBatchRowNum = item.rowNum
 
       // Call API to get available lots (FEFO sorted with PackSize)
       // Use item's specific batch number for correct PackSize lookup
@@ -335,10 +367,13 @@ export function PickingProvider({ children }: PickingProviderProps) {
   }
 
   /**
-   * T068: Save pick with 4-phase atomic transaction
+   * T068: Save pick with 4-phase atomic transaction + CUSTOM1 audit trail
    * Calls POST /api/picks
+   *
+   * @param weight - Weight from scale or manual entry
+   * @param weightSource - 'automatic' (from scale/FETCH WEIGHT) or 'manual' (numeric keyboard)
    */
-  const savePick = async (weight: number): Promise<void> => {
+  const savePick = async (weight: number, weightSource: 'automatic' | 'manual'): Promise<void> => {
     // Validation
     if (!currentRun || !currentItem || !selectedLot) {
       setErrorMessage('Please complete all selections before saving pick')
@@ -349,8 +384,8 @@ export function PickingProvider({ children }: PickingProviderProps) {
     setErrorMessage(null)
 
     try {
-      // Use the item's actual batch number
-      const itemBatchRowNum = parseInt(currentItem.batchNo, 10)
+      // Use the item's actual rowNum (batch row number from database)
+      const itemBatchRowNum = currentItem.rowNum
 
       console.log('[Picking] Saving pick:', {
         runNo: currentRun.runNo,
@@ -360,16 +395,15 @@ export function PickingProvider({ children }: PickingProviderProps) {
         lotNo: selectedLot.lotNo,
         binNo: selectedLot.binNo,
         weight,
+        weightSource,
         workstationId,
       })
 
-      // Find lineId for this item within its specific batch
-      // Filter items by same batch number and find index
-      const batchSpecificItems = currentBatchItems.filter(i => i.batchNo === currentItem.batchNo)
-      const lineId = batchSpecificItems.findIndex(i => i.itemKey === currentItem.itemKey) + 1
+      // Use the item's actual lineId from database (not calculated)
+      const lineId = currentItem.lineId
 
-      if (lineId === 0) {
-        throw new Error('Item not found in batch items')
+      if (!lineId) {
+        throw new Error('LineId missing from item data')
       }
 
       // Build pick request matching OpenAPI spec
@@ -380,6 +414,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
         lotNo: selectedLot.lotNo,
         binNo: selectedLot.binNo,
         weight,
+        weightSource, // CUSTOM1 audit trail: 'MANUAL' when manual, NULL when automatic
         workstationId,
       }
 
@@ -390,6 +425,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
         lotTranNo: pickResponse.lotTranNo,
         pickedQty: pickResponse.pickedQty,
         status: pickResponse.status,
+        weightSource, // Log for audit
       })
 
       // Refresh all batch items to show updated picked quantities

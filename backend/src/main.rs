@@ -92,11 +92,13 @@ async fn main() {
             "/lots/available",
             get(api::lots::get_available_lots_endpoint),
         )
+        .route("/lots/:lotNo", get(api::lots::get_lot_by_number_endpoint))
         .route("/bins", get(api::bins::list_bins_endpoint))
         .route(
             "/bins/lot/:lotNo/:itemKey",
             get(api::bins::get_bins_for_lot_endpoint),
         )
+        .route("/bins/:binNo", get(api::bins::get_bin_by_number_endpoint))
         .route(
             "/workstations",
             get(api::workstations::list_workstations_endpoint),

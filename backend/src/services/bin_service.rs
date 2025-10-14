@@ -265,3 +265,88 @@ pub async fn get_bins_for_lot(
 
     Ok(bins)
 }
+
+/// Get specific bin by bin number
+///
+/// Used for manual bin number input (scan or type bin number, press Enter)
+/// Queries BINMaster for specific bin with TFC1 PARTIAL validation
+///
+/// # Arguments
+/// * `pool` - Database connection pool
+/// * `bin_no` - Bin number to look up
+///
+/// # Returns
+/// * BinDTO if bin exists in TFC1 PARTIAL area
+/// * Error if bin not found or not in PARTIAL area
+///
+/// # Constitutional Compliance
+/// * ✅ Validates bin exists in TFC1 PARTIAL area only
+/// * ✅ Location = 'TFC1'
+/// * ✅ User1 = 'WHTFC1' (warehouse identifier)
+/// * ✅ User4 = 'PARTIAL' (bin type)
+pub async fn get_bin_by_number(
+    pool: &DbPool,
+    bin_no: &str,
+) -> AppResult<BinDTO> {
+    let mut conn = pool.get().await?;
+
+    // Query specific bin by BinNo + Location='TFC1' + PARTIAL filters
+    let sql = r#"
+        SELECT
+            Location,
+            BinNo,
+            Description,
+            aisle,
+            row,
+            rack,
+            User1,
+            User4
+        FROM BINMaster
+        WHERE BinNo = @P1
+          AND Location = 'TFC1'
+          AND User1 = 'WHTFC1'
+          AND User4 = 'PARTIAL'
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(bin_no);
+
+    let rows = query.query(&mut *conn).await?;
+    let rows: Vec<Row> = rows.into_first_result().await?;
+
+    if rows.is_empty() {
+        return Err(crate::error::AppError::RecordNotFound(format!(
+            "Bin '{}' not found in TFC1 PARTIAL area",
+            bin_no
+        )));
+    }
+
+    let row = &rows[0];
+    let location: &str = row.get("Location").unwrap_or("TFC1");
+    let description: Option<&str> = row.get("Description");
+    let aisle: Option<&str> = row.get("aisle");
+    let row_val: Option<&str> = row.get("row");
+    let rack: Option<&str> = row.get("rack");
+    let user1: &str = row.get("User1").unwrap_or("WHTFC1");
+    let user4: &str = row.get("User4").unwrap_or("PARTIAL");
+
+    tracing::info!(
+        bin_no = bin_no,
+        location = location,
+        aisle = ?aisle,
+        row = ?row_val,
+        rack = ?rack,
+        "Retrieved bin by number"
+    );
+
+    Ok(BinDTO {
+        location: location.to_string(),
+        bin_no: bin_no.to_string(),
+        description: description.map(|s| s.to_string()),
+        aisle: aisle.map(|s| s.to_string()),
+        row: row_val.map(|s| s.to_string()),
+        rack: rack.map(|s| s.to_string()),
+        user1: user1.to_string(),
+        user4: user4.to_string(),
+    })
+}

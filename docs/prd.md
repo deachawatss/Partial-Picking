@@ -833,7 +833,7 @@ INSERT INTO Cust_PartialLotPicked (
 );
 ```
 
-**Phase 2: Update Picked Quantity**
+**Phase 2: Update Picked Quantity with Audit Trail**
 ```sql
 UPDATE cust_PartialPicked
 SET
@@ -841,11 +841,20 @@ SET
   PickingDate = GETDATE(),
   ItemBatchStatus = 'Allocated',
   ModifiedBy = @workstationId,  -- e.g., 'WS3'
-  ModifiedDate = GETDATE()
+  ModifiedDate = GETDATE(),
+  CUSTOM1 = @weightSource  -- Audit: 'MANUAL' when manual entry, NULL when automatic (scale)
 WHERE RunNo = @runNo
   AND RowNum = @rowNum
   AND LineId = @lineId;
 ```
+
+**Weight Source Audit Trail (CUSTOM1):**
+- **Purpose**: Track whether weight came from scale (automatic) or keyboard entry (manual)
+- **Values**:
+  - `NULL` = Automatic weight from scale (FETCH WEIGHT button)
+  - `'MANUAL'` = Manual weight entry via numeric keyboard
+- **Use Case**: Audit compliance, quality analysis, operator performance tracking
+- **API Field**: `weightSource: 'automatic' | 'manual'` in PickRequest
 
 **Phase 3: Create Lot Transaction**
 ```sql

@@ -125,24 +125,25 @@ export function ViewLotsModal({
   return (
     <div className="modal-overlay" onClick={handleClose}>
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-        {/* Modal Header - Brown Gradient */}
-        <div className="modal-header-brown">
-          <h3 className="modal-title">
-            <span>👁️</span>
-            <span>View Picked Lots - Run #{runNo}</span>
-          </h3>
-          <button
-            type="button"
-            className="modal-close-btn"
-            onClick={handleClose}
-            aria-label="Close dialog"
-          >
-            ✕
-          </button>
-        </div>
+        {/* Modal Header - Brown Gradient with integrated tabs */}
+        <div className="modal-header-brown modal-header-with-tabs">
+          {/* Title Row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <h3 className="modal-title">
+              <span>👁️</span>
+              <span>View Picked Lots - Run #{runNo}</span>
+            </h3>
+            <button
+              type="button"
+              className="modal-close-btn"
+              onClick={handleClose}
+              aria-label="Close dialog"
+            >
+              ✕
+            </button>
+          </div>
 
-        {/* Tab Navigation */}
-        <div className="modal-tabs-container">
+          {/* Tab Navigation - Integrated in header */}
           <nav className="modal-tabs-nav" role="tablist">
             <button
               onClick={() => setActiveTab('picked')}
@@ -308,7 +309,7 @@ export function ViewLotsModal({
               <button
                 type="button"
                 onClick={handleDeleteAll}
-                className="tw-px-4 tw-py-2 tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-font-semibold tw-rounded-lg tw-transition-colors tw-text-sm"
+                className="modal-btn-danger"
               >
                 🗑️ Delete All Lots
               </button>
@@ -320,7 +321,7 @@ export function ViewLotsModal({
             <button
               type="button"
               onClick={handleRePrint}
-              className="tw-px-4 tw-py-2 tw-bg-gray-200 hover:tw-bg-gray-300 tw-text-gray-700 tw-font-semibold tw-rounded-lg tw-transition-colors tw-text-sm"
+              className="modal-btn-secondary"
             >
               🖨️ Re-Print
             </button>
@@ -332,14 +333,14 @@ export function ViewLotsModal({
               type="button"
               onClick={handleDelete}
               disabled={selectedLots.size === 0 || isDeleting}
-              className="tw-px-4 tw-py-2 tw-bg-red-600 hover:tw-bg-red-700 tw-text-white tw-font-semibold tw-rounded-lg tw-transition-colors disabled:tw-opacity-50 disabled:tw-cursor-not-allowed tw-text-sm"
+              className="modal-btn-danger"
             >
               {isDeleting ? '⏳ Deleting...' : '🗑️ Delete'}
             </button>
             <button
               type="button"
               onClick={handleClose}
-              className="tw-px-4 tw-py-2 tw-bg-gray-200 hover:tw-bg-gray-300 tw-text-gray-700 tw-font-semibold tw-rounded-lg tw-transition-colors tw-text-sm"
+              className="modal-btn-primary"
             >
               Ok
             </button>

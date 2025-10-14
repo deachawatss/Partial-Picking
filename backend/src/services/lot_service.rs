@@ -214,6 +214,128 @@ pub async fn get_available_lots(
     Ok(LotsResponse { lots })
 }
 
+/// Get specific lot by lot number and item key
+///
+/// Used for manual lot number input (scan or type lot number, press Enter)
+/// Queries LotMaster for specific lot with TFC1 PARTIAL bin validation
+///
+/// # Arguments
+/// * `pool` - Database connection pool
+/// * `lot_no` - Lot number to look up
+/// * `item_key` - Item SKU
+/// * `run_no` - Production run number (for PackSize lookup)
+/// * `row_num` - Batch number (for PackSize lookup)
+///
+/// # Returns
+/// * LotAvailabilityDTO if lot exists and has available quantity
+/// * Error if lot not found, no available quantity, or not in PARTIAL bins
+///
+/// # Constitutional Compliance
+/// * ✅ Validates lot exists in TFC1 PARTIAL bins only
+/// * ✅ Checks available quantity > 0
+/// * ✅ LotStatus IN ('P', 'C', '', NULL)
+/// * ✅ Returns FEFO-compliant lot data
+pub async fn get_lot_by_number(
+    pool: &DbPool,
+    lot_no: &str,
+    item_key: &str,
+    run_no: i32,
+    row_num: i32,
+) -> AppResult<LotAvailabilityDTO> {
+    let mut conn = pool.get().await?;
+
+    // Query specific lot by LotNo + ItemKey + Location='TFC1'
+    // INNER JOIN with BINMaster to enforce PARTIAL bin filtering
+    let sql = r#"
+        SELECT
+            l.LotNo,
+            l.BinNo,
+            l.DateExpiry,
+            l.QtyOnHand,
+            l.QtyCommitSales,
+            (l.QtyOnHand - l.QtyCommitSales) AS AvailableQty,
+            l.LocationKey,
+            l.LotStatus,
+            ISNULL(p.PackSize, 0) AS PackSize
+        FROM LotMaster l
+        LEFT JOIN cust_PartialPicked p
+            ON l.ItemKey = p.ItemKey
+            AND p.RunNo = @P3
+            AND p.RowNum = @P4
+        INNER JOIN BINMaster b ON l.BinNo = b.BinNo AND l.LocationKey = b.Location
+        WHERE l.LotNo = @P1
+          AND l.ItemKey = @P2
+          AND l.LocationKey = 'TFC1'
+          AND (l.QtyOnHand - l.QtyCommitSales) > 0
+          AND (l.LotStatus = 'P' OR l.LotStatus = 'C' OR l.LotStatus = '' OR l.LotStatus IS NULL)
+          AND b.User1 = 'WHTFC1'
+          AND b.User4 = 'PARTIAL'
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(lot_no);
+    query.bind(item_key);
+    query.bind(run_no);
+    query.bind(row_num);
+
+    let rows = query.query(&mut *conn).await?;
+    let rows: Vec<Row> = rows.into_first_result().await?;
+
+    if rows.is_empty() {
+        return Err(crate::error::AppError::RecordNotFound(format!(
+            "Lot '{}' not found for item '{}' or no available quantity in TFC1 PARTIAL bins",
+            lot_no, item_key
+        )));
+    }
+
+    let row = &rows[0];
+    let bin_no: &str = row.get("BinNo").unwrap_or("");
+    let location_key: &str = row.get("LocationKey").unwrap_or("TFC1");
+    let qty_on_hand: f64 = row.get("QtyOnHand").unwrap_or(0.0);
+    let qty_commit_sales: f64 = row.get("QtyCommitSales").unwrap_or(0.0);
+    let available_qty: f64 = row.get("AvailableQty").unwrap_or(0.0);
+
+    let expiry_date: NaiveDateTime = row
+        .try_get::<NaiveDateTime, _>("DateExpiry")
+        .ok()
+        .flatten()
+        .unwrap_or_default();
+
+    let lot_status: &str = row.get("LotStatus").unwrap_or("P");
+
+    let pack_size: f64 = row
+        .try_get::<f32, _>("PackSize")
+        .ok()
+        .flatten()
+        .unwrap_or(0.0) as f64;
+
+    let (aisle, row_char, rack) = parse_bin_location(bin_no);
+
+    tracing::info!(
+        lot_no = lot_no,
+        item_key = item_key,
+        bin_no = bin_no,
+        available_qty = available_qty,
+        "Retrieved lot by number"
+    );
+
+    Ok(LotAvailabilityDTO {
+        lot_no: lot_no.to_string(),
+        item_key: item_key.to_string(),
+        bin_no: bin_no.to_string(),
+        location_key: location_key.to_string(),
+        qty_on_hand,
+        qty_commit_sales,
+        available_qty,
+        expiry_date: expiry_date.format("%d/%m/%Y").to_string(),
+        lot_status: lot_status.to_string(),
+        aisle,
+        row: row_char,
+        rack,
+        pack_size,
+    })
+}
+
 /// Parse bin location into aisle, row, rack components
 ///
 /// Examples:

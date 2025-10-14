@@ -83,6 +83,60 @@
 }
 
 /* ------------------------------------------------------------------- */
+/* Modal Header with Tabs - Integrated Layout                         */
+/* ------------------------------------------------------------------- */
+
+/* When header contains tabs, change layout to block */
+.modal-header-with-tabs {
+  display: block !important;
+  padding-bottom: 8px;
+}
+
+/* Tabs integrated in brown header - special styling */
+.modal-header-brown .modal-tabs-nav {
+  display: flex;
+  gap: 8px;
+  padding: 0;
+  padding-top: 0;
+  background: transparent;
+}
+
+.modal-header-brown .modal-tab-button {
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.modal-header-brown .modal-tab-button:hover:not(.modal-tab-active) {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.modal-header-brown .modal-tab-active {
+  background: white;
+  color: #3A2920;
+  border-bottom-color: #E0AA2F;
+  font-weight: 700;
+}
+
+.modal-header-brown .modal-tab-badge {
+  background: #E0AA2F;
+  color: white;
+}
+
+.modal-header-brown .modal-tab-active .modal-tab-badge {
+  background: #E0AA2F;
+  color: white;
+}
+
+/* ------------------------------------------------------------------- */
 /* Modal Search Section                                                */
 /* ------------------------------------------------------------------- */
 
@@ -372,8 +426,10 @@
 /* ------------------------------------------------------------------- */
 
 .modal-footer {
+  background: linear-gradient(180deg, #FAFAFA 0%, #F5F5F5 100%);
   padding: 16px 20px;
-  border-top: 1px solid #E2DAD2;
+  border-top: 2px solid #E2DAD2;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -402,6 +458,109 @@
   color: #2B1C14;
   font-size: 0.875rem;
   margin: 0;
+}
+
+/* ------------------------------------------------------------------- */
+/* Modal Footer Buttons - Brown Theme                                 */
+/* ------------------------------------------------------------------- */
+
+/* Primary Action Button (OK, Confirm, Submit) */
+.modal-btn-primary {
+  background: linear-gradient(135deg, #3A2920 0%, #2B1C14 100%);
+  color: white;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-btn-primary:hover {
+  background: linear-gradient(135deg, #E0AA2F, #D49A1F);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.modal-btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Secondary Action Button (Re-Print, Cancel, View) */
+.modal-btn-secondary {
+  background: white;
+  color: #3A2920;
+  border: 2px solid #E2DAD2;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-btn-secondary:hover {
+  background: #FFF8E8;
+  border-color: #E0AA2F;
+  color: #2B1C14;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-btn-secondary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Danger Action Button (Delete, Remove) */
+.modal-btn-danger {
+  background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+  color: white;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-btn-danger:hover {
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+}
+
+.modal-btn-danger:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+}
+
+.modal-btn-danger:disabled {
+  background: linear-gradient(135deg, #9CA3AF, #6B7280);
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+  box-shadow: none;
+}
+
+.modal-btn-danger:disabled:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 /* Pagination Controls */

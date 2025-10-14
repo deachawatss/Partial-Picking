@@ -22,6 +22,7 @@ export interface PickRequest {
   lotNo: string
   binNo: string
   weight: number
+  weightSource: 'automatic' | 'manual'
   workstationId: string
 }
 
@@ -81,6 +82,8 @@ export interface BatchItemsResponse {
 export interface BatchItemDTO {
   itemKey: string
   batchNo: string
+  rowNum: number
+  lineId: number
   description: string
   totalNeeded: number
   pickedQty: number

@@ -376,7 +376,7 @@ INSERT INTO Cust_PartialLotPicked (
     @userId           -- 'deachawat'
 )
 
--- Phase 2: Update Picking Record (cust_PartialPicked)
+-- Phase 2: Update Picking Record (cust_PartialPicked) with CUSTOM1 audit trail
 UPDATE cust_PartialPicked
 SET PickedPartialQty = @pickedQty,      -- 20.025
     LotNo = @lotNo,                      -- '2510403-1'
@@ -384,10 +384,16 @@ SET PickedPartialQty = @pickedQty,      -- 20.025
     ItemBatchStatus = 'Allocated',
     PickingDate = GETDATE(),
     ModifiedBy = @userId,                -- 'deachawat'
-    ModifiedDate = GETDATE()
+    ModifiedDate = GETDATE(),
+    CUSTOM1 = @weightSource              -- Audit: 'MANUAL' when manual entry, NULL when automatic (scale)
 WHERE RunNo = @runNo                     -- 213972
   AND RowNum = @rowNum                   -- 2
   AND LineId = @lineId                   -- 1
+
+-- Weight Source Audit Trail (CUSTOM1):
+--   NULL = Automatic weight from scale (FETCH WEIGHT button)
+--   'MANUAL' = Manual weight entry via numeric keyboard
+--   Use case: Audit compliance, quality analysis, operator performance tracking
 
 -- Phase 3: Insert Transaction Record (LotTransaction)
 DECLARE @nextSeq INT

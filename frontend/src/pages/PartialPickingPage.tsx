@@ -31,6 +31,9 @@ import { BatchTicketGrid } from '@/components/picking/BatchTicketGrid'
 import { NumericKeyboard } from '@/components/picking/NumericKeyboard'
 import { usePickedLots } from '@/hooks/usePickedLotsQuery'
 import { printLabels } from '@/utils/printLabel'
+import { getLotByNumber } from '@/services/api/lots'
+import { getBinByNumber } from '@/services/api/bins'
+import { getErrorMessage } from '@/services/api/client'
 
 export function PartialPickingPage() {
   // Navigation and auth
@@ -98,6 +101,18 @@ export function PartialPickingPage() {
   const [isRunFieldActive, setIsRunFieldActive] = useState(false)
   const [isSearchButtonClicked, setIsSearchButtonClicked] = useState(false)
 
+  // Lot No manual input state
+  const [lotInputValue, setLotInputValue] = useState('')
+  const [previousLotValue, setPreviousLotValue] = useState('')
+  const [isLotFieldActive, setIsLotFieldActive] = useState(false)
+  const [isLotSearchButtonClicked, setIsLotSearchButtonClicked] = useState(false)
+
+  // Bin No manual input state
+  const [binInputValue, setBinInputValue] = useState('')
+  const [previousBinValue, setPreviousBinValue] = useState('')
+  const [isBinFieldActive, setIsBinFieldActive] = useState(false)
+  const [isBinSearchButtonClicked, setIsBinSearchButtonClicked] = useState(false)
+
   // Sync runInputValue with currentRun
   useEffect(() => {
     if (currentRun?.runNo) {
@@ -106,6 +121,24 @@ export function PartialPickingPage() {
       setRunInputValue('')
     }
   }, [currentRun?.runNo])
+
+  // Sync lotInputValue with selectedLot
+  useEffect(() => {
+    if (selectedLot?.lotNo) {
+      setLotInputValue(selectedLot.lotNo)
+    } else {
+      setLotInputValue('')
+    }
+  }, [selectedLot?.lotNo])
+
+  // Sync binInputValue with selectedLot
+  useEffect(() => {
+    if (selectedLot?.binNo) {
+      setBinInputValue(selectedLot.binNo)
+    } else {
+      setBinInputValue('')
+    }
+  }, [selectedLot?.binNo])
 
   /**
    * Handle Run field click - clear for manual input/scanning
@@ -188,11 +221,268 @@ export function PartialPickingPage() {
   }
 
   /**
+   * Handle Lot field click - clear for manual input/scanning
+   */
+  const handleLotFieldClick = () => {
+    setPreviousLotValue(lotInputValue)
+    setIsLotFieldActive(true)
+    setLotInputValue('')
+  }
+
+  /**
+   * Handle Lot field blur - restore previous value if empty and not searching
+   */
+  const handleLotFieldBlur = () => {
+    const currentValue = lotInputValue.trim()
+
+    // Skip restoration if user is clicking search button
+    if (isLotSearchButtonClicked) {
+      setIsLotFieldActive(false)
+      setPreviousLotValue('')
+      return
+    }
+
+    // Restore previous value if field is empty
+    if (isLotFieldActive && !currentValue) {
+      setLotInputValue(previousLotValue)
+    }
+
+    setIsLotFieldActive(false)
+    setPreviousLotValue('')
+  }
+
+  /**
+   * Handle Lot search button mouse down - prevent blur restoration
+   */
+  const handleLotSearchButtonMouseDown = () => {
+    setIsLotSearchButtonClicked(true)
+  }
+
+  /**
+   * Handle Lot field key down - trigger search on Enter
+   */
+  const handleLotFieldKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleLotSearch(false)
+    }
+  }
+
+  /**
+   * Handle Lot search - open modal or perform direct search
+   */
+  const handleLotSearch = async (fromButton: boolean) => {
+    // Always open modal when clicked via Search button
+    if (fromButton) {
+      // DON'T reset states yet - let blur handler use them
+      if (!currentItem) {
+        alert('Please select an item first')
+        // Reset states before returning on error
+        setIsLotSearchButtonClicked(false)
+        setIsLotFieldActive(false)
+        setPreviousLotValue('')
+        return
+      }
+      setShowLotModal(true)
+      return  // States will be cleaned up when modal closes
+    }
+
+    // Reset field interaction states for direct search (Enter key)
+    setIsLotSearchButtonClicked(false)
+    setIsLotFieldActive(false)
+    setPreviousLotValue('')
+
+    // Enter key behavior: process input field value for direct lookup
+    const lotNumber = lotInputValue.trim()
+
+    // Show modal if lot number field is blank
+    if (!lotNumber) {
+      if (!currentItem) {
+        alert('Please select an item first')
+        return
+      }
+      setShowLotModal(true)
+      return
+    }
+
+    // Validate required data
+    if (!currentItem) {
+      alert('Please select an item first')
+      return
+    }
+    if (!currentRun) {
+      alert('Please select a run first')
+      return
+    }
+    if (!currentBatchRowNum) {
+      alert('Please select a batch first')
+      return
+    }
+
+    // Direct search with entered lot number
+    clearError()
+    try {
+      const lot = await getLotByNumber(
+        lotNumber,
+        currentItem.itemKey,
+        currentRun.runNo,
+        currentBatchRowNum
+      )
+
+      // Auto-populate lot data
+      selectLot({
+        lotNo: lot.lotNo,
+        itemKey: lot.itemKey,
+        binNo: lot.binNo,
+        locationKey: lot.locationKey,
+        qtyOnHand: lot.qtyOnHand,
+        qtyCommitSales: lot.qtyCommitSales,
+        availableQty: lot.availableQty,
+        expiryDate: lot.expiryDate,
+        lotStatus: lot.lotStatus,
+        packSize: lot.packSize,
+      })
+    } catch (error) {
+      console.error('[PartialPickingPage] Direct lot search failed:', error)
+
+      // Restore previous value on error (don't keep wrong input)
+      setLotInputValue(previousLotValue || selectedLot?.lotNo || '')
+
+      alert(getErrorMessage(error) || `Lot '${lotNumber}' not found for this item`)
+    }
+  }
+
+  /**
+   * Handle Bin field click - clear for manual input/scanning
+   */
+  const handleBinFieldClick = () => {
+    setPreviousBinValue(binInputValue)
+    setIsBinFieldActive(true)
+    setBinInputValue('')
+  }
+
+  /**
+   * Handle Bin field blur - restore previous value if empty and not searching
+   */
+  const handleBinFieldBlur = () => {
+    const currentValue = binInputValue.trim()
+
+    // Skip restoration if user is clicking search button
+    if (isBinSearchButtonClicked) {
+      setIsBinFieldActive(false)
+      setPreviousBinValue('')
+      return
+    }
+
+    // Restore previous value if field is empty
+    if (isBinFieldActive && !currentValue) {
+      setBinInputValue(previousBinValue)
+    }
+
+    setIsBinFieldActive(false)
+    setPreviousBinValue('')
+  }
+
+  /**
+   * Handle Bin search button mouse down - prevent blur restoration
+   */
+  const handleBinSearchButtonMouseDown = () => {
+    setIsBinSearchButtonClicked(true)
+  }
+
+  /**
+   * Handle Bin field key down - trigger search on Enter
+   */
+  const handleBinFieldKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleBinSearch(false)
+    }
+  }
+
+  /**
+   * Handle Bin search - open modal or perform direct search
+   */
+  const handleBinSearch = async (fromButton: boolean) => {
+    // Always open modal when clicked via Search button
+    if (fromButton) {
+      // DON'T reset states yet - let blur handler use them
+      if (!currentItem) {
+        alert('Please select an item first')
+        // Reset states before returning on error
+        setIsBinSearchButtonClicked(false)
+        setIsBinFieldActive(false)
+        setPreviousBinValue('')
+        return
+      }
+      setShowBinModal(true)
+      return  // States will be cleaned up when modal closes
+    }
+
+    // Reset field interaction states for direct search (Enter key)
+    setIsBinSearchButtonClicked(false)
+    setIsBinFieldActive(false)
+    setPreviousBinValue('')
+
+    // Enter key behavior: process input field value for direct lookup
+    const binNumber = binInputValue.trim()
+
+    // Show modal if bin number field is blank
+    if (!binNumber) {
+      if (!currentItem) {
+        alert('Please select an item first')
+        return
+      }
+      setShowBinModal(true)
+      return
+    }
+
+    // Validate required data
+    if (!currentItem) {
+      alert('Please select an item first')
+      return
+    }
+
+    // Direct search with entered bin number
+    clearError()
+    try {
+      const bin = await getBinByNumber(binNumber)
+
+      // Update the selected lot with the new bin (if lot already selected)
+      if (selectedLot) {
+        selectLot({
+          ...selectedLot,
+          binNo: bin.binNo,
+        })
+      } else {
+        alert('Please select a lot first before changing the bin')
+      }
+    } catch (error) {
+      console.error('[PartialPickingPage] Direct bin search failed:', error)
+
+      // Restore previous value on error (don't keep wrong input)
+      setBinInputValue(previousBinValue || selectedLot?.binNo || '')
+
+      alert(getErrorMessage(error) || `Bin '${binNumber}' not found in TFC1 PARTIAL area`)
+    }
+  }
+
+  /**
    * Handle Save Pick button
+   * Determines weight source for CUSTOM1 audit trail:
+   * - 'manual': User entered weight via numeric keyboard
+   * - 'automatic': Weight from scale (FETCH WEIGHT button)
    */
   const handleSavePick = async () => {
     try {
-      await savePick(currentWeight)
+      // Determine weight source based on whether weight was manually entered
+      const weightSource: 'automatic' | 'manual' = manualWeight !== null ? 'manual' : 'automatic'
+
+      console.log('[PartialPickingPage] Saving pick with weight source:', {
+        weight: currentWeight,
+        weightSource,
+        isManualEntry: manualWeight !== null,
+      })
+
+      await savePick(currentWeight, weightSource)
       setSuccessMessage('Pick saved successfully!')
       setTimeout(() => setSuccessMessage(null), 3000)
       setManualWeight(null)
@@ -203,13 +493,20 @@ export function PartialPickingPage() {
 
   /**
    * Handle Add Lot button
+   * Directly executes the pick with current weight and auto-selected lot
    */
-  const handleAddLot = () => {
+  const handleAddLot = async () => {
     if (!currentItem) {
       alert('Please select an item first')
       return
     }
-    setShowLotModal(true)
+    if (!selectedLot) {
+      alert('Please select a lot first')
+      return
+    }
+
+    // Execute pick directly (same as SAVE button)
+    await handleSavePick()
   }
 
   /**
@@ -328,6 +625,11 @@ export function PartialPickingPage() {
   const handleRunSelect = async (runNo: number) => {
     setShowRunModal(false)
     clearError()
+
+    // Force sync run input value immediately (don't rely on useEffect)
+    // This fixes the bug where selecting the same run doesn't trigger useEffect
+    setRunInputValue(runNo.toString())
+
     try {
       await selectRun(runNo)
     } catch (error) {
@@ -353,6 +655,14 @@ export function PartialPickingPage() {
    * Now accepts both itemKey and batchNo to select specific row
    */
   const handleItemSelect = async (itemKey: string, batchNo?: string) => {
+    // DEFENSIVE LOGGING: Verify parameters received from grid click
+    console.log('[PartialPickingPage] handleItemSelect called with:', {
+      itemKey,
+      batchNo,
+      batchNoType: typeof batchNo,
+      batchNoIsTruthy: !!batchNo,
+    })
+
     setShowItemModal(false)
     clearError()
     try {
@@ -379,6 +689,12 @@ export function PartialPickingPage() {
   }) => {
     setShowLotModal(false)
     clearError()
+
+    // Force sync input values immediately (don't rely on useEffect)
+    // This fixes the bug where selecting the same lot doesn't trigger useEffect
+    setLotInputValue(lot.lotNo)
+    setBinInputValue(lot.binNo)
+
     selectLot({
       lotNo: lot.lotNo,
       itemKey: currentItem?.itemKey || '',
@@ -407,6 +723,10 @@ export function PartialPickingPage() {
   }) => {
     setShowBinModal(false)
     clearError()
+
+    // Force sync bin input value immediately (don't rely on useEffect)
+    // This fixes the bug where selecting the same bin doesn't trigger useEffect
+    setBinInputValue(bin.binNo)
 
     // Update the selected lot with the new bin
     if (selectedLot) {
@@ -637,17 +957,21 @@ export function PartialPickingPage() {
                 <label className={labelClass}>Lot No.</label>
                 <div className="relative">
                   <Input
-                    value={selectedLot?.lotNo || ''}
-                    placeholder="Auto-selected (FEFO)"
-                    readOnly
-                    className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base text-text-primary"
+                    value={lotInputValue}
+                    onChange={e => setLotInputValue(e.target.value)}
+                    onClick={handleLotFieldClick}
+                    onBlur={handleLotFieldBlur}
+                    onKeyDown={handleLotFieldKeyDown}
+                    placeholder="Enter or scan lot number"
+                    className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary"
                   />
                   <Button
                     type="button"
-                    onClick={() => setShowLotModal(true)}
+                    onMouseDown={handleLotSearchButtonMouseDown}
+                    onClick={() => handleLotSearch(true)}
                     className={lookupButtonInsideInputClass}
                     disabled={!currentItem || isLoading}
-                    aria-label="Override lot number"
+                    aria-label="Lookup lot number"
                   >
                     <Search className="w-5 h-5" strokeWidth={2.5} />
                   </Button>
@@ -660,14 +984,18 @@ export function PartialPickingPage() {
                 <label className={labelClass}>Bin No.</label>
                 <div className="relative">
                   <Input
-                    value={selectedLot?.binNo || ''}
-                    placeholder="Auto from lot"
-                    readOnly
-                    className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base text-text-primary"
+                    value={binInputValue}
+                    onChange={e => setBinInputValue(e.target.value)}
+                    onClick={handleBinFieldClick}
+                    onBlur={handleBinFieldBlur}
+                    onKeyDown={handleBinFieldKeyDown}
+                    placeholder="Enter or scan bin number"
+                    className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary"
                   />
                   <Button
                     type="button"
-                    onClick={() => setShowBinModal(true)}
+                    onMouseDown={handleBinSearchButtonMouseDown}
+                    onClick={() => handleBinSearch(true)}
                     className={lookupButtonInsideInputClass}
                     disabled={!currentItem || isLoading}
                     aria-label="Lookup bin number"
@@ -748,16 +1076,22 @@ export function PartialPickingPage() {
               </div>
             </div>
 
-            {/* 5 Button Layout */}
+            {/* 4 Button Layout - SAVE button removed (ADD LOT performs complete pick) */}
             <div className="mt-6 grid gap-3">
               <div className="grid gap-3 md:grid-cols-2">
                 <Button
                   type="button"
                   onClick={handleAddLot}
-                  disabled={isLoading || !currentItem || !weightInRange}
-                  className={secondaryButtonClass}
+                  disabled={
+                    isLoading ||
+                    !currentItem ||
+                    !selectedLot ||
+                    !currentScale.online ||
+                    !weightInRange
+                  }
+                  className={primaryButtonClass}
                 >
-                  Add Lot
+                  {isLoading ? 'Saving…' : 'Add Lot'}
                 </Button>
                 <Button
                   type="button"
@@ -779,27 +1113,13 @@ export function PartialPickingPage() {
                 </Button>
                 <Button
                   type="button"
-                  onClick={handleSavePick}
-                  disabled={
-                    isLoading ||
-                    !currentItem ||
-                    !selectedLot ||
-                    !currentScale.online ||
-                    currentWeight <= 0
-                  }
-                  className={primaryButtonClass}
+                  onClick={handleLogout}
+                  disabled={isLoading}
+                  className={dangerButtonClass}
                 >
-                  {isLoading ? 'Saving…' : 'Save'}
+                  Logout
                 </Button>
               </div>
-              <Button
-                type="button"
-                onClick={handleLogout}
-                disabled={isLoading}
-                className={dangerButtonClass}
-              >
-                Logout
-              </Button>
             </div>
           </div>
 
@@ -838,7 +1158,15 @@ export function PartialPickingPage() {
       />
       <LotSelectionModal
         open={showLotModal}
-        onOpenChange={setShowLotModal}
+        onOpenChange={(open) => {
+          setShowLotModal(open)
+          // Clean up interaction states when modal closes
+          if (!open) {
+            setIsLotSearchButtonClicked(false)
+            setIsLotFieldActive(false)
+            setPreviousLotValue('')
+          }
+        }}
         onSelect={handleLotSelect}
         itemKey={currentItem?.itemKey}
         runNo={currentRun?.runNo || null}
@@ -847,7 +1175,15 @@ export function PartialPickingPage() {
       />
       <BinSelectionModal
         open={showBinModal}
-        onOpenChange={setShowBinModal}
+        onOpenChange={(open) => {
+          setShowBinModal(open)
+          // Clean up interaction states when modal closes
+          if (!open) {
+            setIsBinSearchButtonClicked(false)
+            setIsBinFieldActive(false)
+            setPreviousBinValue('')
+          }
+        }}
         onSelect={handleBinSelect}
         lotNo={selectedLot?.lotNo || null}
         itemKey={currentItem?.itemKey || null}

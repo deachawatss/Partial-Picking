@@ -67,12 +67,29 @@ export async function getBinsForLot(
 }
 
 /**
+ * Get specific bin by bin number (manual input workflow)
+ *
+ * OpenAPI Operation: GET /api/bins/{binNo}
+ * Retrieve specific bin when user manually scans/types bin number and presses Enter
+ * Validates bin exists in TFC1 PARTIAL area
+ *
+ * @param binNo - Bin number to look up
+ * @returns Promise<BinDTO> - Bin details if found
+ * @throws ErrorResponse - 404 if bin not found or not in PARTIAL area
+ */
+export async function getBinByNumber(binNo: string): Promise<BinDTO> {
+  const response = await apiClient.get<{ bin: BinDTO }>(`/bins/${binNo}`)
+  return response.data.bin
+}
+
+/**
  * Bins API Service Object
  * Provides all bin-related API methods
  */
 export const binsApi = {
   getBins,
   getBinsForLot,
+  getBinByNumber,
 }
 
 export default binsApi

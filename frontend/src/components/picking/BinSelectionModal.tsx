@@ -121,8 +121,6 @@ export function BinSelectionModal({
                     <th className="text-center">Qty On Hand</th>
                     <th className="text-center">Committed Qty</th>
                     <th className="text-center">Qty Available</th>
-                    <th className="text-center">Bags Available</th>
-                    <th className="text-center">Pack Size</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -146,8 +144,6 @@ export function BinSelectionModal({
                       >
                         {bin.availableQty.toFixed(2)}
                       </td>
-                      <td className="text-center">{bin.bagsAvailable.toFixed(2)}</td>
-                      <td className="text-center">{bin.packSize.toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>

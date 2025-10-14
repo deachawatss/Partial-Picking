@@ -52,11 +52,42 @@ export async function getAvailableLots(
 }
 
 /**
+ * Get specific lot by lot number (manual input workflow)
+ *
+ * OpenAPI Operation: GET /api/lots/{lotNo}
+ * Retrieve specific lot when user manually scans/types lot number and presses Enter
+ * Validates lot exists in TFC1 PARTIAL bins with available quantity
+ *
+ * @param lotNo - Lot number to look up
+ * @param itemKey - Item key/SKU
+ * @param runNo - Production run number (required for PackSize lookup)
+ * @param rowNum - Batch row number (required for PackSize lookup)
+ * @returns Promise<LotAvailabilityDTO> - Lot details if found
+ * @throws ErrorResponse - 404 if lot not found or no available quantity
+ */
+export async function getLotByNumber(
+  lotNo: string,
+  itemKey: string,
+  runNo: number,
+  rowNum: number
+): Promise<LotAvailabilityDTO> {
+  const params = {
+    itemKey,
+    runNo,
+    rowNum,
+  }
+
+  const response = await apiClient.get<{ lot: LotAvailabilityDTO }>(`/lots/${lotNo}`, { params })
+  return response.data.lot
+}
+
+/**
  * Lots API Service Object
  * Provides all lot-related API methods
  */
 export const lotsApi = {
   getAvailableLots,
+  getLotByNumber,
 }
 
 export default lotsApi

@@ -23,6 +23,11 @@ pub struct PickRequest {
     /// Weight from scale
     pub weight: f64,
 
+    /// Weight source for audit trail: "automatic" (from scale) or "manual" (keyboard entry)
+    /// Maps to CUSTOM1 field in cust_PartialPicked: "MANUAL" when manual, NULL when automatic
+    #[serde(rename = "weightSource")]
+    pub weight_source: String,
+
     #[serde(rename = "workstationId")]
     pub workstation_id: String,
 }

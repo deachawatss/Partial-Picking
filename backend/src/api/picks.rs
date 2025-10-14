@@ -12,7 +12,7 @@ use crate::models::{
 use crate::services::picking_service;
 
 /// POST /api/picks
-/// Execute 4-phase atomic picking transaction
+/// Execute 4-phase atomic picking transaction with CUSTOM1 audit trail
 ///
 /// # Request Body
 /// - runNo: Production run number
@@ -21,11 +21,12 @@ use crate::services::picking_service;
 /// - lotNo: Selected lot number (from FEFO algorithm)
 /// - binNo: Source bin (TFC1 PARTIAL bin)
 /// - weight: Actual weight from scale (must be within tolerance)
+/// - weightSource: Weight entry method - "automatic" (from scale) or "manual" (keyboard)
 /// - workstationId: Workstation identifier (e.g., WS3)
 ///
 /// # Response
 /// - 201 Created: Pick saved successfully
-/// - 400 Bad Request: Weight out of tolerance or item already picked
+/// - 400 Bad Request: Weight out of tolerance, item already picked, or invalid weightSource
 /// - 404 Not Found: Item not found
 /// - 500 Internal Server Error: Transaction failed (rollback performed)
 ///
@@ -33,7 +34,7 @@ use crate::services::picking_service;
 /// - Uses Database Specialist SQL queries verbatim
 /// - 4-phase atomic transaction (all or nothing)
 /// - Composite keys in all WHERE clauses
-/// - Audit trail preservation
+/// - Audit trail preservation (CUSTOM1 = 'MANUAL' when manual, NULL when automatic)
 pub async fn save_pick_endpoint(
     State(pool): State<DbPool>,
     Json(request): Json<PickRequest>,
@@ -60,6 +61,20 @@ pub async fn save_pick_endpoint(
     if request.workstation_id.is_empty() {
         return Err(AppError::ValidationError(
             "Workstation ID is required".to_string(),
+        ));
+    }
+
+    // Validate weight source (CUSTOM1 audit field)
+    if request.weight_source.is_empty() {
+        return Err(AppError::ValidationError(
+            "Weight source is required (automatic or manual)".to_string(),
+        ));
+    }
+
+    let weight_source_lower = request.weight_source.to_lowercase();
+    if weight_source_lower != "automatic" && weight_source_lower != "manual" {
+        return Err(AppError::ValidationError(
+            "Weight source must be 'automatic' or 'manual'".to_string(),
         ));
     }
 

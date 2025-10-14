@@ -72,6 +72,12 @@ pub struct BatchItemDTO {
     #[serde(rename = "batchNo")]
     pub batch_no: String,
 
+    #[serde(rename = "rowNum")]
+    pub row_num: i32,
+
+    #[serde(rename = "lineId")]
+    pub line_id: i32,
+
     pub description: String,
 
     #[serde(rename = "totalNeeded")]
@@ -261,6 +267,8 @@ pub async fn get_batch_items(
         .map(|row| {
             let item_key: &str = row.get("ItemKey").unwrap_or("");
             let batch_no: &str = row.get("BatchNo").unwrap_or("");
+            let row_num: i32 = row.get("RowNum").unwrap_or(0);
+            let line_id: i32 = row.get("LineId").unwrap_or(0);
             let description: &str = row.get("ItemDescription").unwrap_or("");
             // CRITICAL: SQL Server FLOAT(53) = 8-byte double, must use try_get::<f64>
             // Using try_get::<f32> on FLOAT(53) columns causes type mismatch → returns None → displays 0.0
@@ -284,6 +292,8 @@ pub async fn get_batch_items(
             BatchItemDTO {
                 item_key: item_key.to_string(),
                 batch_no: batch_no.to_string(),
+                row_num,
+                line_id,
                 description: description.to_string(),
                 total_needed,
                 picked_qty,
