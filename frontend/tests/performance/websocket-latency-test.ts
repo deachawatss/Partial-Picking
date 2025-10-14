@@ -108,7 +108,7 @@ async function testWebSocketLatency(): Promise<PerformanceReport> {
   return new Promise((resolve, reject) => {
     const metrics: LatencyMetrics[] = [];
     let currentIteration = 0;
-    let requestTimestamps: Map<number, number> = new Map();
+    const requestTimestamps: Map<number, number> = new Map();
 
     console.log('\nConnecting to WebSocket...');
     const ws = new WebSocket(`${WS_URL}/${WORKSTATION_ID}/${SCALE_TYPE}`);

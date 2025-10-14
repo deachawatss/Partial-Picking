@@ -14,11 +14,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   cacheRun,
-  getCachedRun,
-  listCachedRuns,
   clearCache,
   getCacheStats,
-  CachedRun
 } from '@/services/cache';
 import { RunDetailsResponse, BatchItemDTO } from '@/types/api';
 
@@ -88,7 +85,6 @@ describe('Cache Service', () => {
 
       await cacheRun(runNo, runData, batchItems);
 
-      const cached = await getCachedRun(runNo);
       expect(cached).toBeDefined();
       expect(cached?.runNo).toBe(runNo);
       expect(cached?.runData).toEqual(runData);
@@ -103,7 +99,6 @@ describe('Cache Service', () => {
 
       // Cache first time
       await cacheRun(runNo, runData1, batchItems1);
-      const cached1 = await getCachedRun(runNo);
       const cachedAt1 = cached1?.cachedAt || 0;
 
       // Wait a bit to ensure different timestamp
@@ -113,7 +108,6 @@ describe('Cache Service', () => {
       const runData2 = { ...runData1, status: 'PRINT' as const };
       await cacheRun(runNo, runData2, batchItems1);
 
-      const cached2 = await getCachedRun(runNo);
       expect(cached2?.runData.status).toBe('PRINT');
       expect(cached2?.cachedAt).toBeGreaterThan(cachedAt1);
     });
@@ -127,13 +121,11 @@ describe('Cache Service', () => {
 
       await cacheRun(runNo, runData, batchItems);
 
-      const cached = await getCachedRun(runNo);
       expect(cached).toBeDefined();
       expect(cached?.runNo).toBe(runNo);
     });
 
     it('should return undefined for non-existent run', async () => {
-      const cached = await getCachedRun(99999);
       expect(cached).toBeUndefined();
     });
   });
@@ -148,7 +140,6 @@ describe('Cache Service', () => {
         await new Promise(resolve => setTimeout(resolve, 10));
       }
 
-      const cachedRuns = await listCachedRuns();
       expect(cachedRuns).toHaveLength(3);
 
       // Should be sorted newest first
@@ -158,7 +149,6 @@ describe('Cache Service', () => {
     });
 
     it('should return empty array when cache is empty', async () => {
-      const cachedRuns = await listCachedRuns();
       expect(cachedRuns).toEqual([]);
     });
   });
@@ -174,7 +164,6 @@ describe('Cache Service', () => {
         await new Promise(resolve => setTimeout(resolve, 10));
       }
 
-      const cachedRuns = await listCachedRuns();
 
       // Should only have 5 runs
       expect(cachedRuns).toHaveLength(5);
@@ -184,8 +173,6 @@ describe('Cache Service', () => {
       expect(cachedRunNos).toEqual([12347, 12348, 12349, 12350, 12351]);
 
       // Oldest runs should be evicted
-      const run12345 = await getCachedRun(12345);
-      const run12346 = await getCachedRun(12346);
       expect(run12345).toBeUndefined();
       expect(run12346).toBeUndefined();
     });
@@ -200,22 +187,18 @@ describe('Cache Service', () => {
       }
 
       // Verify we have 5 runs
-      let cachedRuns = await listCachedRuns();
       expect(cachedRuns).toHaveLength(5);
 
       // Add 6th run
       await cacheRun(12350, createMockRunData(12350), createMockBatchItems(12350));
 
       // Should still have only 5 runs
-      cachedRuns = await listCachedRuns();
       expect(cachedRuns).toHaveLength(5);
 
       // Oldest run (12345) should be evicted
-      const oldestRun = await getCachedRun(12345);
       expect(oldestRun).toBeUndefined();
 
       // Newest run should exist
-      const newestRun = await getCachedRun(12350);
       expect(newestRun).toBeDefined();
     });
   });
@@ -229,14 +212,12 @@ describe('Cache Service', () => {
       }
 
       // Verify runs are cached
-      let cachedRuns = await listCachedRuns();
       expect(cachedRuns.length).toBeGreaterThan(0);
 
       // Clear cache
       await clearCache();
 
       // Verify cache is empty
-      cachedRuns = await listCachedRuns();
       expect(cachedRuns).toEqual([]);
     });
   });

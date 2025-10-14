@@ -42,8 +42,8 @@ class MockWebSocket {
     }, 10);
   }
 
-  send(data: string): void {
-    // Mock send implementation
+  send(): void {
+    // Mock send implementation - data parameter not needed for mock
   }
 
   close(): void {

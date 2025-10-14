@@ -1,9 +1,11 @@
 use axum::{
-    http::{header, HeaderValue, Method},
+    extract::Extension,
+    http::{header, Method},
     middleware as axum_middleware,
     routing::{get, post},
-    Router,
+    Json, Router,
 };
+use serde::Serialize;
 use std::net::SocketAddr;
 use tower_http::{
     cors::CorsLayer,
@@ -22,27 +24,51 @@ mod utils;
 
 #[tokio::main]
 async fn main() {
-    // Initialize tracing
+    // Load configuration first (needed for log_level)
+    let config = config::Config::from_env().expect("Failed to load configuration");
+
+    // Initialize tracing with log_level from config
+    let log_filter = format!(
+        "partial_picking_backend={},tower_http=info",
+        config.log_level
+    );
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "partial_picking_backend=info,tower_http=info".into()),
+                .unwrap_or_else(|_| log_filter.into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // Load configuration
-    let config = config::Config::from_env().expect("Failed to load configuration");
-
-    // Create database connection pool
-    let db_pool = db::create_pool(&config.database_connection_string())
-        .await
-        .expect("Failed to create database connection pool");
+    // Create database connection pool with configuration
+    let db_pool = db::create_pool(
+        &config.database_connection_string(),
+        config.database_max_connections,
+        config.database_min_connections,
+        config.database_connection_timeout_secs,
+    )
+    .await
+    .expect("Failed to create database connection pool");
 
     tracing::info!("Database connection pool created successfully");
 
-    // Configure CORS - allow all origins for development
-    let cors = CorsLayer::very_permissive();
+    // Configure CORS with allowed origins from config
+    // Note: Cannot use Any (wildcard) for headers when credentials are enabled
+    let cors = CorsLayer::new()
+        .allow_origin(
+            config
+                .cors_allowed_origins
+                .iter()
+                .map(|origin| origin.parse().expect("Invalid CORS origin"))
+                .collect::<Vec<_>>(),
+        )
+        .allow_methods([Method::GET, Method::POST, Method::DELETE])
+        .allow_headers([
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+            header::ACCEPT,
+        ])
+        .allow_credentials(true);
 
     // Create middleware layer to inject Config into request extensions
     let config_clone = config.clone();
@@ -111,14 +137,19 @@ async fn main() {
         .with_state(db_pool.clone());
 
     // Build application routes with middleware
-    let app = Router::new()
+    let mut app = Router::new()
         .route("/", get(health_check))
         .route("/api/health", get(health_check))
         .nest("/api/auth", auth_routes)
         .nest("/api", protected_routes)
-        .layer(add_config)
-        .layer(TraceLayer::new_for_http())
-        .layer(cors);
+        .layer(add_config);
+
+    // Conditionally add request logging based on config
+    if config.enable_request_logging {
+        app = app.layer(TraceLayer::new_for_http());
+    }
+
+    app = app.layer(cors);
 
     // Start server
     let addr = SocketAddr::from(([0, 0, 0, 0], config.server_port));
@@ -131,6 +162,19 @@ async fn main() {
     axum::serve(listener, app).await.expect("Server error");
 }
 
-async fn health_check() -> &'static str {
-    "OK"
+#[derive(Serialize)]
+struct HealthResponse {
+    status: &'static str,
+    app_name: String,
+    version: String,
+    company: String,
+}
+
+async fn health_check(Extension(config): Extension<config::Config>) -> Json<HealthResponse> {
+    Json(HealthResponse {
+        status: "OK",
+        app_name: config.app_name,
+        version: config.app_version,
+        company: config.company_name,
+    })
 }

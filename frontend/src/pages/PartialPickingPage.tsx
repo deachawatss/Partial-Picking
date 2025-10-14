@@ -12,11 +12,11 @@
  * WCAG 2.2 AA compliant
  */
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
-import { usePicking } from '@/contexts/PickingContext'
-import { useAuth } from '@/contexts/AuthContext'
+import { usePicking } from '@/hooks/use-picking'
+import { useAuth } from '@/hooks/use-auth'
 import { useWeightScale } from '@/hooks/useWeightScale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -58,7 +58,7 @@ export function PartialPickingPage() {
     selectLot,
     savePick,
     unpickItem,
-    completeRun,
+
     clearError,
   } = usePicking()
 
@@ -70,6 +70,7 @@ export function PartialPickingPage() {
   const [showBinModal, setShowBinModal] = useState(false)
   const [showViewLotsModal, setShowViewLotsModal] = useState(false)
   const [showKeyboard, setShowKeyboard] = useState(false)
+  const [keyboardKey, setKeyboardKey] = useState(0)  // Force remount on open
 
   // Dual scale WebSocket integration
   const [selectedScale, setSelectedScale] = useState<'small' | 'big'>('small')
@@ -120,32 +121,8 @@ export function PartialPickingPage() {
   const [isBinFieldActive, setIsBinFieldActive] = useState(false)
   const [isBinSearchButtonClicked, setIsBinSearchButtonClicked] = useState(false)
 
-  // Sync runInputValue with currentRun
-  useEffect(() => {
-    if (currentRun?.runNo) {
-      setRunInputValue(currentRun.runNo.toString())
-    } else {
-      setRunInputValue('')
-    }
-  }, [currentRun?.runNo])
-
-  // Sync lotInputValue with selectedLot
-  useEffect(() => {
-    if (selectedLot?.lotNo) {
-      setLotInputValue(selectedLot.lotNo)
-    } else {
-      setLotInputValue('')
-    }
-  }, [selectedLot?.lotNo])
-
-  // Sync binInputValue with selectedLot
-  useEffect(() => {
-    if (selectedLot?.binNo) {
-      setBinInputValue(selectedLot.binNo)
-    } else {
-      setBinInputValue('')
-    }
-  }, [selectedLot?.binNo])
+  // Note: Input values are synced manually in selection handlers (handleRunSelect, handleLotSelect, handleBinSelect)
+  // This avoids cascading renders from useEffect setState calls (React Hooks best practice)
 
   /**
    * Handle Run field click - clear for manual input/scanning
@@ -1098,6 +1075,7 @@ export function PartialPickingPage() {
                   onClick={() => {
                     setFrozenWeight(currentWeight)  // Freeze current weight
                     setIsManualEntryActive(true)
+                    setKeyboardKey(prev => prev + 1)  // Force remount with fresh state
                     setShowKeyboard(true)
                   }}
                   className={`h-12 rounded-lg border-2 font-body text-xl font-semibold tabular-nums tracking-tight transition-smooth cursor-pointer hover:border-accent-gold ${weightFieldClass}`}
@@ -1276,6 +1254,7 @@ export function PartialPickingPage() {
         itemKey={currentItem?.itemKey || null}
       />
       <NumericKeyboard
+        key={keyboardKey}  // Force remount with fresh state on each open
         open={showKeyboard}
         onOpenChange={(open) => {
           setShowKeyboard(open)

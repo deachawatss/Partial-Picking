@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { usePickedLots, usePendingItems } from '@/hooks/usePickedLotsQuery'
 import { useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '@/contexts/AuthContext'
-import type { PickedLotDTO } from '@/types/api'
+import { useAuth } from '@/hooks/use-auth'
 import { printLabels, type LabelData } from '@/utils/printLabel'
 
 interface ViewLotsModalProps {
@@ -11,7 +10,6 @@ interface ViewLotsModalProps {
   runNo: number | null
   onDelete?: (lotTranNo: number, rowNum: number, lineId: number) => void
   onDeleteAll?: () => void
-  onRePrint?: () => void
 }
 
 export function ViewLotsModal({
@@ -20,7 +18,6 @@ export function ViewLotsModal({
   runNo,
   onDelete,
   onDeleteAll,
-  onRePrint,
 }: ViewLotsModalProps) {
   const [activeTab, setActiveTab] = useState<'picked' | 'pending'>('picked')
   const [selectedLots, setSelectedLots] = useState<Set<number>>(new Set())

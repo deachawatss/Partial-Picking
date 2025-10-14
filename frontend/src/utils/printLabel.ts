@@ -38,7 +38,7 @@ export async function printLabel(label: LabelData): Promise<void> {
       }
 
       // Generate HTML with QR code
-      const html = generateLabelHTML(label, qrCodeData)
+      const html = generateLabelHTML(label)
       frameDoc.open()
       frameDoc.write(html)
       frameDoc.close()
@@ -94,7 +94,7 @@ export async function printLabels(labels: LabelData[]): Promise<void> {
  * Generate HTML label template with QR code placeholder
  * Format matches reference: Print-individual.png
  */
-function generateLabelHTML(label: LabelData, qrCodeData: string): string {
+function generateLabelHTML(label: LabelData): string {
   return `
 <!DOCTYPE html>
 <html>

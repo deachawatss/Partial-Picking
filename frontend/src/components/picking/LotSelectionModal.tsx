@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { useAvailableLots } from '@/hooks/useLotsQuery'
-import type { LotAvailabilityDTO } from '@/types/api'
 
 interface Lot {
   lotNo: string

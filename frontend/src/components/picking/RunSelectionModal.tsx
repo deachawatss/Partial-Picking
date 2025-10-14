@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useDeferredValue } from 'react'
+import { useState, useEffect, useDeferredValue, useRef, useTransition } from 'react'
 import { useRunsList, useRunDetails } from '@/hooks/useRunsQuery'
 import type { RunDetailsResponse, RunListItemDTO } from '@/types/api'
 
@@ -12,17 +12,27 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
   const [currentPage, setCurrentPage] = useState(0)
   const limit = 10
 
+  // React 19 useTransition for non-blocking pagination reset
+  const [, startTransition] = useTransition()
+
   // Search state with React 19 useDeferredValue for non-blocking updates
   const [searchInput, setSearchInput] = useState('')
   // Deferred value allows input to update immediately while filtering is lower priority
   const deferredSearch = useDeferredValue(searchInput)
 
-  // Reset to page 0 when search changes
+  // Track previous deferred search to reset pagination when it changes
+  const prevDeferredSearchRef = useRef(deferredSearch)
+
+  // Reset to page 0 when deferred search actually changes (not on every render)
   useEffect(() => {
-    if (searchInput !== deferredSearch && searchInput.trim() !== deferredSearch.trim()) {
-      setCurrentPage(0)
+    if (prevDeferredSearchRef.current !== deferredSearch) {
+      prevDeferredSearchRef.current = deferredSearch
+      // Use startTransition to avoid cascading renders
+      startTransition(() => {
+        setCurrentPage(0)
+      })
     }
-  }, [searchInput, deferredSearch])
+  }, [deferredSearch])
 
   // Use deferred search for filtering (non-blocking, lower priority)
   const searchParam = deferredSearch.trim() !== '' ? deferredSearch : undefined
@@ -37,29 +47,39 @@ export function RunSelectionModal({ open, onOpenChange, onSelect }: RunSelection
 
   // Fetch run details when a run is selected from list
   const [selectedRunNo, setSelectedRunNo] = useState<number | null>(null)
-  const { data: runDetails, isLoading: isLoadingDetails } = useRunDetails(selectedRunNo)
+  const { data: runDetails } = useRunDetails(selectedRunNo)
 
   const handleSelectRun = async (run: RunListItemDTO) => {
     // Fetch full run details from browsing list
     setSelectedRunNo(run.runNo)
   }
 
-  // When run details are loaded, call onSelect (useEffect to avoid setState during render)
+  // When run details are loaded, call onSelect and close modal
   useEffect(() => {
     if (runDetails && selectedRunNo) {
       onSelect(runDetails)
       onOpenChange(false)
-      setSelectedRunNo(null)
-      setSearchInput('')
-      setCurrentPage(0)
+      // Use startTransition to avoid cascading renders
+      startTransition(() => {
+        setSelectedRunNo(null)
+      })
     }
   }, [runDetails, selectedRunNo, onSelect, onOpenChange])
 
+  // Clean up search and pagination when modal closes
+  useEffect(() => {
+    if (!open) {
+      // Use startTransition to avoid cascading renders
+      startTransition(() => {
+        setSearchInput('')
+        setCurrentPage(0)
+      })
+    }
+  }, [open])
+
   const handleClose = () => {
     onOpenChange(false)
-    setSelectedRunNo(null)
-    setSearchInput('')
-    setCurrentPage(0)
+    // Note: State cleanup is handled by useEffect watching 'open'
   }
 
   const handlePreviousPage = () => {

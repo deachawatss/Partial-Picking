@@ -15,4 +15,4 @@ afterEach(() => {
 });
 
 // Mock WebSocket for tests
-global.WebSocket = vi.fn() as any;
+global.WebSocket = vi.fn() as unknown as typeof WebSocket;

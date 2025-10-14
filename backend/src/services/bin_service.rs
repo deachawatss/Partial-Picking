@@ -98,14 +98,11 @@ pub async fn get_bins(
 
     let mut query = Query::new(&sql);
 
-    // Bind parameters in order
-    param_count = 0;
+    // Bind parameters in order (Tiberius auto-numbers as @P1, @P2, @P3)
     if let Some(ref aisle) = aisle_filter {
-        param_count += 1;
         query.bind(aisle.as_str());
     }
     if let Some(ref row) = row_filter {
-        param_count += 1;
         query.bind(row.as_str());
     }
     if let Some(ref rack) = rack_filter {

@@ -1,10 +1,10 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useTransition } from 'react'
+import { createContext, useState, useEffect, useCallback, ReactNode, useTransition } from 'react'
 import { UserDTO } from '@/types/api'
 import { config } from '@/config'
 import { authApi } from '@/services/api/auth'
 import { getErrorMessage } from '@/services/api/client'
 
-interface AuthContextType {
+export interface AuthContextType {
   user: UserDTO | null
   token: string | null
   isAuthenticated: boolean
@@ -14,12 +14,14 @@ interface AuthContextType {
   refreshToken: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+// React Context must be exported for hook consumption (see hooks/use-auth.ts)
+// Fast Refresh architectural limitation: Context + Provider in same file is standard React pattern
+// eslint-disable-next-line react-refresh/only-export-components
+export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // Use config values instead of hardcoded constants
 const TOKEN_KEY = config.auth.tokenKey
 const USER_KEY = config.auth.userDataKey
-const JWT_DURATION_HOURS = config.auth.sessionTimeoutHours
 
 interface AuthProviderProps {
   children: ReactNode
@@ -31,7 +33,66 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true)
 
   // React 19: useTransition for non-blocking state updates
-  const [isPending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
+
+  /**
+   * Helper: Clear authentication storage
+   */
+  const clearAuthStorage = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(USER_KEY)
+  }, [])
+
+  /**
+   * Logout - Clear authentication state and redirect to login
+   */
+  const logout = useCallback(() => {
+    console.log('[Auth] Logging out user:', user?.username)
+
+    // Clear state (React 19 concurrent update)
+    startTransition(() => {
+      setToken(null)
+      setUser(null)
+    })
+
+    // Clear localStorage
+    clearAuthStorage()
+
+    // Redirect to login page
+    window.location.href = '/login'
+  }, [user, startTransition, clearAuthStorage])
+
+  /**
+   * Helper: Perform token refresh API call
+   */
+  const performTokenRefresh = useCallback(async (): Promise<void> => {
+    setIsLoading(true)
+    try {
+      console.log('[Auth] Refreshing token...')
+
+      // Call backend refresh API (uses old token in Authorization header)
+      const response = await authApi.refreshToken()
+
+      console.log('[Auth] Token refreshed successfully')
+
+      // Update token in localStorage
+      localStorage.setItem(TOKEN_KEY, response.token)
+
+      // Update state (React 19 concurrent update)
+      startTransition(() => {
+        setToken(response.token)
+      })
+    } catch (error) {
+      console.error('[Auth] Token refresh failed:', error)
+
+      // On refresh failure, logout user
+      logout()
+
+      throw new Error('Session expired. Please login again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [startTransition, logout])
 
   /**
    * Initialize authentication state on mount
@@ -63,7 +124,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             if (timeUntilExpiry < twentyFourHours) {
               console.log('[Auth] Token expiring soon, auto-refreshing...')
               try {
-                await performTokenRefresh(storedToken)
+                await performTokenRefresh()
               } catch (error) {
                 console.error('[Auth] Auto-refresh failed:', error)
                 // Don't logout on auto-refresh failure, token is still valid
@@ -84,7 +145,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     initializeAuth()
-  }, [])
+  }, [performTokenRefresh, clearAuthStorage])
 
   /**
    * Login with username and password
@@ -127,25 +188,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   /**
-   * Logout - Clear authentication state and redirect to login
-   */
-  const logout = () => {
-    console.log('[Auth] Logging out user:', user?.username)
-
-    // Clear state (React 19 concurrent update)
-    startTransition(() => {
-      setToken(null)
-      setUser(null)
-    })
-
-    // Clear localStorage
-    clearAuthStorage()
-
-    // Redirect to login page
-    window.location.href = '/login'
-  }
-
-  /**
    * Refresh JWT token before expiration
    */
   const refreshToken = async (): Promise<void> => {
@@ -154,47 +196,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       throw new Error('No token to refresh')
     }
 
-    await performTokenRefresh(currentToken)
-  }
-
-  /**
-   * Helper: Perform token refresh API call
-   */
-  const performTokenRefresh = async (oldToken: string): Promise<void> => {
-    setIsLoading(true)
-    try {
-      console.log('[Auth] Refreshing token...')
-
-      // Call backend refresh API (uses old token in Authorization header)
-      const response = await authApi.refreshToken()
-
-      console.log('[Auth] Token refreshed successfully')
-
-      // Update token in localStorage
-      localStorage.setItem(TOKEN_KEY, response.token)
-
-      // Update state (React 19 concurrent update)
-      startTransition(() => {
-        setToken(response.token)
-      })
-    } catch (error) {
-      console.error('[Auth] Token refresh failed:', error)
-
-      // On refresh failure, logout user
-      logout()
-
-      throw new Error('Session expired. Please login again.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  /**
-   * Helper: Clear authentication storage
-   */
-  const clearAuthStorage = () => {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
+    await performTokenRefresh()
   }
 
   const isAuthenticated = !!token && !!user
@@ -214,12 +216,4 @@ export function AuthProvider({ children }: AuthProviderProps) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth(): AuthContextType {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
 }

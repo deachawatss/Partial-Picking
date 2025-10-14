@@ -89,12 +89,41 @@ pub async fn validate_weight_tolerance(
     };
 
     // Check if weight is within tolerance
-    if weight < weight_range_low || weight > weight_range_high {
+    if weight < validation.weight_range_low || weight > validation.weight_range_high {
+        tracing::warn!(
+            item_key = %validation.item_key,
+            item_description = ?validation.item_description,
+            weight = %weight,
+            tolerance_kg = %validation.tolerance_kg,
+            range_low = %validation.weight_range_low,
+            range_high = %validation.weight_range_high,
+            unit = ?validation.unit,
+            "Weight validation failed - outside acceptable range"
+        );
         return Err(AppError::WeightOutOfTolerance {
             weight,
-            low: weight_range_low,
-            high: weight_range_high,
+            low: validation.weight_range_low,
+            high: validation.weight_range_high,
         });
+    }
+
+    // Log validation warnings if current_picked_weight already exists
+    if validation.current_picked_weight > 0.0 {
+        tracing::warn!(
+            item_key = %validation.item_key,
+            current_weight = %validation.current_picked_weight,
+            target_weight = %validation.target_weight,
+            "Item already has picked weight recorded"
+        );
+    }
+
+    // Log item batch status if set
+    if let Some(ref status) = validation.item_batch_status {
+        tracing::debug!(
+            item_key = %validation.item_key,
+            batch_status = %status,
+            "Item batch status check"
+        );
     }
 
     Ok(validation)
@@ -183,10 +212,31 @@ pub async fn validate_item_not_picked(
 
     // Check if item is already picked
     if status.is_picked {
+        tracing::error!(
+            item_key = %status.item_key,
+            run_no = %status.run_no,
+            row_num = %status.row_num,
+            line_id = %status.line_id,
+            actual_weight = %status.actual_weight,
+            target_weight = %status.target_weight,
+            picked_by = ?status.picked_by_workstation,
+            picking_date = ?status.picking_date,
+            "Attempted to pick already picked item"
+        );
         return Err(AppError::ItemAlreadyPicked(format!(
             "Item {} already picked for RunNo={}, RowNum={}, LineId={}",
-            item_key, run_no, row_num, line_id
+            status.item_key, status.run_no, status.row_num, status.line_id
         )));
+    }
+
+    // Log if item was previously unpicked
+    if status.was_unpicked {
+        tracing::info!(
+            item_key = %status.item_key,
+            run_no = %status.run_no,
+            batch_status = ?status.item_batch_status,
+            "Item was previously picked and unpicked - re-picking"
+        );
     }
 
     Ok(status)

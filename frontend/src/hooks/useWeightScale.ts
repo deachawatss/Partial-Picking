@@ -342,6 +342,10 @@ export function useWeightScale(
       setError('Failed to connect to bridge service')
       setOnline(false)
     }
+    // Intentional: connect is not in deps to prevent infinite recreation
+    // This function recursively calls itself for auto-reconnection (line 332)
+    // Removing this disable causes: "Cannot access variable before it is declared"
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scaleType, autoReconnect, maxReconnectAttempts, getReconnectDelay, log])
 
   /**

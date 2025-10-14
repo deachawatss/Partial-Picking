@@ -36,15 +36,6 @@ const progressFillByState: Record<string, string> = {
   over: 'bg-gradient-to-r from-danger/90 via-danger to-danger/80',
 }
 
-const statusBadgeByState: Record<string, string> = {
-  offline: 'bg-text-primary/10 text-text-primary/60 border border-text-primary/10',
-  idle: 'bg-text-primary/5 text-text-primary',
-  under: 'bg-orange-600/15 text-orange-700',
-  approaching: 'bg-accent-gold/15 text-accent-gold',
-  good: 'bg-accent-green/15 text-accent-green',
-  over: 'bg-danger/15 text-danger',
-}
-
 const containerAccentByState: Record<string, string> = {
   offline: 'border-border-main shadow-soft',
   idle: 'border-border-main shadow-soft',
@@ -71,7 +62,6 @@ export const WeightProgressBar = memo(function WeightProgressBar({
   selectedScale,
   onScaleChange,
   scaleStatuses,
-  workstationLabel: _workstationLabel,
 }: WeightProgressBarProps) {
   const safeWeight = Number.isFinite(weight) ? weight : 0
   const safeWeightLow = weightRangeLow > 0 ? weightRangeLow : 0
@@ -135,8 +125,6 @@ export const WeightProgressBar = memo(function WeightProgressBar({
     weightState = 'good'
   }
 
-  const isInRange = weightState === 'good'
-
   const statusMessage = (() => {
     if (!online) return 'Scale Offline'
     if (safeWeight === 0) return 'Place item on scale'
@@ -147,34 +135,6 @@ export const WeightProgressBar = memo(function WeightProgressBar({
 
   const containerClass = containerAccentByState[weightState] ?? containerAccentByState.idle
   const fillClass = progressFillByState[weightState] ?? progressFillByState.idle
-
-  // Tolerance zone colors based on state
-  const getToleranceColors = () => {
-    // Gray/neutral when offline or no weight
-    if (!online || safeWeight === 0) {
-      return {
-        border: '#9ca3af', // gray-400
-        background: 'rgba(156, 163, 175, 0.15)', // gray-400 with low opacity
-        glow: '0 0 8px rgba(156, 163, 175, 0.3), inset 0 0 6px rgba(156, 163, 175, 0.1)',
-      }
-    }
-    // Green when in range
-    if (isInRange) {
-      return {
-        border: '#4ade80', // green-400
-        background: 'rgba(74, 222, 128, 0.25)',
-        glow: '0 0 20px rgba(74, 222, 128, 0.6), inset 0 0 15px rgba(74, 222, 128, 0.3)',
-      }
-    }
-    // Amber/red when out of range
-    return {
-      border: '#fbbf24', // amber-400
-      background: 'rgba(251, 191, 36, 0.25)',
-      glow: '0 0 20px rgba(251, 191, 36, 0.6), inset 0 0 15px rgba(251, 191, 36, 0.3)',
-    }
-  }
-
-  const toleranceColors = getToleranceColors()
 
   const renderScaleButton = (scale: ScaleKey, label: string) => {
     const isActive = selectedScale === scale

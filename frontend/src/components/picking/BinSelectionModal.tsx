@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { useBinsForLot } from '@/hooks/useBinsQuery'
-import type { BinLotInventoryDTO } from '@/types/api'
 
 interface Bin {
   binNo: string

@@ -17,7 +17,7 @@ import path from 'path'
  */
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     visualizer({
@@ -63,7 +63,11 @@ export default defineConfig({
       // Workbox Configuration
       workbox: {
         // Precache patterns (app shell + static assets)
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webp}'],
+        // In dev mode, only precache the service worker itself to avoid warnings
+        // In production, precache all app shell assets
+        globPatterns: mode === 'production'
+          ? ['**/*.{js,css,html,ico,png,svg,woff2,webp}']
+          : ['**/*.{js,html}'], // Minimal pattern for dev mode
 
         // Navigation preload for faster first loads
         navigationPreload: true,
@@ -227,4 +231,4 @@ export default defineConfig({
     ],
     exclude: ['@vite/client', '@vite/env']
   }
-})
+}))

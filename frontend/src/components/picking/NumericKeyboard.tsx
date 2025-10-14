@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 interface NumericKeyboardProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: (weight: number) => void
-  currentValue?: number
   minValue: number // WeightRangeLow
   maxValue: number // WeightRangeHigh
 }
@@ -13,20 +12,14 @@ export function NumericKeyboard({
   open,
   onOpenChange,
   onConfirm,
-  currentValue,
   minValue,
   maxValue,
 }: NumericKeyboardProps) {
   const [inputValue, setInputValue] = useState('')
   const [validationError, setValidationError] = useState<string | null>(null)
 
-  // Initialize input value when modal opens - always start blank
-  useEffect(() => {
-    if (open) {
-      setInputValue('')  // Always clear for easy manual entry
-      setValidationError(null)
-    }
-  }, [open])
+  // Note: State reset is handled via key prop in parent component
+  // No useEffect needed - fresh state on each mount
 
   const handleNumberClick = (num: string) => {
     setValidationError(null)

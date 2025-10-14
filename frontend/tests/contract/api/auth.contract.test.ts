@@ -28,7 +28,7 @@ describe('POST /api/auth/login - LDAP', () => {
     // Arrange: Mock successful LDAP authentication
     server.use(
       http.post('http://localhost:7075/api/auth/login', async ({ request }) => {
-        const body = await request.json() as any;
+        const body = await request.json() as { username: string; password: string };
 
         if (body.username === 'dechawat' && body.password === 'TestPassword123') {
           return HttpResponse.json<LoginResponse>({
@@ -137,7 +137,7 @@ describe('POST /api/auth/login - SQL', () => {
     // Arrange: Mock SQL authentication
     server.use(
       http.post('http://localhost:7075/api/auth/login', async ({ request }) => {
-        const body = await request.json() as any;
+        const body = await request.json() as { username: string; password: string };
 
         if (body.username === 'warehouse_user' && body.password === 'SqlPassword456') {
           return HttpResponse.json<LoginResponse>({

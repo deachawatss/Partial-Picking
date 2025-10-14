@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { useBatchItems, useAllRunItems } from '@/hooks/useItemsQuery'
-import type { BatchItemDTO } from '@/types/api'
 
 interface PickItem {
   lineId: number
@@ -80,11 +79,6 @@ export function ItemSelectionModal({
     onOpenChange(false)
   }
 
-  const getStatusClass = (status: string) => {
-    if (status === 'picked') return 'modal-status-completed'
-    if (status === 'error') return 'modal-status-default'
-    return 'modal-status-new'
-  }
 
   if (!open) return null
 

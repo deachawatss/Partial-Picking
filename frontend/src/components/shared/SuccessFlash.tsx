@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 
 interface SuccessFlashProps {
@@ -38,14 +38,10 @@ export function SuccessFlash({
   duration = 2000,
   onComplete
 }: SuccessFlashProps) {
-  const [isVisible, setIsVisible] = useState(false)
-
+  // Auto-dismiss timer - parent controls visibility via show prop
   useEffect(() => {
     if (show) {
-      setIsVisible(true)
-
       const timer = setTimeout(() => {
-        setIsVisible(false)
         onComplete?.()
       }, duration)
 
@@ -53,7 +49,7 @@ export function SuccessFlash({
     }
   }, [show, duration, onComplete])
 
-  if (!isVisible) return null
+  if (!show) return null
 
   return (
     <div

@@ -4,7 +4,6 @@ use std::env;
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     // Server configuration
-    pub server_host: String,
     pub server_port: u16,
     pub cors_allowed_origins: Vec<String>,
 
@@ -22,7 +21,6 @@ pub struct Config {
     pub ldap_url: String,
     pub ldap_base_dn: String,
     pub ldap_domain: String,
-    pub ldap_enabled: bool,
     pub ldap_timeout_secs: u64,
 
     // JWT configuration
@@ -42,9 +40,6 @@ pub struct Config {
     pub app_name: String,
     pub app_version: String,
     pub company_name: String,
-
-    // Workstation configuration
-    pub workstation_id: Option<String>,
 }
 
 impl Config {
@@ -54,7 +49,6 @@ impl Config {
 
         Ok(Self {
             // Server configuration
-            server_host: env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string()),
             server_port: env::var("SERVER_PORT")
                 .unwrap_or_else(|_| "7075".to_string())
                 .parse()
@@ -92,10 +86,6 @@ impl Config {
             ldap_base_dn: env::var("LDAP_BASE_DN")
                 .unwrap_or_else(|_| "DC=NWFTH,DC=com".to_string()),
             ldap_domain: env::var("LDAP_DOMAIN").unwrap_or_else(|_| "NWFTH.com".to_string()),
-            ldap_enabled: env::var("LDAP_ENABLED")
-                .unwrap_or_else(|_| "true".to_string())
-                .parse()
-                .unwrap_or(true),
             ldap_timeout_secs: env::var("LDAP_TIMEOUT_SECS")
                 .unwrap_or_else(|_| "5".to_string())
                 .parse()
@@ -132,9 +122,6 @@ impl Config {
             app_version: env::var("APP_VERSION").unwrap_or_else(|_| "1.0.0".to_string()),
             company_name: env::var("COMPANY_NAME")
                 .unwrap_or_else(|_| "Newly Weds Foods Thailand".to_string()),
-
-            // Workstation configuration
-            workstation_id: env::var("WORKSTATION_ID").ok(),
         })
     }
 

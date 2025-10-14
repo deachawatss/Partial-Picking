@@ -146,7 +146,6 @@ mod tests {
 
     fn create_test_config() -> Config {
         Config {
-            server_host: "localhost".to_string(),
             server_port: 7075,
             cors_allowed_origins: vec![],
             database_server: "localhost".to_string(),
@@ -160,7 +159,6 @@ mod tests {
             ldap_url: "ldap://localhost".to_string(),
             ldap_base_dn: "DC=test,DC=com".to_string(),
             ldap_domain: "test.com".to_string(),
-            ldap_enabled: true,
             ldap_timeout_secs: 5,
             jwt_secret: "test-secret-key".to_string(),
             jwt_duration_hours: 168,
@@ -172,7 +170,6 @@ mod tests {
             app_name: "Test".to_string(),
             app_version: "1.0.0".to_string(),
             company_name: "Test".to_string(),
-            workstation_id: None,
         }
     }
 

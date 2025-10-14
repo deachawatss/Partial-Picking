@@ -1,6 +1,6 @@
-import { useState, useEffect, useTransition, FormEvent, useRef } from 'react'
+import { useState, useEffect, useTransition, FormEvent, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -36,27 +36,7 @@ export function LoginPage() {
     }
   }, [isAuthenticated, navigate])
 
-  // Test backend connection on mount
-  useEffect(() => {
-    // Initial connection test
-    testConnection()
-
-    // Auto-focus username field
-    const usernameField = document.getElementById('username')
-    if (usernameField) {
-      usernameField.focus()
-    }
-
-    // Cleanup interval on unmount
-    return () => {
-      if (retryIntervalRef.current) {
-        clearInterval(retryIntervalRef.current)
-        retryIntervalRef.current = null
-      }
-    }
-  }, [])
-
-  const testConnection = async () => {
+  const testConnection = useCallback(async () => {
     setConnectionStatus('unknown')
 
     try {
@@ -83,7 +63,7 @@ export function LoginPage() {
       } else {
         throw new Error('Backend health check failed')
       }
-    } catch (error) {
+    } catch {
       startTransition(() => {
         setConnectionStatus('disconnected')
         setLoginError(
@@ -98,7 +78,27 @@ export function LoginPage() {
         }, 30000)
       }
     }
-  }
+  }, [startTransition])
+
+  // Test backend connection on mount
+  useEffect(() => {
+    // Initial connection test
+    testConnection()
+
+    // Auto-focus username field
+    const usernameField = document.getElementById('username')
+    if (usernameField) {
+      usernameField.focus()
+    }
+
+    // Cleanup interval on unmount
+    return () => {
+      if (retryIntervalRef.current) {
+        clearInterval(retryIntervalRef.current)
+        retryIntervalRef.current = null
+      }
+    }
+  }, [testConnection])
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -119,8 +119,7 @@ export function LoginPage() {
       console.log('[LoginPage] Login successful, redirecting to /picking')
     } catch (error) {
       // Extract error message (already user-friendly from AuthContext)
-      const errorMessage =
-        error instanceof Error ? error.message : 'Login failed. Please try again.'
+      const errorMessage = error instanceof Error ? error.message : 'Login failed. Please try again.'
 
       // React 19: Non-blocking error state update
       startTransition(() => {

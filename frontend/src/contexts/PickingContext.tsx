@@ -12,13 +12,13 @@
  * Integrates with specs/001-i-have-an/contracts/openapi.yaml endpoints
  */
 
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useState, ReactNode } from 'react'
 import { runsApi, pickingApi, lotsApi } from '@/services/api'
 import { getErrorMessage } from '@/services/api/client'
 import { RunDetailsResponse, BatchItemDTO, LotAvailabilityDTO, PickRequest } from '@/types/api'
 
 // Context state types
-interface PickingContextType {
+export interface PickingContextType {
   // Current selections
   currentRun: RunDetailsResponse | null
   currentBatchRowNum: number | null
@@ -48,7 +48,10 @@ interface PickingContextType {
   clearError: () => void
 }
 
-const PickingContext = createContext<PickingContextType | undefined>(undefined)
+// React Context must be exported for hook consumption (see hooks/use-picking.ts)
+// Fast Refresh architectural limitation: Context + Provider in same file is standard React pattern
+// eslint-disable-next-line react-refresh/only-export-components
+export const PickingContext = createContext<PickingContextType | undefined>(undefined)
 
 interface PickingProviderProps {
   children: ReactNode
@@ -594,12 +597,4 @@ export function PickingProvider({ children }: PickingProviderProps) {
       {children}
     </PickingContext.Provider>
   )
-}
-
-export function usePicking(): PickingContextType {
-  const context = useContext(PickingContext)
-  if (context === undefined) {
-    throw new Error('usePicking must be used within a PickingProvider')
-  }
-  return context
 }

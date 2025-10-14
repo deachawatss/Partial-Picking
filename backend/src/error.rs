@@ -44,19 +44,9 @@ pub enum AppError {
     #[error("Run not complete: {0}")]
     RunNotComplete(String),
 
-    #[error("Insufficient quantity available")]
-    InsufficientQuantity,
-
-    // Hardware errors (500)
-    #[error("Scale communication error: {0}")]
-    ScaleError(String),
-
     // Generic errors
     #[error("Internal server error: {0}")]
     InternalError(String),
-
-    #[error("Bad request: {0}")]
-    BadRequest(String),
 }
 
 /// Error response structure matching OpenAPI spec
@@ -144,18 +134,6 @@ impl AppError {
                 "BUSINESS_RUN_NOT_COMPLETE".to_string(),
                 None,
             ),
-            AppError::InsufficientQuantity => (
-                StatusCode::BAD_REQUEST,
-                "BUSINESS_INSUFFICIENT_QUANTITY".to_string(),
-                None,
-            ),
-
-            // Hardware errors (500)
-            AppError::ScaleError(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "HARDWARE_SCALE_ERROR".to_string(),
-                None,
-            ),
 
             // Generic errors
             AppError::InternalError(_) => (
@@ -163,7 +141,6 @@ impl AppError {
                 "INTERNAL_ERROR".to_string(),
                 None,
             ),
-            AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, "BAD_REQUEST".to_string(), None),
         }
     }
 }

@@ -48,8 +48,6 @@ test.describe('Dual Scale Switching - Independent State Management', () => {
     expect(latency).toBeLessThan(200);
 
     // Verify progress bar visible
-    const progressBar = page.locator('[role="progressbar"], [class*="progress"]').first();
-    const hasProgress = await progressBar.isVisible({ timeout: 3000 }).catch(() => false);
   });
 
   test('T089.2: Big scale weight updates independently', async ({ page }) => {
@@ -126,7 +124,7 @@ test.describe('Dual Scale Switching - Independent State Management', () => {
 });
 
 // Helper function to test scale latency
-async function testScaleLatency(page: any, scaleType: 'small' | 'big'): Promise<number> {
+async function testScaleLatency(page: unknown, scaleType: 'small' | 'big'): Promise<number> {
   const scaleButton = page.locator(`button:has-text("${scaleType}")`).first();
   if (await scaleButton.isVisible({ timeout: 2000 }).catch(() => false)) {
     await scaleButton.click();
