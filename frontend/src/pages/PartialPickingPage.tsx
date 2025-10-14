@@ -38,7 +38,7 @@ import { getErrorMessage } from '@/services/api/client'
 export function PartialPickingPage() {
   // Navigation and auth
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
 
   // Picking context with real API integration
   const {
@@ -483,7 +483,22 @@ export function PartialPickingPage() {
       })
 
       await savePick(currentWeight, weightSource)
-      setSuccessMessage('Pick saved successfully!')
+
+      // Auto-print individual label after successful pick
+      if (currentItem && selectedLot) {
+        const now = new Date()
+        printLabels([{
+          itemKey: currentItem.itemKey,
+          qtyReceived: currentWeight,
+          batchNo: currentItem.batchNo,
+          lotNo: selectedLot.lotNo,
+          picker: user?.username || 'UNKNOWN',
+          date: now.toLocaleDateString('en-GB'), // DD/MM/YYYY
+          time: now.toLocaleTimeString('en-US'), // HH:MM:SSAM/PM
+        }])
+      }
+
+      setSuccessMessage('Pick saved and label printed!')
       setTimeout(() => setSuccessMessage(null), 3000)
       setManualWeight(null)
     } catch (error) {

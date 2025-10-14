@@ -1,3 +1,4 @@
+import React from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
 import { createRoot } from 'react-dom/client'
 
@@ -49,12 +50,11 @@ export async function printLabel(label: LabelData): Promise<void> {
           // Render QR code using React
           const root = createRoot(qrContainer)
           root.render(
-            QRCodeCanvas({
+            React.createElement(QRCodeCanvas, {
               value: qrCodeData,
               size: 150,
               level: 'M', // Medium error correction (15% recovery)
               marginSize: 4, // Quiet zone
-              imageSettings: undefined,
             })
           )
 
@@ -92,6 +92,7 @@ export async function printLabels(labels: LabelData[]): Promise<void> {
 
 /**
  * Generate HTML label template with QR code placeholder
+ * Format matches reference: Print-individual.png
  */
 function generateLabelHTML(label: LabelData, qrCodeData: string): string {
   return `
@@ -123,66 +124,60 @@ function generateLabelHTML(label: LabelData, qrCodeData: string): string {
       width: 4in;
       height: 4in;
       font-family: Arial, sans-serif;
-      padding: 0.3in;
+      padding: 0.25in;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       background: white;
     }
 
-    .label-header {
-      text-align: center;
-      font-size: 14px;
-      font-weight: bold;
-      border-bottom: 2px solid #333;
-      padding-bottom: 8px;
-      margin-bottom: 12px;
-    }
-
     .label-content {
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-    }
-
-    .field-row {
-      display: flex;
-      align-items: baseline;
-      font-size: 11px;
-    }
-
-    .field-label {
-      font-weight: bold;
-      min-width: 60px;
-    }
-
-    .field-value {
-      flex: 1;
+      align-items: center;
+      gap: 6px;
     }
 
     .item-key {
-      font-size: 24px;
+      font-size: 32px;
       font-weight: bold;
       text-align: center;
-      margin-bottom: 8px;
+      margin-top: 8px;
     }
 
     .qty-display {
       font-size: 28px;
       font-weight: bold;
       text-align: center;
-      color: #2563eb;
-      margin-bottom: 12px;
+      margin-bottom: 4px;
+    }
+
+    .batch-no {
+      font-size: 32px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .lot-no {
+      font-size: 16px;
+      text-align: left;
+      margin-bottom: 4px;
+      width: 100%;
+    }
+
+    .picker-datetime {
+      font-size: 11px;
+      text-align: left;
+      margin-bottom: 8px;
+      width: 100%;
     }
 
     .qr-code-section {
       display: flex;
       justify-content: center;
       align-items: center;
-      margin: 12px 0;
-      padding: 8px;
-      border: 1px dashed #999;
+      margin: 8px 0;
     }
 
     #qr-code-container {
@@ -190,60 +185,21 @@ function generateLabelHTML(label: LabelData, qrCodeData: string): string {
       justify-content: center;
       align-items: center;
     }
-
-    .batch-no {
-      color: #2563eb;
-      font-weight: bold;
-    }
-
-    .footer {
-      font-size: 10px;
-      color: #666;
-      text-align: center;
-      border-top: 1px solid #ddd;
-      padding-top: 6px;
-    }
   </style>
 </head>
 <body>
-  <div class="label-header">
-    PARTIAL PICK LABEL
-  </div>
-
   <div class="label-content">
     <div class="item-key">${label.itemKey}</div>
-
     <div class="qty-display">${label.qtyReceived.toFixed(2)} KG</div>
-
-    <div class="field-row">
-      <span class="field-label">Batch No:</span>
-      <span class="field-value batch-no">${label.batchNo}</span>
-    </div>
-
-    <div class="field-row">
-      <span class="field-label">Lot No:</span>
-      <span class="field-value">${label.lotNo}</span>
-    </div>
-
-    <div class="field-row">
-      <span class="field-label">Picker:</span>
-      <span class="field-value">${label.picker}</span>
-    </div>
-
-    <div class="field-row">
-      <span class="field-label">Date:</span>
-      <span class="field-value">${label.date} ${label.time}</span>
-    </div>
+    <div class="batch-no">${label.batchNo}</div>
+    <div class="lot-no">${label.lotNo}</div>
+    <div class="picker-datetime">${label.picker} ${label.date} ${label.time}</div>
 
     <div class="qr-code-section">
       <div id="qr-code-container">
         <!-- QR Code will be rendered here by React -->
       </div>
     </div>
-  </div>
-
-  <div class="footer">
-    QR Data: ${qrCodeData}
   </div>
 </body>
 </html>

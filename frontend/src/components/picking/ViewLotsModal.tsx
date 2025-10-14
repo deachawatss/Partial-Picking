@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { usePickedLots, usePendingItems } from '@/hooks/usePickedLotsQuery'
 import { useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '@/contexts/AuthContext'
 import type { PickedLotDTO } from '@/types/api'
+import { printLabels, type LabelData } from '@/utils/printLabel'
 
 interface ViewLotsModalProps {
   open: boolean
@@ -24,6 +26,7 @@ export function ViewLotsModal({
   const [selectedLots, setSelectedLots] = useState<Set<number>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   const { data, isLoading, error, refetch } = usePickedLots(runNo, {
     enabled: open && !!runNo,
@@ -115,9 +118,25 @@ export function ViewLotsModal({
   }
 
   const handleRePrint = () => {
-    if (onRePrint) {
-      onRePrint()
-    }
+    if (!data || selectedLots.size === 0) return
+
+    // Filter picked lots to only selected ones
+    const selectedPickedLots = data.pickedLots.filter((lot) => selectedLots.has(lot.lotTranNo))
+
+    // Map to LabelData format for printing
+    const now = new Date()
+    const labelData: LabelData[] = selectedPickedLots.map((lot) => ({
+      itemKey: lot.itemKey,
+      qtyReceived: lot.qtyReceived,
+      batchNo: lot.batchNo,
+      lotNo: lot.lotNo,
+      picker: user?.username || 'UNKNOWN', // Use current logged-in user
+      date: now.toLocaleDateString('en-GB'), // DD/MM/YYYY
+      time: now.toLocaleTimeString('en-US'), // HH:MM:SSAM/PM
+    }))
+
+    // Print individual labels for selected lots
+    printLabels(labelData)
   }
 
   if (!open) return null
@@ -321,6 +340,7 @@ export function ViewLotsModal({
             <button
               type="button"
               onClick={handleRePrint}
+              disabled={selectedLots.size === 0}
               className="modal-btn-secondary"
             >
               🖨️ Re-Print
