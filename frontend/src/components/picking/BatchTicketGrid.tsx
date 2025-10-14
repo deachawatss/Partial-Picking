@@ -27,6 +27,7 @@ interface BatchItemRowProps {
   item: BatchTicketItem
   onItemClick?: (item: BatchTicketItem) => void
   selectedRowKey?: string | null
+  filter?: 'pending' | 'picked'
 }
 
 const formatQty = (value: number) => value.toFixed(3)
@@ -42,23 +43,35 @@ const formatQty = (value: number) => value.toFixed(3)
  * Only re-renders when item data or selection state changes
  * Expected gain: 20-30% reduction in render time
  */
-const BatchItemRow = memo(({ item, onItemClick, selectedRowKey }: BatchItemRowProps) => {
+const BatchItemRow = memo(({ item, onItemClick, selectedRowKey, filter }: BatchItemRowProps) => {
   const isPicked = item.status === 'picked'
   const rowKey = `${item.itemKey}-${item.batchNo}`
   const isSelected = selectedRowKey === rowKey
+  const isPickedTab = filter === 'picked'
+
   const rowHighlight = isSelected
     ? 'bg-accent-gold/15 border-l-4 border-l-accent-gold text-text-primary'
     : isPicked
       ? 'bg-accent-green/5 text-text-primary'
       : 'bg-white text-text-primary'
-  const clickable = onItemClick
+
+  // Only allow clicking in Pending tab (not in Picked tab)
+  const clickable = onItemClick && !isPickedTab
     ? 'cursor-pointer hover:bg-bg-main hover:shadow-soft transition-all duration-200 btn-scale-hover'
-    : ''
+    : isPickedTab
+      ? 'cursor-not-allowed opacity-80'
+      : ''
+
+  const handleClick = () => {
+    // Prevent clicking rows in PICKED tab
+    if (isPickedTab) return
+    onItemClick?.(item)
+  }
 
   return (
     <tr
       key={`${item.lineId}-${item.itemKey}`}
-      onClick={() => onItemClick?.(item)}
+      onClick={handleClick}
       className={`border-b border-border-main ${rowHighlight} ${clickable}`}
     >
       <td className="w-[15%] border-r border-border-main px-4 py-3 text-center">
@@ -103,7 +116,7 @@ const BatchItemRow = memo(({ item, onItemClick, selectedRowKey }: BatchItemRowPr
   )
 }, (prevProps, nextProps) => {
   // Custom comparison function - return true to skip re-render
-  // Only re-render if item data or selection state actually changed
+  // Only re-render if item data, selection state, or filter actually changed
   return (
     prevProps.item.lineId === nextProps.item.lineId &&
     prevProps.item.itemKey === nextProps.item.itemKey &&
@@ -113,7 +126,8 @@ const BatchItemRow = memo(({ item, onItemClick, selectedRowKey }: BatchItemRowPr
     prevProps.item.balance === nextProps.item.balance &&
     prevProps.item.status === nextProps.item.status &&
     prevProps.item.allergens === nextProps.item.allergens &&
-    prevProps.selectedRowKey === nextProps.selectedRowKey
+    prevProps.selectedRowKey === nextProps.selectedRowKey &&
+    prevProps.filter === nextProps.filter
   )
 })
 
@@ -230,6 +244,7 @@ export function BatchTicketGrid({
                   item={item}
                   onItemClick={onItemClick}
                   selectedRowKey={selectedRowKey}
+                  filter={filter}
                 />
               ))
             )}

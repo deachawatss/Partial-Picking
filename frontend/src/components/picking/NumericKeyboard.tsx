@@ -58,11 +58,6 @@ export function NumericKeyboard({
     setValidationError(null)
   }
 
-  const handleBackspace = () => {
-    setInputValue(inputValue.slice(0, -1))
-    setValidationError(null)
-  }
-
   const handleDelete = () => {
     setInputValue(inputValue.slice(0, -1))
     setValidationError(null)
@@ -104,15 +99,15 @@ export function NumericKeyboard({
   if (!open) return null
 
   const numberButtonClass =
-    'flex h-16 items-center justify-center rounded-lg bg-gradient-to-br from-[#FFFFFF] to-[#F5F3EF] text-2xl font-bold text-text-primary shadow-button transition-smooth hover:shadow-[0_6px_12px_rgba(0,0,0,0.15)] active:scale-95 active:shadow-[0_2px_6px_rgba(0,0,0,0.1)] border-2 border-border-main'
+    'flex h-20 items-center justify-center rounded-lg bg-gradient-to-br from-[#FFFFFF] to-[#F5F3EF] text-3xl font-bold text-text-primary shadow-button transition-smooth hover:shadow-[0_6px_12px_rgba(0,0,0,0.15)] active:scale-95 active:shadow-[0_2px_6px_rgba(0,0,0,0.1)] border-2 border-border-main'
 
   const actionButtonClass =
-    'flex h-16 items-center justify-center rounded-lg bg-gradient-to-br text-base font-semibold uppercase tracking-wide shadow-button transition-smooth hover:shadow-[0_6px_12px_rgba(0,0,0,0.15)] active:scale-95 active:shadow-[0_2px_6px_rgba(0,0,0,0.1)] border-2'
+    'flex h-20 items-center justify-center rounded-lg bg-gradient-to-br text-lg font-semibold uppercase tracking-wide shadow-button transition-smooth hover:shadow-[0_6px_12px_rgba(0,0,0,0.15)] active:scale-95 active:shadow-[0_2px_6px_rgba(0,0,0,0.1)] border-2'
 
   return (
     <div className="modal-overlay" onClick={handleCancel}>
       <div
-        className="modal-dialog w-full max-w-md"
+        className="modal-dialog w-full max-w-lg"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyPress}
       >
@@ -168,7 +163,7 @@ export function NumericKeyboard({
           </div>
 
           {/* Numeric Keyboard Grid */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-3">
             {/* Row 1: 7 8 9 CLEAR */}
             <button
               type="button"
@@ -199,7 +194,7 @@ export function NumericKeyboard({
               Clear
             </button>
 
-            {/* Row 2: 4 5 6 ← */}
+            {/* Row 2: 4 5 6 DEL */}
             <button
               type="button"
               onClick={() => handleNumberClick('4')}
@@ -223,10 +218,10 @@ export function NumericKeyboard({
             </button>
             <button
               type="button"
-              onClick={handleBackspace}
-              className={`${actionButtonClass} from-[#E0E0E0] to-[#BDBDBD] text-text-primary border-border-main`}
+              onClick={handleDelete}
+              className={`${actionButtonClass} from-[#FFE5E5] to-[#FFCCCC] text-danger border-danger/30`}
             >
-              ←
+              Del
             </button>
 
             {/* Row 3: 1 2 3 ENTER (spans 2 rows) */}
@@ -261,7 +256,7 @@ export function NumericKeyboard({
               (OK)
             </button>
 
-            {/* Row 4: 0 . DEL */}
+            {/* Row 4: 0 . (spans 2 columns) */}
             <button
               type="button"
               onClick={() => handleNumberClick('0')}
@@ -272,16 +267,9 @@ export function NumericKeyboard({
             <button
               type="button"
               onClick={() => handleNumberClick('.')}
-              className={numberButtonClass}
+              className={`${numberButtonClass} col-span-2`}
             >
               .
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              className={`${actionButtonClass} from-[#FFE5E5] to-[#FFCCCC] text-danger border-danger/30`}
-            >
-              Del
             </button>
           </div>
         </div>

@@ -668,6 +668,7 @@ export function PartialPickingPage() {
   /**
    * Handle Item selection from modal or grid click
    * Now accepts both itemKey and batchNo to select specific row
+   * Always switches to "Pending to Picked" tab when selecting an item
    */
   const handleItemSelect = async (itemKey: string, batchNo?: string) => {
     // DEFENSIVE LOGGING: Verify parameters received from grid click
@@ -677,6 +678,10 @@ export function PartialPickingPage() {
       batchNoType: typeof batchNo,
       batchNoIsTruthy: !!batchNo,
     })
+
+    // Always switch to "Pending to Picked" tab when selecting an item
+    // This ensures users can see and pick the selected item
+    setGridFilter('pending')
 
     setShowItemModal(false)
     clearError()

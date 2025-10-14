@@ -31,19 +31,21 @@ export function ItemSelectionModal({
     enabled: open && !!runNo && !!batchNo
   })
 
-  // Map BatchItemDTO to PickItem
+  // Map BatchItemDTO to PickItem - Filter to only show unpicked items
   const items = useMemo<PickItem[]>(() => {
     if (!batchItems) return []
 
-    return batchItems.map((item, index) => ({
-      lineId: index + 1, // Generate lineId from index
-      itemKey: item.itemKey,
-      description: item.description,
-      targetQty: item.totalNeeded,
-      pickedQty: item.pickedQty,
-      balance: item.remainingQty,
-      status: item.status === 'Allocated' ? 'picked' : 'unpicked',
-    }))
+    return batchItems
+      .filter((item) => item.status !== 'Allocated') // Only show unpicked items
+      .map((item, index) => ({
+        lineId: index + 1, // Generate lineId from index
+        itemKey: item.itemKey,
+        description: item.description,
+        targetQty: item.totalNeeded,
+        pickedQty: item.pickedQty,
+        balance: item.remainingQty,
+        status: 'unpicked', // All items shown are unpicked
+      }))
   }, [batchItems])
 
   const handleSelect = (item: PickItem) => {
@@ -109,10 +111,10 @@ export function ItemSelectionModal({
           {!isLoading && !error && items.length === 0 && (
             <div className="modal-empty-state">
               <div className="modal-empty-icon">📋</div>
-              <p className="modal-empty-text">No items found</p>
+              <p className="modal-empty-text">No unpicked items</p>
               <p className="modal-empty-hint">
                 {runNo && batchNo
-                  ? `Batch ${batchNo} has no items`
+                  ? `All items in batch ${batchNo} have been picked`
                   : 'Please select a run and batch first'}
               </p>
             </div>
@@ -156,7 +158,7 @@ export function ItemSelectionModal({
           <div className="modal-footer">
             <div className="modal-footer-left">
               <p className="modal-footer-info">
-                Showing {items.length} item{items.length !== 1 ? 's' : ''}
+                Showing {items.length} unpicked item{items.length !== 1 ? 's' : ''}
               </p>
             </div>
 
