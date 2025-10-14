@@ -520,6 +520,18 @@ export function PartialPickingPage() {
       return
     }
 
+    // VALIDATION: Ensure display values match business logic values
+    // Prevents accidental picks when user typed but didn't press Enter
+    if (lotInputValue.trim() !== selectedLot.lotNo) {
+      alert('Lot number has been modified. Please press Enter to validate the new lot or click the Search button.')
+      return
+    }
+
+    if (binInputValue.trim() !== selectedLot.binNo) {
+      alert('Bin number has been modified. Please press Enter to validate the new bin or click the Search button.')
+      return
+    }
+
     // Execute pick directly (same as SAVE button)
     await handleSavePick()
   }
@@ -784,6 +796,20 @@ export function PartialPickingPage() {
     currentScale.weight >= weightRangeLow &&
     currentScale.weight <= weightRangeHigh
 
+  // Validation: Check if display values match business logic values
+  // Prevents accidental picks when user typed but didn't press Enter
+  const lotMatchesSelection = !selectedLot || lotInputValue.trim() === selectedLot.lotNo
+  const binMatchesSelection = !selectedLot || binInputValue.trim() === selectedLot.binNo
+
+  // Visual indicators for validation state (yellow warning when mismatch)
+  const lotFieldClass = !lotMatchesSelection
+    ? 'h-12 rounded-lg border-2 border-[#F59E0B] bg-[#FEF3C7] pr-[53px] text-base uppercase tracking-wide text-text-primary shadow-[0_0_0_3px_rgba(245,158,11,0.15)]'
+    : 'h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary'
+
+  const binFieldClass = !binMatchesSelection
+    ? 'h-12 rounded-lg border-2 border-[#F59E0B] bg-[#FEF3C7] pr-[53px] text-base uppercase tracking-wide text-text-primary shadow-[0_0_0_3px_rgba(245,158,11,0.15)]'
+    : 'h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary'
+
   // Sort items by quantity descending (pick largest first), then BatchNo descending
   // This matches official app behavior for efficient warehouse picking
   const sortedBatchItems = [...currentBatchItems].sort((a, b) => {
@@ -983,7 +1009,7 @@ export function PartialPickingPage() {
                     onBlur={handleLotFieldBlur}
                     onKeyDown={handleLotFieldKeyDown}
                     placeholder="Enter or scan lot number"
-                    className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary"
+                    className={lotFieldClass}
                   />
                   <Button
                     type="button"
@@ -1010,7 +1036,7 @@ export function PartialPickingPage() {
                     onBlur={handleBinFieldBlur}
                     onKeyDown={handleBinFieldKeyDown}
                     placeholder="Enter or scan bin number"
-                    className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary"
+                    className={binFieldClass}
                   />
                   <Button
                     type="button"
@@ -1107,7 +1133,9 @@ export function PartialPickingPage() {
                     !currentItem ||
                     !selectedLot ||
                     !currentScale.online ||
-                    !weightInRange
+                    !weightInRange ||
+                    !lotMatchesSelection ||
+                    !binMatchesSelection
                   }
                   className={primaryButtonClass}
                 >
