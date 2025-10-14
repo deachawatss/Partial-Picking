@@ -12,7 +12,7 @@
  * WCAG 2.2 AA compliant
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { usePicking } from '@/hooks/use-picking'
@@ -121,8 +121,32 @@ export function PartialPickingPage() {
   const [isBinFieldActive, setIsBinFieldActive] = useState(false)
   const [isBinSearchButtonClicked, setIsBinSearchButtonClicked] = useState(false)
 
-  // Note: Input values are synced manually in selection handlers (handleRunSelect, handleLotSelect, handleBinSelect)
-  // This avoids cascading renders from useEffect setState calls (React Hooks best practice)
+  // Sync runInputValue with currentRun
+  useEffect(() => {
+    if (currentRun?.runNo) {
+      setRunInputValue(currentRun.runNo.toString())
+    } else {
+      setRunInputValue('')
+    }
+  }, [currentRun?.runNo])
+
+  // Sync lotInputValue with selectedLot
+  useEffect(() => {
+    if (selectedLot?.lotNo) {
+      setLotInputValue(selectedLot.lotNo)
+    } else {
+      setLotInputValue('')
+    }
+  }, [selectedLot?.lotNo])
+
+  // Sync binInputValue with selectedLot
+  useEffect(() => {
+    if (selectedLot?.binNo) {
+      setBinInputValue(selectedLot.binNo)
+    } else {
+      setBinInputValue('')
+    }
+  }, [selectedLot?.binNo])
 
   /**
    * Handle Run field click - clear for manual input/scanning
@@ -850,6 +874,10 @@ export function PartialPickingPage() {
     setManualWeight(null)
   }
 
+  const handleGridItemClick = (item: { itemKey: string; batchNo: string }) => {
+    handleItemSelect(item.itemKey, item.batchNo)
+  }
+
   return (
     <div className="min-h-screen bg-bg-main px-4 py-4 font-body">
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4">
@@ -1197,7 +1225,7 @@ export function PartialPickingPage() {
               pendingCount={pendingCount}
               pickedCount={pickedCount}
               selectedRowKey={currentItem ? `${currentItem.itemKey}-${currentItem.batchNo}` : null}
-              onItemClick={item => handleItemSelect(item.itemKey, item.batchNo)}
+              onItemClick={handleGridItemClick}
             />
           </div>
         </section>

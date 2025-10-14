@@ -12,7 +12,7 @@
  * Integrates with specs/001-i-have-an/contracts/openapi.yaml endpoints
  */
 
-import { createContext, useState, ReactNode } from 'react'
+import { createContext, useState, ReactNode, useMemo, useCallback } from 'react'
 import { runsApi, pickingApi, lotsApi } from '@/services/api'
 import { getErrorMessage } from '@/services/api/client'
 import { RunDetailsResponse, BatchItemDTO, LotAvailabilityDTO, PickRequest } from '@/types/api'
@@ -73,9 +73,14 @@ export function PickingProvider({ children }: PickingProviderProps) {
    * T068: Select run and load run details
    * Calls GET /api/runs/{runNo}
    */
-  const selectRun = async (runNo: number): Promise<void> => {
+  const selectRun = useCallback(async (runNo: number): Promise<void> => {
     setIsLoading(true)
     setErrorMessage(null)
+
+    // Clear previous run's selections immediately to prevent stale UI
+    setCurrentItem(null)
+    setSelectedLot(null)
+    setCurrentBatchItems([])
 
     try {
       console.log('[Picking] Loading run details:', runNo)
@@ -194,13 +199,13 @@ export function PickingProvider({ children }: PickingProviderProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   /**
    * T068: Select batch and load batch items
    * Calls GET /api/runs/{runNo}/batches/{rowNum}/items
    */
-  const selectBatch = async (rowNum: number): Promise<void> => {
+  const selectBatch = useCallback(async (rowNum: number): Promise<void> => {
     if (!currentRun) {
       setErrorMessage('Please select a run first')
       return
@@ -238,13 +243,13 @@ export function PickingProvider({ children }: PickingProviderProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [currentRun])
 
   /**
    * T068: Select item and auto-load FEFO lots
    * Calls GET /api/lots/available?itemKey={itemKey}&minQty={remainingQty}
    */
-  const selectItem = async (itemKey: string, batchNo?: string): Promise<void> => {
+  const selectItem = useCallback(async (itemKey: string, batchNo?: string): Promise<void> => {
     // DEFENSIVE VALIDATION: Log all parameters received
     console.log('[Picking] selectItem called with:', {
       itemKey,
@@ -346,12 +351,12 @@ export function PickingProvider({ children }: PickingProviderProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [currentRun, currentBatchItems])
 
   /**
    * T068: Manually select a lot (override FEFO)
    */
-  const selectLot = (lot: LotAvailabilityDTO): void => {
+  const selectLot = useCallback((lot: LotAvailabilityDTO): void => {
     console.log('[Picking] Manually selected lot:', {
       lotNo: lot.lotNo,
       binNo: lot.binNo,
@@ -359,15 +364,15 @@ export function PickingProvider({ children }: PickingProviderProps) {
     })
     setSelectedLot(lot)
     setErrorMessage(null)
-  }
+  }, [])
 
   /**
    * T068: Set workstation ID
    */
-  const setWorkstation = (id: string): void => {
+  const setWorkstation = useCallback((id: string): void => {
     console.log('[Picking] Set workstation:', id)
     setWorkstationId(id)
-  }
+  }, [])
 
   /**
    * T068: Save pick with 4-phase atomic transaction + CUSTOM1 audit trail
@@ -376,7 +381,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
    * @param weight - Weight from scale or manual entry
    * @param weightSource - 'automatic' (from scale/FETCH WEIGHT) or 'manual' (numeric keyboard)
    */
-  const savePick = async (weight: number, weightSource: 'automatic' | 'manual'): Promise<void> => {
+  const savePick = useCallback(async (weight: number, weightSource: 'automatic' | 'manual'): Promise<void> => {
     // Validation
     if (!currentRun || !currentItem || !selectedLot) {
       setErrorMessage('Please complete all selections before saving pick')
@@ -445,7 +450,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [currentRun, currentItem, selectedLot, workstationId, selectRun])
 
   /**
    * T068: Unpick item (reset to 0, preserve audit trail)
@@ -454,7 +459,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
    * Note: This function expects lineId within a specific batch.
    * For multi-batch runs, ensure the caller provides the correct batch context.
    */
-  const unpickItem = async (lineId: number, rowNum?: number): Promise<void> => {
+  const unpickItem = useCallback(async (lineId: number, rowNum?: number): Promise<void> => {
     if (!currentRun) {
       setErrorMessage('No run selected')
       return
@@ -506,13 +511,13 @@ export function PickingProvider({ children }: PickingProviderProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [currentRun, currentBatchRowNum, workstationId, selectRun])
 
   /**
    * T068: Complete run and assign pallet
    * Calls POST /api/runs/{runNo}/complete
    */
-  const completeRun = async (): Promise<void> => {
+  const completeRun = useCallback(async (): Promise<void> => {
     if (!currentRun) {
       setErrorMessage('No run selected')
       return
@@ -549,12 +554,12 @@ export function PickingProvider({ children }: PickingProviderProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [currentRun, workstationId])
 
   /**
    * Clear all selections and reset state
    */
-  const clearSelections = (): void => {
+  const clearSelections = useCallback((): void => {
     console.log('[Picking] Clearing all selections')
     setCurrentRun(null)
     setCurrentBatchRowNum(null)
@@ -562,38 +567,54 @@ export function PickingProvider({ children }: PickingProviderProps) {
     setCurrentItem(null)
     setSelectedLot(null)
     setErrorMessage(null)
-  }
+  }, [])
 
   /**
    * Clear error message
    */
-  const clearError = (): void => {
+  const clearError = useCallback((): void => {
     setErrorMessage(null)
-  }
+  }, [])
+
+  // Memoize context value to prevent unnecessary re-renders
+  // Note: Only include state values in dependencies, NOT functions
+  // Functions are already stable via useCallback and shouldn't trigger re-memoization
+  const contextValue = useMemo(
+    () => ({
+      currentRun,
+      currentBatchRowNum,
+      currentBatchItems,
+      currentItem,
+      selectedLot,
+      workstationId,
+      isLoading,
+      errorMessage,
+      selectRun,
+      selectBatch,
+      selectItem,
+      selectLot,
+      setWorkstation,
+      savePick,
+      unpickItem,
+      completeRun,
+      clearSelections,
+      clearError,
+    }),
+    [
+      // Only state values - functions are already memoized with useCallback
+      currentRun,
+      currentBatchRowNum,
+      currentBatchItems,
+      currentItem,
+      selectedLot,
+      workstationId,
+      isLoading,
+      errorMessage,
+    ]
+  )
 
   return (
-    <PickingContext.Provider
-      value={{
-        currentRun,
-        currentBatchRowNum,
-        currentBatchItems,
-        currentItem,
-        selectedLot,
-        workstationId,
-        isLoading,
-        errorMessage,
-        selectRun,
-        selectBatch,
-        selectItem,
-        selectLot,
-        setWorkstation,
-        savePick,
-        unpickItem,
-        completeRun,
-        clearSelections,
-        clearError,
-      }}
-    >
+    <PickingContext.Provider value={contextValue}>
       {children}
     </PickingContext.Provider>
   )
