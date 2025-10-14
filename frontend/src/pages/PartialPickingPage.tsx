@@ -12,7 +12,7 @@
  * WCAG 2.2 AA compliant
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { usePicking } from '@/hooks/use-picking'
@@ -677,21 +677,23 @@ export function PartialPickingPage() {
 
   /**
    * Handle Run selection from modal
+   * Wrapped with useCallback to maintain stable reference for modal callback
+   * Accepts full run object to avoid inline arrow function in modal callback
    */
-  const handleRunSelect = async (runNo: number) => {
+  const handleRunSelect = useCallback(async (run: RunDetailsResponse) => {
     setShowRunModal(false)
     clearError()
 
     // Force sync run input value immediately (don't rely on useEffect)
     // This fixes the bug where selecting the same run doesn't trigger useEffect
-    setRunInputValue(runNo.toString())
+    setRunInputValue(run.runNo.toString())
 
     try {
-      await selectRun(runNo)
+      await selectRun(run.runNo)
     } catch (error) {
       console.error('[PartialPickingPage] Run selection failed:', error)
     }
-  }
+  }, [clearError, selectRun])
 
   /**
    * Handle Batch selection from modal
@@ -1234,7 +1236,7 @@ export function PartialPickingPage() {
       <RunSelectionModal
         open={showRunModal}
         onOpenChange={setShowRunModal}
-        onSelect={run => handleRunSelect(run.runNo)}
+        onSelect={handleRunSelect}
       />
       <BatchSelectionModal
         open={showBatchModal}
