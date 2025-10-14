@@ -802,8 +802,9 @@ pub async fn get_pending_items_for_run(
 ) -> AppResult<PendingItemsResponse> {
     let mut conn = pool.get().await?;
 
-    // Query cust_PartialPicked for items not fully picked
-    // Items where PickedPartialQty < ToPickedPartialQty
+    // Query cust_PartialPicked for items not yet picked
+    // Items where PickedPartialQty = 0 (no weight entered yet)
+    // Logic: Any weight within valid range = completely picked (matches table "Picked" definition)
     // ORDER BY matches Batch table sorting: largest quantities first (efficient picking), then newer batches
     let sql = r#"
         SELECT
@@ -814,7 +815,7 @@ pub async fn get_pending_items_for_run(
             LineId
         FROM cust_PartialPicked
         WHERE RunNo = @P1
-          AND PickedPartialQty < ToPickedPartialQty
+          AND PickedPartialQty = 0
         ORDER BY ToPickedPartialQty DESC, BatchNo DESC
     "#;
 

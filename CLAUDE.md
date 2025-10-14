@@ -397,6 +397,58 @@ Improve picking form layout with consistent label alignment
 ❌ **Missing key**: `WHERE RunNo AND LineId` → ✅ `WHERE RunNo AND RowNum AND LineId` (all 3!)
 ❌ **Audit trail**: Don't set `ItemBatchStatus=NULL` on unpick → ✅ Only update `PickedPartialQty=0`
 
+### ⚠️ CRITICAL: "Picked" vs "Pending" Business Logic
+
+**IMPORTANT**: This system uses a specific definition for "Picked" and "Pending" status that differs from traditional partial picking systems.
+
+**Business Logic Rule:**
+```
+✅ "Picked" = ANY weight entered within valid range → Item is COMPLETELY DONE
+✅ "Pending" = NO weight entered yet (PickedPartialQty = 0) → Item needs picking
+
+❌ WRONG: "Picked" means pickedQty >= targetQty
+❌ WRONG: "Pending" means pickedQty < targetQty (includes partially picked items)
+```
+
+**Why This Logic:**
+- If the user picks ANY valid weight within the weight range, the item is considered complete
+- Target weight (`ToPickedPartialQty`) is a guideline, NOT a requirement
+- Example: Target = 12.000 KG, User picks 19.990 KG → If within valid range, it's DONE
+- The weight tolerance range (from `INMAST.User9`) is the actual validation criteria
+
+**Implementation Locations:**
+
+1. **Frontend Table (PartialPickingPage.tsx line 838):**
+```typescript
+status: item.pickedQty > 0 ? ('picked' as const) : ('unpicked' as const)
+```
+
+2. **Backend Modal "Pending to Picked" Tab (picking_service.rs line 818):**
+```sql
+WHERE RunNo = @P1 AND PickedPartialQty = 0  -- Only show unpicked items
+```
+
+3. **Backend Modal "Picked Lot Details" Tab (picking_service.rs line 707):**
+```sql
+SELECT ... FROM Cust_PartialLotPicked  -- Shows lot allocation records for all picks
+```
+
+**Count Consistency:**
+- ✅ Batch Table "Pending (3)" = Modal "Pending to Picked (3)" (both show items with pickedQty = 0)
+- ✅ Batch Table "Picked (11)" = Items with ANY weight entered (pickedQty > 0)
+- ⚠️ Modal "Picked Lot Details" may show different count (e.g., 10) because it shows LOT RECORDS, not unique items
+  - One item can have multiple lot records if picked from multiple lots
+  - One item can have pickedQty > 0 but no lot record = data corruption issue
+
+**Common Mistake:**
+```sql
+❌ WRONG - Shows partially picked items in "Pending":
+WHERE PickedPartialQty < ToPickedPartialQty
+
+✅ CORRECT - Only shows completely unpicked items:
+WHERE PickedPartialQty = 0
+```
+
 ### ⚠️ Date Format Standard
 
 **ALL dates MUST use DD/MM/YYYY format** (e.g., "10/10/2025"):
