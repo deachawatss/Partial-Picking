@@ -31,8 +31,10 @@ import { BatchTicketGrid } from '@/components/picking/BatchTicketGrid'
 import { NumericKeyboard } from '@/components/picking/NumericKeyboard'
 import { usePickedLots } from '@/hooks/usePickedLotsQuery'
 import { printLabels } from '@/utils/printLabel'
+import { printBatchSummary } from '@/utils/printBatchSummary'
 import { getLotByNumber } from '@/services/api/lots'
 import { getBinByNumber } from '@/services/api/bins'
+import { getBatchSummary } from '@/services/api/runs'
 import { getErrorMessage } from '@/services/api/client'
 
 export function PartialPickingPage() {
@@ -632,13 +634,34 @@ export function PartialPickingPage() {
 
   /**
    * Handle Print button
+   * Fetches batch summary data and prints 4×4" thermal labels
+   * Only enabled when run status is 'PRINT' (all items picked)
    */
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!currentRun) {
       alert('No run selected')
       return
     }
-    window.print()
+
+    // Validate run status (should be 'PRINT' for button to be enabled)
+    if (currentRun.status !== 'PRINT') {
+      alert('Cannot print. All items must be picked first (Status must be PRINT)')
+      return
+    }
+
+    try {
+      // Fetch batch summary data from API
+      const summary = await getBatchSummary(currentRun.runNo)
+
+      // Print batch summary labels (4×4" format)
+      printBatchSummary(summary)
+
+      setSuccessMessage('Printing batch summary labels...')
+      setTimeout(() => setSuccessMessage(null), 3000)
+    } catch (error) {
+      console.error('[PartialPickingPage] Print batch summary failed:', error)
+      alert(getErrorMessage(error) || 'Failed to fetch batch summary data')
+    }
   }
 
   /**
@@ -808,12 +831,12 @@ export function PartialPickingPage() {
 
   // Visual indicators for validation state (yellow warning when mismatch)
   const lotFieldClass = !lotMatchesSelection
-    ? 'h-12 rounded-lg border-2 border-[#F59E0B] bg-[#FEF3C7] pr-[53px] text-base uppercase tracking-wide text-text-primary shadow-[0_0_0_3px_rgba(245,158,11,0.15)]'
-    : 'h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary'
+    ? 'h-12 rounded-lg border-2 border-[#F59E0B] bg-[#FEF3C7] pr-[53px] text-base uppercase tracking-wide text-text-primary shadow-[0_0_0_3px_rgba(245,158,11,0.15)] placeholder:text-sm'
+    : 'h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary placeholder:text-sm'
 
   const binFieldClass = !binMatchesSelection
-    ? 'h-12 rounded-lg border-2 border-[#F59E0B] bg-[#FEF3C7] pr-[53px] text-base uppercase tracking-wide text-text-primary shadow-[0_0_0_3px_rgba(245,158,11,0.15)]'
-    : 'h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary'
+    ? 'h-12 rounded-lg border-2 border-[#F59E0B] bg-[#FEF3C7] pr-[53px] text-base uppercase tracking-wide text-text-primary shadow-[0_0_0_3px_rgba(245,158,11,0.15)] placeholder:text-sm'
+    : 'h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary placeholder:text-sm'
 
   // Sort items by quantity descending (pick largest first), then BatchNo descending
   // This matches official app behavior for efficient warehouse picking
@@ -907,8 +930,8 @@ export function PartialPickingPage() {
                   onClick={handleRunFieldClick}
                   onBlur={handleRunFieldBlur}
                   onKeyDown={handleRunFieldKeyDown}
-                  placeholder="Enter or scan run number"
-                  className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary"
+                  placeholder="ENTER RUNNO"
+                  className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary placeholder:text-sm"
                 />
                 <Button
                   type="button"
@@ -927,7 +950,7 @@ export function PartialPickingPage() {
                 value={currentRun?.fgItemKey || ''}
                 readOnly
                 placeholder="Item key"
-                className="h-12 rounded-lg border-2 border-border-main bg-bg-main text-base uppercase tracking-wide text-text-primary"
+                className="h-12 rounded-lg border-2 border-border-main bg-bg-main text-base uppercase tracking-wide text-text-primary placeholder:text-sm"
               />
 
               <label className={labelClass}>Description</label>
@@ -935,7 +958,7 @@ export function PartialPickingPage() {
                 value={currentRun?.fgDescription || ''}
                 readOnly
                 placeholder="Description"
-                className="h-12 rounded-lg border-2 border-border-main bg-bg-main text-base text-text-primary"
+                className="h-12 rounded-lg border-2 border-border-main bg-bg-main text-base text-text-primary placeholder:text-sm"
               />
             </div>
           </div>
@@ -948,7 +971,7 @@ export function PartialPickingPage() {
                 value={batchNumberDisplay}
                 readOnly
                 placeholder="Auto from items"
-                className="h-12 rounded-lg border-2 border-border-main bg-bg-main text-base uppercase tracking-wide text-text-primary"
+                className="h-12 rounded-lg border-2 border-border-main bg-bg-main text-base uppercase tracking-wide text-text-primary placeholder:text-sm"
               />
 
               <label className={labelClass}>Batches</label>
@@ -978,7 +1001,7 @@ export function PartialPickingPage() {
                     value={currentItem?.itemKey || ''}
                     placeholder="Select item"
                     readOnly
-                    className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary transition-smooth focus-within:border-accent-gold input-glow-focus"
+                    className="h-12 rounded-lg border-2 border-border-main bg-surface pr-[53px] text-base uppercase tracking-wide text-text-primary transition-smooth focus-within:border-accent-gold input-glow-focus placeholder:text-sm"
                   />
                   <Button
                     type="button"
@@ -999,7 +1022,7 @@ export function PartialPickingPage() {
                   value={currentItem?.description || ''}
                   readOnly
                   placeholder="Description"
-                  className="h-12 rounded-lg border-2 border-border-main bg-surface text-base text-text-primary"
+                  className="h-12 rounded-lg border-2 border-border-main bg-surface text-base text-text-primary placeholder:text-sm"
                 />
               </div>
 
@@ -1013,7 +1036,7 @@ export function PartialPickingPage() {
                     onClick={handleLotFieldClick}
                     onBlur={handleLotFieldBlur}
                     onKeyDown={handleLotFieldKeyDown}
-                    placeholder="Enter or scan lot number"
+                    placeholder="ENTER LOTNO"
                     className={lotFieldClass}
                   />
                   <Button
@@ -1040,7 +1063,7 @@ export function PartialPickingPage() {
                     onClick={handleBinFieldClick}
                     onBlur={handleBinFieldBlur}
                     onKeyDown={handleBinFieldKeyDown}
-                    placeholder="Enter or scan bin number"
+                    placeholder="ENTER BINNO"
                     className={binFieldClass}
                   />
                   <Button
@@ -1163,8 +1186,15 @@ export function PartialPickingPage() {
                 <Button
                   type="button"
                   onClick={handlePrint}
-                  disabled={isLoading || !currentRun}
+                  disabled={isLoading || !currentRun || currentRun.status !== 'PRINT'}
                   className={secondaryButtonClass}
+                  title={
+                    !currentRun
+                      ? 'No run selected'
+                      : currentRun.status !== 'PRINT'
+                        ? 'Complete all picks first (Status must be PRINT)'
+                        : 'Print batch summary labels'
+                  }
                 >
                   Print
                 </Button>

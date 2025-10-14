@@ -272,3 +272,30 @@ export interface PendingItemsResponse {
   pendingItems: PendingItemDTO[]
   runNo: number
 }
+
+// ============================================================================
+// BATCH SUMMARY (Batch Summary Print)
+// ============================================================================
+
+export interface BatchSummaryResponse {
+  batches: BatchSummaryDTO[]
+}
+
+export interface BatchSummaryDTO {
+  runNo: number
+  rowNum: number
+  batchNo: string
+  formulaId: string
+  formulaDesc: string
+  productionDate: string // DD/MM/YY format
+  pageNum: number
+  totalPages: number
+  items: BatchSummaryItemDTO[]
+}
+
+export interface BatchSummaryItemDTO {
+  itemKey: string
+  binNo: string
+  lotNo: string
+  qtyKg: number
+}

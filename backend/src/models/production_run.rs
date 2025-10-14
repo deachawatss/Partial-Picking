@@ -63,3 +63,55 @@ pub enum RunStatus {
     /// Pallet assigned, labels print (terminal state)
     Print,
 }
+
+/// Batch summary response for printing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchSummaryResponse {
+    pub batches: Vec<BatchSummaryDTO>,
+}
+
+/// Individual batch summary data
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchSummaryDTO {
+    #[serde(rename = "runNo")]
+    pub run_no: i32,
+
+    #[serde(rename = "rowNum")]
+    pub row_num: i32,
+
+    #[serde(rename = "batchNo")]
+    pub batch_no: String,
+
+    #[serde(rename = "formulaId")]
+    pub formula_id: String,
+
+    #[serde(rename = "formulaDesc")]
+    pub formula_desc: String,
+
+    #[serde(rename = "productionDate")]
+    pub production_date: String, // DD/MM/YY format
+
+    #[serde(rename = "pageNum")]
+    pub page_num: i32,
+
+    #[serde(rename = "totalPages")]
+    pub total_pages: i32,
+
+    pub items: Vec<BatchSummaryItemDTO>,
+}
+
+/// Individual item in batch summary
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchSummaryItemDTO {
+    #[serde(rename = "itemKey")]
+    pub item_key: String,
+
+    #[serde(rename = "binNo")]
+    pub bin_no: String,
+
+    #[serde(rename = "lotNo")]
+    pub lot_no: String,
+
+    #[serde(rename = "qtyKg")]
+    pub qty_kg: f64,
+}

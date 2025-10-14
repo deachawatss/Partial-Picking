@@ -75,17 +75,17 @@ const BatchItemRow = memo(({ item, onItemClick, selectedRowKey, filter }: BatchI
       className={`border-b border-border-main ${rowHighlight} ${clickable}`}
     >
       <td className="w-[15%] border-r border-border-main px-4 py-3 text-center">
-        <div className="whitespace-nowrap text-sm font-bold tracking-wide text-text-primary">
+        <div className="whitespace-nowrap text-base font-bold tracking-wide text-text-primary">
           {item.itemKey}
         </div>
       </td>
-      <td className="w-[12%] border-r border-border-main px-4 py-3 text-center text-sm font-bold tracking-wide text-text-primary">
+      <td className="w-[12%] border-r border-border-main px-4 py-3 text-center text-base font-bold tracking-wide text-text-primary">
         {item.batchNo}
       </td>
-      <td className="w-[13%] border-r border-border-main px-4 py-3 text-right font-body text-sm font-medium tabular-nums">
+      <td className="w-[13%] border-r border-border-main px-4 py-3 text-right font-body text-base font-medium tabular-nums">
         {formatQty(item.targetQty)}
       </td>
-      <td className="w-[13%] border-r border-border-main px-4 py-3 text-right font-body text-sm font-semibold tabular-nums">
+      <td className="w-[13%] border-r border-border-main px-4 py-3 text-right font-body text-base font-semibold tabular-nums">
         {item.pickedQty > 0 ? (
           <span className="text-accent-green">{formatQty(item.pickedQty)}</span>
         ) : (

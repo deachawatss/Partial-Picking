@@ -2,8 +2,8 @@ use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::AuthUser;
 use crate::services::run_service::{
-    get_all_run_items, get_batch_items, get_run_details, list_runs, BatchItemsResponse,
-    RunDetailsResponse, RunListResponse,
+    get_all_run_items, get_batch_items, get_batch_summary, get_run_details, list_runs,
+    BatchItemsResponse, BatchSummaryResponse, RunDetailsResponse, RunListResponse,
 };
 use axum::{
     extract::{Path, Query, State},
@@ -201,6 +201,49 @@ pub async fn get_all_run_items_endpoint(
     }
 
     let response = get_all_run_items(&pool, run_no).await?;
+
+    Ok(Json(response))
+}
+
+/// GET /api/runs/:runNo/summary
+///
+/// Get batch summary data for printing
+///
+/// Used by the PRINT button to generate batch summary labels (4×4" format)
+/// Only returns data when run status is 'PRINT' (all items picked)
+///
+/// # OpenAPI Contract
+/// - operationId: getBatchSummary
+/// - Path parameter: runNo (integer, minimum 1)
+/// - Response 200: BatchSummaryResponse
+/// - Response 404: NotFoundError (Run not found or status not PRINT)
+///
+/// # Constitutional Compliance
+/// * ✅ JWT authentication required (AuthUser extractor)
+/// * ✅ Uses composite keys (RunNo, RowNum, LineId)
+/// * ✅ Only returns picked items (PickedPartialQty > 0)
+/// * ✅ Filters by Status = 'PRINT'
+/// * ✅ Groups items by batch (RowNum)
+pub async fn get_batch_summary_endpoint(
+    State(pool): State<DbPool>,
+    AuthUser(claims): AuthUser,
+    Path(run_no): Path<i32>,
+) -> AppResult<Json<BatchSummaryResponse>> {
+    tracing::info!(
+        user = %claims.username,
+        run_no = run_no,
+        "GET /api/runs/{}/summary request",
+        run_no
+    );
+
+    // Validate run_no
+    if run_no < 1 {
+        return Err(AppError::ValidationError(
+            "Run number must be greater than 0".to_string(),
+        ));
+    }
+
+    let response = get_batch_summary(&pool, run_no).await?;
 
     Ok(Json(response))
 }

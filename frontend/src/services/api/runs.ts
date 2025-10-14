@@ -20,6 +20,7 @@ import {
   BatchItemsResponse,
   CompleteRunResponse,
   BatchItemDTO,
+  BatchSummaryResponse,
 } from '@/types/api'
 import { cacheRun, getCachedRun } from '@/services/cache'
 
@@ -211,6 +212,25 @@ export async function getAllRunItems(runNo: number): Promise<BatchItemDTO[]> {
 }
 
 /**
+ * Get batch summary data for printing
+ *
+ * OpenAPI Operation: GET /api/runs/{runNo}/summary
+ *
+ * Used by the PRINT button to generate batch summary labels (4×4" format)
+ * Only returns data when run status is 'PRINT' (all items picked)
+ *
+ * No offline cache support - always fetches fresh data from API
+ *
+ * @param runNo - Production run number
+ * @returns Promise<BatchSummaryResponse> - Batch summary data grouped by batch
+ * @throws ErrorResponse - On not found (404) or status != 'PRINT'
+ */
+export async function getBatchSummary(runNo: number): Promise<BatchSummaryResponse> {
+  const response = await apiClient.get<BatchSummaryResponse>(`/runs/${runNo}/summary`)
+  return response.data
+}
+
+/**
  * Runs API Service Object
  * Provides all run-related API methods
  */
@@ -219,6 +239,7 @@ export const runsApi = {
   getRunDetails,
   getBatchItems,
   getAllRunItems,
+  getBatchSummary,
   completeRun,
 }
 

@@ -69,6 +69,10 @@ async fn main() {
         .route("/runs/:runNo", get(api::runs::get_run_details_endpoint))
         .route("/runs/:runNo/items", get(api::runs::get_all_run_items_endpoint))
         .route(
+            "/runs/:runNo/summary",
+            get(api::runs::get_batch_summary_endpoint),
+        )
+        .route(
             "/runs/:runNo/batches/:rowNum/items",
             get(api::runs::get_batch_items_endpoint),
         )

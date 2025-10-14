@@ -2,7 +2,11 @@ use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tiberius::{Query, Row};
+
+// Re-export batch summary types for API use
+pub use crate::models::production_run::{BatchSummaryResponse, BatchSummaryDTO, BatchSummaryItemDTO};
 
 /// Run list response matching OpenAPI RunListResponse schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -584,4 +588,145 @@ pub async fn list_runs(pool: &DbPool, limit: i32, offset: i32, search: Option<&s
     );
 
     Ok(RunListResponse { runs, pagination })
+}
+
+/// Get batch summary data for printing labels
+///
+/// Fetches all picked items grouped by batch for a run with status='PRINT'
+///
+/// # Arguments
+/// * `pool` - Database connection pool
+/// * `run_no` - Production run number
+///
+/// # Returns
+/// * BatchSummaryResponse with batches array
+/// * 404 if run not found or status != 'PRINT'
+///
+/// # Constitutional Compliance
+/// * ✅ Uses composite keys (RunNo, RowNum, LineId)
+/// * ✅ Only returns data for runs with Status='PRINT'
+/// * ✅ Groups items by batch (RowNum)
+pub async fn get_batch_summary(pool: &DbPool, run_no: i32) -> AppResult<BatchSummaryResponse> {
+
+    let mut conn = pool.get().await?;
+
+    // SQL: Get all picked items with batch info
+    let sql = r#"
+        SELECT
+            cr.RunNo,
+            cr.RowNum,
+            cr.BatchNo,
+            cr.FormulaId,
+            cr.FormulaDesc,
+            cr.NoOfBatches,
+            cr.RecDate,
+            cp.ItemKey,
+            cp.PickedPartialQty,
+            cp.PickingDate,
+            cpl.LotNo,
+            cpl.BinNo
+        FROM Cust_PartialRun cr
+        JOIN cust_PartialPicked cp ON cr.RunNo = cp.RunNo AND cr.RowNum = cp.RowNum
+        JOIN Cust_PartialLotPicked cpl ON cp.RunNo = cpl.RunNo
+            AND cp.RowNum = cpl.RowNum AND cp.LineId = cpl.LineId
+        WHERE cr.RunNo = @P1
+            AND cr.Status = 'PRINT'
+            AND cp.PickedPartialQty > 0
+        ORDER BY cr.RowNum, cp.ItemKey
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(run_no);
+
+    let rows = query.query(&mut *conn).await?;
+    let rows: Vec<Row> = rows.into_first_result().await?;
+
+    if rows.is_empty() {
+        return Err(AppError::RecordNotFound(format!(
+            "Run No {} not found or status != 'PRINT'",
+            run_no
+        )));
+    }
+
+    // Get total batches from first row
+    let total_batches: i32 = rows[0].get("NoOfBatches").unwrap_or(1);
+
+    // Group items by RowNum (batch)
+    let mut batches_map: HashMap<i32, Vec<BatchSummaryItemDTO>> = HashMap::new();
+    let mut batch_info: HashMap<i32, (String, String, String)> = HashMap::new();
+    let mut batch_picking_dates: HashMap<i32, DateTime<Utc>> = HashMap::new();
+
+    for row in rows.iter() {
+        let row_num: i32 = row.get("RowNum").unwrap_or(0);
+        let batch_no: &str = row.get("BatchNo").unwrap_or("");
+        let formula_id: &str = row.get("FormulaId").unwrap_or("");
+        let formula_desc: &str = row.get("FormulaDesc").unwrap_or("");
+        let item_key: &str = row.get("ItemKey").unwrap_or("");
+        let lot_no: &str = row.get("LotNo").unwrap_or("");
+        let bin_no: &str = row.get("BinNo").unwrap_or("");
+        let qty_kg: f64 = row.try_get::<f64, _>("PickedPartialQty")
+            .ok().flatten().unwrap_or(0.0);
+
+        // Extract PickingDate (use first picking date for this batch)
+        let picking_date: DateTime<Utc> = row.try_get("PickingDate")
+            .ok().flatten().unwrap_or_else(|| Utc::now());
+
+        // Store batch info
+        batch_info.entry(row_num).or_insert((
+            batch_no.to_string(),
+            formula_id.to_string(),
+            formula_desc.to_string(),
+        ));
+
+        // Store first picking date for this batch
+        batch_picking_dates.entry(row_num).or_insert(picking_date);
+
+        // Add item to batch
+        batches_map
+            .entry(row_num)
+            .or_insert_with(Vec::new)
+            .push(BatchSummaryItemDTO {
+                item_key: item_key.to_string(),
+                bin_no: bin_no.to_string(),
+                lot_no: lot_no.to_string(),
+                qty_kg,
+            });
+    }
+
+    // Convert to BatchSummaryDTO vec
+    let mut batches: Vec<BatchSummaryDTO> = batches_map
+        .into_iter()
+        .map(|(row_num, items)| {
+            let (batch_no, formula_id, formula_desc) =
+                batch_info.get(&row_num).unwrap().clone();
+
+            // Get picking date for this batch (default to now if not found)
+            let picking_date = batch_picking_dates.get(&row_num)
+                .unwrap_or(&Utc::now())
+                .clone();
+
+            BatchSummaryDTO {
+                run_no,
+                row_num,
+                batch_no,
+                formula_id,
+                formula_desc,
+                production_date: picking_date.format("%d/%m/%y").to_string(),
+                page_num: row_num,
+                total_pages: total_batches,
+                items,
+            }
+        })
+        .collect();
+
+    // Sort batches by RowNum
+    batches.sort_by_key(|b| b.row_num);
+
+    tracing::debug!(
+        run_no = run_no,
+        batch_count = batches.len(),
+        "Retrieved batch summary for printing"
+    );
+
+    Ok(BatchSummaryResponse { batches })
 }
