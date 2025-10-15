@@ -12,10 +12,11 @@
  * Integrates with specs/001-i-have-an/contracts/openapi.yaml endpoints
  */
 
-import { createContext, useState, ReactNode, useMemo, useCallback } from 'react'
+import { createContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react'
 import { runsApi, pickingApi, lotsApi } from '@/services/api'
 import { getErrorMessage } from '@/services/api/client'
 import { RunDetailsResponse, BatchItemDTO, LotAvailabilityDTO, PickRequest } from '@/types/api'
+import { useAuth } from '@/hooks/use-auth'
 
 // Context state types
 export interface PickingContextType {
@@ -58,16 +59,39 @@ interface PickingProviderProps {
 }
 
 export function PickingProvider({ children }: PickingProviderProps) {
+  // Get authenticated user for workstation ID
+  const { user } = useAuth()
+
   // State
   const [currentRun, setCurrentRun] = useState<RunDetailsResponse | null>(null)
   const [currentBatchRowNum, setCurrentBatchRowNum] = useState<number | null>(null)
   const [currentBatchItems, setCurrentBatchItems] = useState<BatchItemDTO[]>([])
   const [currentItem, setCurrentItem] = useState<BatchItemDTO | null>(null)
   const [selectedLot, setSelectedLot] = useState<LotAvailabilityDTO | null>(null)
-  const [workstationId, setWorkstationId] = useState<string>('WS3') // Default workstation
+  // Use logged-in username truncated to 8 characters (database constraint: RecUserid/ModifiedBy)
+  // Example: "deachawat" (9 chars) → "deachawa" (8 chars)
+  // Fallback to "ERROR" if no authenticated user (per explicit requirement)
+  const [workstationId, setWorkstationId] = useState<string>(() => {
+    if (user?.username) {
+      return user.username.substring(0, 8)
+    }
+    return 'ERROR' // Fallback if no user authenticated
+  })
 
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // Update workstation ID when user changes (login/logout)
+  useEffect(() => {
+    if (user?.username) {
+      const truncatedUsername = user.username.substring(0, 8)
+      setWorkstationId(truncatedUsername)
+      console.log('[Picking] Workstation ID updated to:', truncatedUsername)
+    } else {
+      setWorkstationId('ERROR')
+      console.log('[Picking] Workstation ID reset to: ERROR (no user)')
+    }
+  }, [user])
 
   /**
    * T068: Select run and load run details
