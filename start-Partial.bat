@@ -115,7 +115,7 @@ set RUST_LOG=info,partial_picking_backend=debug
 
 REM Set absolute paths for backend
 set BACKEND_DIR=%~dp0backend
-set BACKEND_EXE_FULL=%BACKEND_DIR%target\release\partial-picking-backend.exe
+set BACKEND_EXE_FULL=%BACKEND_DIR%\target\release\partial-picking-backend.exe
 set LOG_FILE=%~dp0logs\backend.log
 
 REM Create logs directory at project root
