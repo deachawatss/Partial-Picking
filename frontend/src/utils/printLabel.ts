@@ -198,6 +198,7 @@ function generateLabelHTML(label: LabelData, qrCodeDataURL: string): string {
       text-align: left;
       margin-bottom: 4px;
       width: 100%;
+      font-weight: bold;
     }
 
     .picker-datetime {
@@ -205,6 +206,7 @@ function generateLabelHTML(label: LabelData, qrCodeDataURL: string): string {
       text-align: left;
       margin-bottom: 8px;
       width: 100%;
+      font-weight: bold;
     }
 
     .qr-code-section {
