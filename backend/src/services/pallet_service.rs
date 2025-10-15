@@ -8,8 +8,9 @@ use tiberius::Query;
 /// # Workflow
 /// 1. Validate all items in run are picked (ItemBatchStatus='Allocated')
 /// 2. Get next PT sequence for pallet ID
-/// 3. Insert Cust_PartialPalletLotPicked record
-/// 4. Update run status from NEW to PRINT
+/// 3. DELETE existing pallet records (defensive cleanup for MS Access edits)
+/// 4. Insert fresh Cust_PartialPalletLotPicked records
+/// 5. Update run status from NEW to PRINT
 ///
 /// # Constitutional Requirements
 /// - All items MUST be picked before completion
@@ -79,6 +80,40 @@ pub async fn complete_run(pool: &DbPool, run_no: i32, workstation_id: &str) -> A
     conn.simple_query("BEGIN TRAN")
         .await
         .map_err(|e| AppError::TransactionFailed(format!("BEGIN TRAN failed: {}", e)))?;
+
+    // ========================================================================
+    // CLEANUP: Delete any existing pallet records (defensive programming)
+    // ========================================================================
+    // This handles edge cases like manual MS Access status edits where
+    // Status was changed from PRINT to NEW without deleting pallet records.
+    // Ensures pallet records always match current picked items.
+    let delete_pallet_sql = r#"
+        DELETE FROM Cust_PartialPalletLotPicked
+        WHERE RunNo = @P1
+    "#;
+
+    let mut delete_pallet_query = Query::new(delete_pallet_sql);
+    delete_pallet_query.bind(run_no);
+
+    let delete_result = match delete_pallet_query.execute(&mut *conn).await {
+        Ok(result) => result,
+        Err(e) => {
+            let _ = conn.simple_query("ROLLBACK").await;
+            return Err(AppError::TransactionFailed(format!(
+                "Failed to delete existing pallet records: {}",
+                e
+            )));
+        }
+    };
+
+    let deleted_rows = delete_result.rows_affected()[0];
+    if deleted_rows > 0 {
+        tracing::info!(
+            run_no = run_no,
+            deleted_pallet_records = deleted_rows,
+            "Deleted existing pallet records before re-completion (likely manual status edit)"
+        );
+    }
 
     // ========================================================================
     // INSERT PALLET RECORDS (one per item)
@@ -164,7 +199,7 @@ pub async fn complete_run(pool: &DbPool, run_no: i32, workstation_id: &str) -> A
         pallet_id = %pallet_id_str,
         total_items = %total_items,
         workstation = %workstation_id,
-        "Run completed successfully - pallet records created and status updated to PRINT"
+        "Run completed successfully - cleaned up existing pallet records (if any) and created fresh records with status PRINT"
     );
 
     Ok(pallet_id_str)
