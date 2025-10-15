@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate PWA Icons - Partial Picking System</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            margin-top: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .subtitle {
+            opacity: 0.9;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .preview {
+            display: flex;
+            gap: 20px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        .icon-preview {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .icon-preview canvas {
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .icon-label {
+            margin-top: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        .icon-size {
+            font-size: 11px;
+            color: #718096;
+            margin-top: 4px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .status {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .success {
+            background: rgba(72, 187, 120, 0.2);
+        }
+        .error {
+            background: rgba(245, 101, 101, 0.2);
+        }
+        #sourceImg {
+            display: none;
+        }
+        .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #48bb78;
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .instructions ol {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 6px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 PWA Icon Generator</h1>
+        <div class="subtitle">Partial Picking System - Generate all required app icons from the weight scale image</div>
+
+        <div class="instructions">
+            <strong>📋 Instructions:</strong>
+            <ol>
+                <li>Click "Generate All Icons" button below</li>
+                <li>All 3 icons will be auto-downloaded to your Downloads folder</li>
+                <li>Move the downloaded files to <code>frontend/public/</code> directory</li>
+                <li>Refresh your PWA to see the new icons!</li>
+            </ol>
+        </div>
+
+        <button onclick="generateAllIcons()">✨ Generate All Icons</button>
+        <button onclick="location.reload()">🔄 Reset</button>
+
+        <div id="status"></div>
+
+        <div class="preview">
+            <div class="icon-preview">
+                <canvas id="canvas192" width="192" height="192"></canvas>
+                <div class="icon-label">Android Home Screen</div>
+                <div class="icon-size">192 x 192 px</div>
+            </div>
+            <div class="icon-preview">
+                <canvas id="canvas180" width="180" height="180"></canvas>
+                <div class="icon-label">Apple Touch Icon</div>
+                <div class="icon-size">180 x 180 px</div>
+            </div>
+            <div class="icon-preview">
+                <canvas id="canvas32" width="32" height="32"></canvas>
+                <div class="icon-label">Browser Favicon</div>
+                <div class="icon-size">32 x 32 px</div>
+            </div>
+        </div>
+
+        <img id="sourceImg" src="/pwa-512x512.png" alt="Source Icon">
+    </div>
+
+    <script>
+        const sourceImg = document.getElementById('sourceImg');
+        let imageLoaded = false;
+
+        sourceImg.onload = function() {
+            imageLoaded = true;
+            showStatus('✅ Source image loaded successfully! Ready to generate icons.', 'success');
+        };
+
+        sourceImg.onerror = function() {
+            showStatus('❌ Error: Could not load pwa-512x512.png. Make sure the file exists in the public folder.', 'error');
+        };
+
+        function showStatus(message, type = '') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+        }
+
+        function generateIcon(canvasId, size, filename) {
+            if (!imageLoaded) {
+                showStatus('❌ Source image not loaded yet. Please wait...', 'error');
+                return false;
+            }
+
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+
+            // Draw the source image scaled to the target size
+            // Using high-quality image scaling
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(sourceImg, 0, 0, size, size);
+
+            // Download the generated icon
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+            return true;
+        }
+
+        function generateAllIcons() {
+            showStatus('⏳ Generating icons...', '');
+
+            setTimeout(() => {
+                const success1 = generateIcon('canvas192', 192, 'pwa-192x192.png');
+                if (!success1) return;
+
+                setTimeout(() => {
+                    const success2 = generateIcon('canvas180', 180, 'apple-touch-icon.png');
+                    if (!success2) return;
+
+                    setTimeout(() => {
+                        const success3 = generateIcon('canvas32', 32, 'favicon-32x32.png');
+                        if (!success3) return;
+
+                        showStatus('✅ Success! All 3 icons generated and downloaded. Check your Downloads folder.', 'success');
+                    }, 300);
+                }, 300);
+            }, 300);
+        }
+    </script>
+</body>
+</html>
