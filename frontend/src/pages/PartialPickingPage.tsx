@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { usePicking } from '@/hooks/use-picking'
 import { useAuth } from '@/hooks/use-auth'
@@ -41,6 +42,7 @@ export function PartialPickingPage() {
   // Navigation and auth
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const queryClient = useQueryClient()
 
   // Picking context with real API integration
   const {
@@ -490,16 +492,29 @@ export function PartialPickingPage() {
         isManualEntry: manualWeight !== null,
       })
 
+      // Capture values BEFORE savePick() clears them
+      const capturedItem = currentItem
+      const capturedLot = selectedLot
+      const capturedWeight = currentWeight
+
       await savePick(currentWeight, weightSource)
 
-      // Auto-print individual label after successful pick
-      if (currentItem && selectedLot) {
+      // Invalidate picked-lots query immediately after successful pick
+      await queryClient.invalidateQueries({
+        queryKey: ['picks', 'run', currentRun?.runNo, 'lots']
+      })
+      await queryClient.invalidateQueries({
+        queryKey: ['picks', 'run', currentRun?.runNo, 'pending']
+      })
+
+      // Auto-print individual label using CAPTURED values (not cleared state)
+      if (capturedItem && capturedLot) {
         const now = new Date()
         printLabels([{
-          itemKey: currentItem.itemKey,
-          qtyReceived: currentWeight,
-          batchNo: currentItem.batchNo,
-          lotNo: selectedLot.lotNo,
+          itemKey: capturedItem.itemKey,
+          qtyReceived: capturedWeight,
+          batchNo: capturedItem.batchNo,
+          lotNo: capturedLot.lotNo,
           picker: user?.username || 'UNKNOWN',
           date: now.toLocaleDateString('en-GB'), // DD/MM/YYYY
           time: now.toLocaleTimeString('en-US'), // HH:MM:SSAM/PM
@@ -1221,7 +1236,7 @@ export function PartialPickingPage() {
           </div>
 
           {/* Table Section (Right Column) */}
-          <div className="flex h-full flex-col p-5">
+          <div className="flex flex-col p-5 max-h-[700px]">
             <BatchTicketGrid
               items={gridItems}
               filter={gridFilter}

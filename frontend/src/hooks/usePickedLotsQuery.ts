@@ -34,6 +34,7 @@ export function usePickedLots(
     enabled: (options?.enabled ?? true) && !!runNo,
     staleTime: 1000 * 30, // 30 seconds (refetch when modal reopens)
     refetchOnWindowFocus: true, // Refetch when user returns to window
+    refetchOnMount: 'always', // Always refetch when modal opens
   })
 }
 
@@ -62,5 +63,6 @@ export function usePendingItems(
     enabled: (options?.enabled ?? true) && !!runNo,
     staleTime: 1000 * 30, // 30 seconds (refetch when modal reopens)
     refetchOnWindowFocus: true, // Refetch when user returns to window
+    refetchOnMount: 'always', // Always refetch when modal opens
   })
 }

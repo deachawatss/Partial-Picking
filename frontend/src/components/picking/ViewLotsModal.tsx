@@ -85,9 +85,9 @@ export function ViewLotsModal({
       }
 
       // Invalidate queries to refresh data immediately
-      await queryClient.invalidateQueries({ queryKey: ['picked-lots', runNo] })
+      await queryClient.invalidateQueries({ queryKey: ['picks', 'run', runNo, 'lots'] })
       await queryClient.invalidateQueries({ queryKey: ['run-details', runNo] })
-      await queryClient.invalidateQueries({ queryKey: ['pending-items', runNo] })
+      await queryClient.invalidateQueries({ queryKey: ['picks', 'run', runNo, 'pending'] })
       await refetch()
 
       // Clear selection
@@ -105,9 +105,9 @@ export function ViewLotsModal({
       await onDeleteAll()
 
       // Invalidate queries to refresh data immediately
-      await queryClient.invalidateQueries({ queryKey: ['picked-lots', runNo] })
+      await queryClient.invalidateQueries({ queryKey: ['picks', 'run', runNo, 'lots'] })
       await queryClient.invalidateQueries({ queryKey: ['run-details', runNo] })
-      await queryClient.invalidateQueries({ queryKey: ['pending-items', runNo] })
+      await queryClient.invalidateQueries({ queryKey: ['picks', 'run', runNo, 'pending'] })
       await refetch()
 
       setSelectedLots(new Set())
