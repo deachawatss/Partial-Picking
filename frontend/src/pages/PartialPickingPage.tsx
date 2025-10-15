@@ -1034,7 +1034,7 @@ export function PartialPickingPage() {
               </div>
 
               {/* Lot No. - inline with SOH label */}
-              <div className="grid grid-cols-[130px_1fr_212px] items-center gap-3">
+              <div className="grid grid-cols-[130px_1fr_208px] items-center gap-3">
                 <label className={labelClass}>Lot No.</label>
                 <div className="relative">
                   <Input
@@ -1061,7 +1061,7 @@ export function PartialPickingPage() {
               </div>
 
               {/* Bin No. - inline with SOH value and UOM fields */}
-              <div className="grid grid-cols-[130px_1fr_120px_80px] items-center gap-3">
+              <div className="grid grid-cols-[130px_1fr_135px_60px] items-center gap-3">
                 <label className={labelClass}>Bin No.</label>
                 <div className="relative">
                   <Input
@@ -1111,6 +1111,7 @@ export function PartialPickingPage() {
                   className={`h-12 rounded-lg border-2 font-body text-xl font-semibold tabular-nums tracking-tight transition-smooth cursor-pointer hover:border-accent-gold ${weightFieldClass}`}
                   title="Click to enter weight manually"
                 />
+                {/* FETCH WEIGHT button hidden - ADD LOT performs complete pick operation
                 <Button
                   type="button"
                   onClick={() => setManualWeight(currentScale.weight)}
@@ -1119,6 +1120,7 @@ export function PartialPickingPage() {
                 >
                   Fetch weight
                 </Button>
+                */}
               </div>
 
               {/* Weight range section - inline */}
