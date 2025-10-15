@@ -74,13 +74,11 @@ pub async fn complete_run(pool: &DbPool, run_no: i32, workstation_id: &str) -> A
     // Start transaction for atomic completion
     let mut conn = pool.get().await?;
 
-    // BEGIN TRANSACTION (SQL-level transaction control)
-    if let Err(e) = Query::new("BEGIN TRANSACTION").execute(&mut *conn).await {
-        return Err(AppError::TransactionFailed(format!(
-            "Failed to begin transaction: {}",
-            e
-        )));
-    }
+    // BEGIN TRANSACTION using simple_query() - Official Tiberius pattern
+    // Reference: https://github.com/prisma/tiberius/blob/main/tests/query.rs
+    conn.simple_query("BEGIN TRAN")
+        .await
+        .map_err(|e| AppError::TransactionFailed(format!("BEGIN TRAN failed: {}", e)))?;
 
     // ========================================================================
     // INSERT PALLET RECORD
@@ -152,10 +150,7 @@ pub async fn complete_run(pool: &DbPool, run_no: i32, workstation_id: &str) -> A
     insert_pallet_query.bind(rec_date);
 
     if let Err(e) = insert_pallet_query.execute(&mut *conn).await {
-        Query::new("ROLLBACK TRANSACTION")
-            .execute(&mut *conn)
-            .await
-            .ok();
+        let _ = conn.simple_query("ROLLBACK").await;
         return Err(AppError::TransactionFailed(format!(
             "Failed to insert pallet record: {}",
             e
@@ -181,10 +176,7 @@ pub async fn complete_run(pool: &DbPool, run_no: i32, workstation_id: &str) -> A
     let rows_affected = match update_run_query.execute(&mut *conn).await {
         Ok(result) => result.rows_affected().first().copied().unwrap_or(0),
         Err(e) => {
-            Query::new("ROLLBACK TRANSACTION")
-                .execute(&mut *conn)
-                .await
-                .ok();
+            let _ = conn.simple_query("ROLLBACK").await;
             return Err(AppError::TransactionFailed(format!(
                 "Failed to update run status: {}",
                 e
@@ -193,10 +185,7 @@ pub async fn complete_run(pool: &DbPool, run_no: i32, workstation_id: &str) -> A
     };
 
     if rows_affected == 0 {
-        Query::new("ROLLBACK TRANSACTION")
-            .execute(&mut *conn)
-            .await
-            .ok();
+        let _ = conn.simple_query("ROLLBACK").await;
         return Err(AppError::RecordNotFound(format!(
             "Run {} not found for status update",
             run_no
@@ -204,18 +193,11 @@ pub async fn complete_run(pool: &DbPool, run_no: i32, workstation_id: &str) -> A
     }
 
     // ========================================================================
-    // COMMIT TRANSACTION
+    // COMMIT TRANSACTION using simple_query() - Official Tiberius pattern
     // ========================================================================
-    if let Err(e) = Query::new("COMMIT TRANSACTION").execute(&mut *conn).await {
-        Query::new("ROLLBACK TRANSACTION")
-            .execute(&mut *conn)
-            .await
-            .ok();
-        return Err(AppError::TransactionFailed(format!(
-            "Failed to commit run completion: {}",
-            e
-        )));
-    }
+    conn.simple_query("COMMIT")
+        .await
+        .map_err(|e| AppError::TransactionFailed(format!("COMMIT failed: {}", e)))?;
 
     tracing::info!(
         run_no = %run_no,
