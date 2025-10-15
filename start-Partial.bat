@@ -122,9 +122,9 @@ REM Create logs directory at project root
 if not exist "%~dp0logs" mkdir "%~dp0logs"
 
 echo Starting backend server in background (port 7075)...
-echo Backend logs will be saved to: logs\backend.log
+echo Backend logs will be displayed in console AND saved to: logs\backend.log
 cd /d "%BACKEND_DIR%"
-start "" /B "%BACKEND_EXE_FULL%" > "%LOG_FILE%" 2>&1
+start "" /B powershell -Command "& '%BACKEND_EXE_FULL%' 2>&1 | Tee-Object -FilePath '%LOG_FILE%'"
 
 echo Waiting 5 seconds for backend to initialize...
 timeout /t 5 /nobreak >nul
@@ -138,7 +138,7 @@ echo - Backend:  http://192.168.0.10:7075/api (background)
 echo - Frontend: http://192.168.0.10:6060/ (foreground)
 echo ========================================
 echo.
-echo Backend logs: logs\backend.log
+echo Backend logs: Displayed in console + saved to logs\backend.log
 echo Frontend output shown below:
 echo.
 echo Press Ctrl+C to stop both services

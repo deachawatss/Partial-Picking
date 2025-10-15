@@ -313,11 +313,11 @@ pub async fn authenticate_sql(username: &str, password: &str, pool: &DbPool) -> 
         auth_source: AuthSource::Local,
         ldap_username: row.get::<&str, _>("ldap_username").map(|s| s.to_string()),
         ldap_dn: row.get::<&str, _>("ldap_dn").map(|s| s.to_string()),
-        last_ldap_sync: row.get("last_ldap_sync"),
+        last_ldap_sync: row.try_get("last_ldap_sync").ok().flatten(),
         ad_enabled: row.get::<bool, _>("ad_enabled").unwrap_or(true),
         app_permissions: row.get::<&str, _>("app_permissions").map(|s| s.to_string()),
         pword: Some(password_db.to_string()),
-        created_at: row.get("created_at"),
+        created_at: row.try_get("created_at").ok().flatten(),
     };
 
     tracing::info!(
@@ -495,11 +495,11 @@ async fn upsert_ldap_user(
             WHERE uname = @P7
         "#,
         );
-        query.bind(first_name);
-        query.bind(last_name);
-        query.bind(email);
-        query.bind(department);
-        query.bind(ldap_dn);
+        query.bind(first_name.unwrap_or(""));
+        query.bind(last_name.unwrap_or(""));
+        query.bind(email.unwrap_or(""));
+        query.bind(department.unwrap_or(""));
+        query.bind(ldap_dn.unwrap_or(""));
         query.bind(username);
         query.bind(username);
         query.execute(&mut conn).await?;
@@ -512,22 +512,22 @@ async fn upsert_ldap_user(
             INSERT INTO dbo.tbl_user (
                 uname, Fname, Lname, email, department,
                 auth_source, ldap_username, ldap_dn,
-                last_ldap_sync, ad_enabled, app_permissions
+                last_ldap_sync, ad_enabled, app_permissions, pword
             )
             VALUES (
                 @P1, @P2, @P3, @P4, @P5,
                 'LDAP', @P6, @P7,
-                GETDATE(), 1, 'putaway,picking,partial-picking'
+                GETDATE(), 1, 'putaway,picking,partial-picking', ''
             )
         "#,
         );
         query.bind(username);
-        query.bind(first_name);
-        query.bind(last_name);
-        query.bind(email);
-        query.bind(department);
+        query.bind(first_name.unwrap_or(""));
+        query.bind(last_name.unwrap_or(""));
+        query.bind(email.unwrap_or(""));
+        query.bind(department.unwrap_or(""));
         query.bind(username);
-        query.bind(ldap_dn);
+        query.bind(ldap_dn.unwrap_or(""));
         query.execute(&mut conn).await?;
     }
 
@@ -561,13 +561,11 @@ async fn upsert_ldap_user(
         auth_source: AuthSource::Ldap,
         ldap_username: row.get::<&str, _>("ldap_username").map(|s| s.to_string()),
         ldap_dn: row.get::<&str, _>("ldap_dn").map(|s| s.to_string()),
-        // LDAP sync timestamp: Tiberius doesn't support direct DateTime conversion
-        // Set to None (these fields are optional and not critical for auth)
-        last_ldap_sync: None,
+        last_ldap_sync: row.try_get("last_ldap_sync").ok().flatten(),
         ad_enabled: row.get::<bool, _>("ad_enabled").unwrap_or(true),
         app_permissions: row.get::<&str, _>("app_permissions").map(|s| s.to_string()),
         pword: None, // Never return password hash
-        created_at: None,
+        created_at: row.try_get("created_at").ok().flatten(),
     })
 }
 
