@@ -522,6 +522,27 @@ let qty: f64 = row.try_get::<f64, _>("ToPickedPartialQty")
 
 **Root Cause**: `try_get::<f32>` fails on FLOAT(53) → returns `None` → `unwrap_or(0.0)` → displays 0.0
 
+**SQL Server to Rust Type Mapping (Tiberius)**:
+```rust
+// ✅ CORRECT type mappings
+FLOAT(53)  → f64  (8-byte double)
+SMALLINT   → i16  (16-bit signed integer)
+INT        → i32  (32-bit signed integer)
+BIT        → u8   (0 or 1, NOT bool - use u8 for binding)
+DateTime   → chrono::DateTime<Utc>  (use try_get().ok().flatten() for nullable columns)
+
+// ❌ WRONG - Common mistakes
+SMALLINT → i32   // Causes panic: "cannot interpret I16 as i32"
+FLOAT(53) → f32  // Returns 0.0 silently
+BIT → bool       // Binding fails, use u8 instead
+```
+
+**Examples in codebase**:
+- `picking_service.rs:291` - SMALLINT receipt line: `row.get::<i16, _>(7)`
+- `picking_service.rs:535` - SMALLINT issue line: `phase3_query.bind(request.line_id as i16)`
+- `picking_service.rs:69` - FLOAT(53) weight: `row.try_get::<f64, _>(0)`
+- `picking_service.rs:217` - BIT custom field: `phase2_query.bind(custom1_value)` where custom1_value is u8
+
 **Problem #2: INLOC vs LotMaster for SOH**
 
 Use **INLOC** for Stock on Hand (SOH), NOT LotMaster:

@@ -38,9 +38,9 @@ pub struct LotTransaction {
     #[serde(rename = "ReceiptDocNo")]
     pub receipt_doc_no: Option<String>,
 
-    /// Receipt line
+    /// Receipt line (SQL Server SMALLINT)
     #[serde(rename = "ReceiptDocLineNo")]
-    pub receipt_doc_line_no: Option<i32>,
+    pub receipt_doc_line_no: Option<i16>,
 
     /// Qty received (0 for picking)
     #[serde(rename = "QtyReceived")]
@@ -58,9 +58,9 @@ pub struct LotTransaction {
     #[serde(rename = "IssueDocNo")]
     pub issue_doc_no: Option<String>,
 
-    /// Issue line (LineId from cust_PartialPicked)
+    /// Issue line (LineId from cust_PartialPicked, SQL Server SMALLINT)
     #[serde(rename = "IssueDocLineNo")]
-    pub issue_doc_line_no: Option<i32>,
+    pub issue_doc_line_no: Option<i16>,
 
     /// Picking timestamp
     #[serde(rename = "IssueDate")]

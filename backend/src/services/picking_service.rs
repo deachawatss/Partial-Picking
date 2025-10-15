@@ -283,12 +283,14 @@ async fn get_lot_allocation_data(
         bin_no: row.get::<&str, _>(1).unwrap_or("").to_string(),
         item_key: row.get::<&str, _>(2).unwrap_or("").to_string(),
         location_key: row.get::<&str, _>(3).unwrap_or("TFC1").to_string(),
-        // Use try_get for DateTime columns that may have invalid SQL Server dates
-        date_received: row.try_get(4).ok().flatten(),
-        date_expiry: row.try_get(5).ok().flatten(),
+        // CRITICAL: Use .get() without type annotation for datetime columns
+        // Tiberius Row::get() returns Option<DateTime<Utc>> automatically
+        // try_get::<DateTime<Utc>, _>() fails type conversion and returns None
+        date_received: row.get(4),
+        date_expiry: row.get(5),
         // Receipt/Vendor fields from LotMaster (for LotTransaction audit trail)
         receipt_doc_no: row.get::<&str, _>(6).unwrap_or("").to_string(),
-        receipt_doc_line_no: row.get::<i32, _>(7).unwrap_or(0),
+        receipt_doc_line_no: row.get::<i16, _>(7).unwrap_or(0),  // SQL Server SMALLINT
         vendor_key: row.get::<&str, _>(8).unwrap_or("").to_string(),
         vendor_lot_no: row.get::<&str, _>(9).unwrap_or("").to_string(),
     })
@@ -334,6 +336,30 @@ async fn get_customer_key(
     })?;
 
     Ok(row.get::<&str, _>(0).unwrap_or("").to_string())
+}
+
+/// Get PackSize from cust_PartialPicked for Phase 1 audit trail
+async fn get_pack_size(
+    conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
+    run_no: i32,
+    row_num: i32,
+    line_id: i32,
+) -> AppResult<f64> {
+    let sql = "SELECT PackSize FROM cust_PartialPicked WHERE RunNo = @P1 AND RowNum = @P2 AND LineId = @P3";
+
+    let mut query = Query::new(sql);
+    query.bind(run_no);
+    query.bind(row_num);
+    query.bind(line_id);
+
+    let row = query.query(conn).await?.into_row().await?.ok_or_else(|| {
+        AppError::RecordNotFound(format!(
+            "PackSize not found for RunNo={}, RowNum={}, LineId={}",
+            run_no, row_num, line_id
+        ))
+    })?;
+
+    Ok(row.try_get::<f64, _>(0).ok().flatten().unwrap_or(0.0))
 }
 
 /// Execute 4-phase atomic picking transaction
@@ -417,6 +443,15 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
         }
     };
 
+    // Get PackSize from cust_PartialPicked for Phase 1 audit trail
+    let pack_size = match get_pack_size(&mut *conn, request.run_no, request.row_num, request.line_id).await {
+        Ok(size) => size,
+        Err(e) => {
+            let _ = conn.simple_query("ROLLBACK").await;
+            return Err(e);
+        }
+    };
+
     // ========================================================================
     // PHASE 1: LOT ALLOCATION
     // ========================================================================
@@ -434,12 +469,12 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
         )
         VALUES (
             @P1, @P2, @P3, @P4, @P5, @P6, @P6, @P7, @P8,
-            @P11, @P12, 5, '', 0,
-            @P9, '', '', '', 0, GETDATE(),
+            @P11, @P12, 5, @P13, @P14,
+            @P9, @P15, @P16, '', 0, GETDATE(),
             @P9, @P9, @P9, '', @P10, GETDATE(), @P10, GETDATE(),
-            'N', 0, 0, 0, 0, 0,
-            '', '', '', '', '', 0, 0, 0, 0, 1, 0,
-            'Allocated', '', ''
+            'N', 0, 0, @P17, 0, 0,
+            NULL, NULL, NULL, NULL, 'Picking Customization', NULL, NULL, NULL, NULL, NULL, NULL,
+            'Allocated', NULL, NULL
         )
     "#;
 
@@ -454,8 +489,25 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
     phase1_query.bind(lot_data.bin_no.as_str()); // @P8
     phase1_query.bind(request.weight); // @P9 (QtyIssued, QtyUsed, AllocLotQty)
     phase1_query.bind(request.workstation_id.as_str()); // @P10 (RecUserid, ModifiedBy)
-    phase1_query.bind(lot_data.date_received); // @P11
-    phase1_query.bind(lot_data.date_expiry); // @P12
+    // CRITICAL: Unwrap Option<DateTime> before binding to Tiberius INSERT query
+    // DateReceived and DateExpiry are NOT NULL in LotMaster, so unwrap with error handling
+    phase1_query.bind(lot_data.date_received.ok_or_else(|| {
+        AppError::RecordNotFound(format!(
+            "DateReceived missing from LotMaster for lot {} item {} bin {}",
+            lot_data.lot_no, lot_data.item_key, lot_data.bin_no
+        ))
+    })?); // @P11
+    phase1_query.bind(lot_data.date_expiry.ok_or_else(|| {
+        AppError::RecordNotFound(format!(
+            "DateExpiry missing from LotMaster for lot {} item {} bin {}",
+            lot_data.lot_no, lot_data.item_key, lot_data.bin_no
+        ))
+    })?); // @P12
+    phase1_query.bind(lot_data.receipt_doc_no.as_str()); // @P13 (ReceiptDocNo from LotMaster)
+    phase1_query.bind(lot_data.receipt_doc_line_no); // @P14 (ReceiptDocLineNo from LotMaster, i16)
+    phase1_query.bind(lot_data.vendor_key.as_str()); // @P15 (Vendorkey from LotMaster)
+    phase1_query.bind(lot_data.vendor_lot_no.as_str()); // @P16 (VendorlotNo from LotMaster)
+    phase1_query.bind(pack_size); // @P17 (PackSize from cust_PartialPicked)
 
     // Execute Phase 1
     if let Err(e) = phase1_query.execute(&mut *conn).await {
@@ -520,9 +572,9 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
             CUSTOM1, CUSTOM2, CUSTOM3, CUSTOM4, CUSTOM5, CUSTOM6, CUSTOM7, CUSTOM8, CUSTOM9, CUSTOM10
         )
         VALUES (
-            @P1, @P2, @P3, NULL, @P4, 5, @P10, @P11, 0, @P12, @P13, @P5, @P6, GETDATE(), @P7, @P14,
-            @P8, GETDATE(), 'N', 0, 0, @P9, 0, NULL, '', '', '', '', 'Picking Customization',
-            NULL, 0, 0, 0, 0, 0, 0, '', '', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            @P1, @P2, @P3, @P4, @P5, 5, @P11, @P12, 0, @P13, @P14, @P6, @P7, GETDATE(), @P8, @P15,
+            @P9, GETDATE(), 'N', 0, 0, @P10, 0, NULL, NULL, NULL, NULL, NULL, 'Picking Customization',
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
         )
     "#;
 
@@ -530,17 +582,30 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
     phase3_query.bind(lot_data.lot_no.as_str()); // @P1 - LotNo
     phase3_query.bind(lot_data.item_key.as_str()); // @P2 - ItemKey
     phase3_query.bind(lot_data.location_key.as_str()); // @P3 - LocationKey
-    phase3_query.bind(lot_data.date_expiry); // @P4 - DateExpiry
-    phase3_query.bind(batch_no.as_str()); // @P5 - IssueDocNo
-    phase3_query.bind(request.line_id as i16); // @P6 - IssueDocLineNo
-    phase3_query.bind(request.weight); // @P7 - QtyIssued
-    phase3_query.bind(request.workstation_id.as_str()); // @P8 - RecUserid
-    phase3_query.bind(lot_data.bin_no.as_str()); // @P9 - BinNo
-    phase3_query.bind(lot_data.receipt_doc_no.as_str()); // @P10 - ReceiptDocNo (from LotMaster)
-    phase3_query.bind(lot_data.receipt_doc_line_no); // @P11 - ReceiptDocLineNo (from LotMaster)
-    phase3_query.bind(lot_data.vendor_key.as_str()); // @P12 - Vendorkey (from LotMaster)
-    phase3_query.bind(lot_data.vendor_lot_no.as_str()); // @P13 - VendorlotNo (from LotMaster)
-    phase3_query.bind(cust_key.as_str()); // @P14 - CustomerKey (from PNMAST)
+    // CRITICAL: Unwrap Option<DateTime> before binding to Tiberius INSERT query
+    // DateReceived and DateExpiry are NOT NULL in LotMaster, so unwrap with error handling
+    phase3_query.bind(lot_data.date_received.ok_or_else(|| {
+        AppError::RecordNotFound(format!(
+            "DateReceived missing from LotMaster for lot {} item {} bin {}",
+            lot_data.lot_no, lot_data.item_key, lot_data.bin_no
+        ))
+    })?); // @P4 - DateReceived (from LotMaster)
+    phase3_query.bind(lot_data.date_expiry.ok_or_else(|| {
+        AppError::RecordNotFound(format!(
+            "DateExpiry missing from LotMaster for lot {} item {} bin {}",
+            lot_data.lot_no, lot_data.item_key, lot_data.bin_no
+        ))
+    })?); // @P5 - DateExpiry (from LotMaster)
+    phase3_query.bind(batch_no.as_str()); // @P6 - IssueDocNo
+    phase3_query.bind(request.line_id as i16); // @P7 - IssueDocLineNo
+    phase3_query.bind(request.weight); // @P8 - QtyIssued
+    phase3_query.bind(request.workstation_id.as_str()); // @P9 - RecUserid
+    phase3_query.bind(lot_data.bin_no.as_str()); // @P10 - BinNo
+    phase3_query.bind(lot_data.receipt_doc_no.as_str()); // @P11 - ReceiptDocNo (from LotMaster)
+    phase3_query.bind(lot_data.receipt_doc_line_no); // @P12 - ReceiptDocLineNo (from LotMaster)
+    phase3_query.bind(lot_data.vendor_key.as_str()); // @P13 - Vendorkey (from LotMaster)
+    phase3_query.bind(lot_data.vendor_lot_no.as_str()); // @P14 - VendorlotNo (from LotMaster)
+    phase3_query.bind(cust_key.as_str()); // @P15 - CustomerKey (from PNMAST)
 
     // Execute Phase 3
     if let Err(e) = phase3_query.execute(&mut *conn).await {

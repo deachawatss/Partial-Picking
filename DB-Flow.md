@@ -1055,6 +1055,272 @@ INSERT INTO LotTransaction (
 
 ---
 
+### ❌ Pitfall 8: Missing Audit Trail Fields in Cust_PartialLotPicked (Phase 1)
+
+**Problem**: Phase 1 INSERT INTO Cust_PartialLotPicked with empty/hardcoded values instead of actual source data.
+
+```sql
+-- ❌ WRONG (Loses complete audit trail)
+INSERT INTO Cust_PartialLotPicked (
+    RunNo, RowNum, LineId, BatchNo, ItemKey, LotNo, SuggestedLotNo, LocationKey, BinNo,
+    DateReceived, DateExpiry, TransactionType, ReceiptDocNo, ReceiptDocLineNo,
+    QtyReceived, Vendorkey, VendorlotNo, PackSize, ...
+) VALUES (
+    @runNo, @rowNum, @lineId, @batchNo, @itemKey, @lotNo, @lotNo, 'TFC1', @binNo,
+    @dateReceived, @dateExpiry, 5, '', 0,  -- ❌ Empty receipt/vendor fields
+    @weight, '', '', 0, ...                  -- ❌ Empty vendor fields, PackSize=0
+)
+
+-- ✅ CORRECT (Complete audit trail from source tables)
+-- Step 1: Get lot data from LotMaster (including receipt/vendor fields)
+SELECT
+    LotNo,
+    BinNo,
+    ItemKey,
+    LocationKey,
+    DateReceived,
+    DateExpiry,
+    ISNULL(DocumentNo, '') AS ReceiptDocNo,
+    ISNULL(DocumentLineNo, 0) AS ReceiptDocLineNo,
+    ISNULL(VendorKey, '') AS Vendorkey,
+    ISNULL(VendorLotNo, '') AS VendorlotNo
+FROM LotMaster
+WHERE LotNo = @lotNo AND ItemKey = @itemKey AND BinNo = @binNo AND LocationKey = 'TFC1'
+
+-- Step 2: Get PackSize from cust_PartialPicked
+SELECT PackSize
+FROM cust_PartialPicked
+WHERE RunNo = @runNo AND RowNum = @rowNum AND LineId = @lineId
+
+-- Step 3: Insert with complete audit trail
+INSERT INTO Cust_PartialLotPicked (
+    RunNo, RowNum, LineId, BatchNo, ItemKey, LotNo, SuggestedLotNo, LocationKey, BinNo,
+    DateReceived, DateExpiry, TransactionType, ReceiptDocNo, ReceiptDocLineNo,
+    QtyReceived, Vendorkey, VendorlotNo, PackSize, ...
+) VALUES (
+    @runNo, @rowNum, @lineId, @batchNo, @itemKey, @lotNo, @lotNo, 'TFC1', @binNo,
+    @dateReceived,      -- From LotMaster.DateReceived
+    @dateExpiry,        -- From LotMaster.DateExpiry
+    5,                  -- TransactionType=5 (Partial Picking)
+    @receiptDocNo,      -- From LotMaster.DocumentNo (e.g., "BT-25268022")
+    @receiptDocLineNo,  -- From LotMaster.DocumentLineNo (e.g., 1, SQL Server SMALLINT)
+    @weight,            -- QtyReceived
+    @vendorKey,         -- From LotMaster.VendorKey (e.g., "ADP")
+    @vendorLotNo,       -- From LotMaster.VendorLotNo (e.g., "21-04-25")
+    @packSize,          -- From cust_PartialPicked.PackSize (e.g., 25.0, NOT 0)
+    ...
+)
+```
+
+**Field Mapping Summary**:
+```
+LotMaster → Cust_PartialLotPicked:
+  DateReceived      → DateReceived
+  DateExpiry        → DateExpiry
+  DocumentNo        → ReceiptDocNo
+  DocumentLineNo    → ReceiptDocLineNo (SQL Server SMALLINT, use i16 in Rust)
+  VendorKey         → Vendorkey
+  VendorLotNo       → VendorlotNo
+
+cust_PartialPicked → Cust_PartialLotPicked:
+  PackSize          → PackSize (e.g., 25.0, NOT hardcoded 0)
+```
+
+**Why This Matters**:
+- **ReceiptDocNo/ReceiptDocLineNo**: Traces back to original goods receipt (GRN) for supply chain audit
+- **Vendorkey/VendorlotNo**: Enable vendor traceability for ingredient sourcing compliance
+- **PackSize**: Critical for packaging calculations and case count validation
+- **DateReceived**: Original receipt date for shelf-life and rotation tracking
+- Empty or zero values = incomplete audit trail = failed traceability requirements
+
+**Rust Implementation Note**:
+- `ReceiptDocLineNo` is SQL Server SMALLINT (16-bit) → Use `i16` in Rust, NOT `i32`
+- Missing type mapping causes Tiberius panic: "cannot interpret I16(Some(1)) as an i32 value"
+
+**Real Production Example**:
+```
+Run 6000037, Batch 2, INRICF05:
+  ✅ ReceiptDocNo: "BT-25268022"      (from LotMaster.DocumentNo)
+  ✅ ReceiptDocLineNo: 1              (from LotMaster.DocumentLineNo, i16)
+  ✅ Vendorkey: "ADP"                 (from LotMaster.VendorKey)
+  ✅ VendorlotNo: "21-04-25"          (from LotMaster.VendorLotNo)
+  ✅ PackSize: 25.0                   (from cust_PartialPicked.PackSize)
+  ✅ DateReceived: 2025-01-15         (from LotMaster.DateReceived)
+
+  ❌ WRONG VALUES (broken audit trail):
+  ❌ ReceiptDocNo: "" (empty)
+  ❌ ReceiptDocLineNo: 0
+  ❌ Vendorkey: "" (empty)
+  ❌ VendorlotNo: "" (empty)
+  ❌ PackSize: 0 (hardcoded, should be 25.0)
+  ❌ DateReceived: NULL or 1900-01-01
+```
+
+---
+
+### ❌ Pitfall 9: NULL DateReceived in LotTransaction (Phase 3)
+
+**Problem**: Phase 3 INSERT INTO LotTransaction with NULL DateReceived instead of binding from LotMaster.
+
+```sql
+-- ❌ WRONG (Loses receipt date for shelf-life tracking)
+INSERT INTO LotTransaction (
+    LotNo, ItemKey, LocationKey, DateReceived, DateExpiry, TransactionType, ...
+) VALUES (
+    @lotNo, @itemKey, 'TFC1', NULL, @dateExpiry, 5, ...  -- ❌ DateReceived is NULL
+)
+
+-- ✅ CORRECT (Complete lot history with receipt date)
+INSERT INTO LotTransaction (
+    LotNo, ItemKey, LocationKey, DateReceived, DateExpiry, TransactionType, ...
+) VALUES (
+    @lotNo, @itemKey, 'TFC1', @dateReceived, @dateExpiry, 5, ...  -- ✅ From LotMaster.DateReceived
+)
+```
+
+**Field Source**:
+- **DateReceived**: Must be bound from `LotMaster.DateReceived` (same query used for Phase 1)
+- **DateExpiry**: Already correctly bound from `LotMaster.DateExpiry`
+
+**Why This Matters**:
+- **DateReceived** tracks original receipt date for shelf-life calculations
+- Required for FIFO/FEFO rotation verification and expiry date validation
+- NULL DateReceived = incomplete lot history = failed audit compliance
+
+**Rust Implementation Note**:
+- Use same `lot_data.date_received` already fetched from LotMaster for Phase 1
+- Parameter sequence shifts by 1 when adding DateReceived (renumber all subsequent @Pn bindings)
+
+**Parameter Renumbering Example**:
+```rust
+// BEFORE (DateReceived NULL):
+// VALUES (@P1, @P2, @P3, NULL, @P4, 5, @P10, @P11, 0, @P12, @P13, @P5, ...)
+phase3_query.bind(lot_data.lot_no);           // @P1
+phase3_query.bind(lot_data.item_key);         // @P2
+phase3_query.bind(lot_data.location_key);     // @P3
+// NULL for DateReceived (not bound)
+phase3_query.bind(lot_data.date_expiry);      // @P4
+phase3_query.bind(batch_no);                  // @P5
+
+// AFTER (DateReceived bound from LotMaster):
+// VALUES (@P1, @P2, @P3, @P4, @P5, 5, @P11, @P12, 0, @P13, @P14, @P6, ...)
+phase3_query.bind(lot_data.lot_no);           // @P1
+phase3_query.bind(lot_data.item_key);         // @P2
+phase3_query.bind(lot_data.location_key);     // @P3
+phase3_query.bind(lot_data.date_received);    // @P4 - NEW!
+phase3_query.bind(lot_data.date_expiry);      // @P5 (was @P4)
+phase3_query.bind(batch_no);                  // @P6 (was @P5)
+// ... all subsequent parameters shifted by 1
+```
+
+**Real Production Example**:
+```
+Run 6000037, LotTransaction Record:
+  ✅ DateReceived: 2025-01-15  (from LotMaster.DateReceived)
+  ✅ DateExpiry: 2026-04-25    (from LotMaster.DateExpiry)
+
+  ❌ WRONG (broken lot history):
+  ❌ DateReceived: NULL or 1900-01-01
+```
+
+---
+
+## Complete 4-Phase Audit Trail Implementation
+
+**Summary of Required Audit Trail Fields**:
+
+### Phase 1 (Cust_PartialLotPicked):
+```
+Source: LotMaster
+  ✅ DateReceived       → From LotMaster.DateReceived
+  ✅ DateExpiry         → From LotMaster.DateExpiry
+  ✅ ReceiptDocNo       → From LotMaster.DocumentNo
+  ✅ ReceiptDocLineNo   → From LotMaster.DocumentLineNo (i16, SQL Server SMALLINT)
+  ✅ Vendorkey          → From LotMaster.VendorKey
+  ✅ VendorlotNo        → From LotMaster.VendorLotNo
+
+Source: cust_PartialPicked
+  ✅ PackSize           → From cust_PartialPicked.PackSize (e.g., 25.0, NOT 0)
+```
+
+### Phase 3 (LotTransaction):
+```
+Source: LotMaster
+  ✅ DateReceived       → From LotMaster.DateReceived (NEW in Phase 3)
+  ✅ DateExpiry         → From LotMaster.DateExpiry
+  ✅ ReceiptDocNo       → From LotMaster.DocumentNo
+  ✅ ReceiptDocLineNo   → From LotMaster.DocumentLineNo (i16, SQL Server SMALLINT)
+  ✅ Vendorkey          → From LotMaster.VendorKey
+  ✅ VendorlotNo        → From LotMaster.VendorLotNo
+
+Source: PNMAST
+  ✅ CustomerKey        → From PNMAST.CustKey
+
+Source: Picking Transaction
+  ✅ IssueDocNo         → From cust_PartialPicked.BatchNo
+  ✅ IssueDocLineNo     → From cust_PartialPicked.LineId
+```
+
+**Rust Implementation Pattern**:
+```rust
+// 1. Fetch lot allocation data (includes receipt/vendor fields)
+let lot_data = get_lot_allocation_data(&mut *conn, lot_no, item_key, bin_no).await?;
+// Returns: lot_data.{date_received, date_expiry, receipt_doc_no, receipt_doc_line_no, vendor_key, vendor_lot_no}
+
+// 2. Fetch customer key from PNMAST
+let cust_key = get_customer_key(&mut *conn, batch_no).await?;
+
+// 3. Fetch PackSize from cust_PartialPicked
+let pack_size = get_pack_size(&mut *conn, run_no, row_num, line_id).await?;
+
+// 4. Use in Phase 1 INSERT (Cust_PartialLotPicked)
+phase1_query.bind(lot_data.date_received);       // DateReceived
+phase1_query.bind(lot_data.date_expiry);         // DateExpiry
+phase1_query.bind(lot_data.receipt_doc_no);      // ReceiptDocNo
+phase1_query.bind(lot_data.receipt_doc_line_no); // ReceiptDocLineNo (i16)
+phase1_query.bind(lot_data.vendor_key);          // Vendorkey
+phase1_query.bind(lot_data.vendor_lot_no);       // VendorlotNo
+phase1_query.bind(pack_size);                    // PackSize
+
+// 5. Use in Phase 3 INSERT (LotTransaction)
+phase3_query.bind(lot_data.date_received);       // DateReceived (from LotMaster)
+phase3_query.bind(lot_data.date_expiry);         // DateExpiry
+phase3_query.bind(lot_data.receipt_doc_no);      // ReceiptDocNo
+phase3_query.bind(lot_data.receipt_doc_line_no); // ReceiptDocLineNo (i16)
+phase3_query.bind(lot_data.vendor_key);          // Vendorkey
+phase3_query.bind(lot_data.vendor_lot_no);       // VendorlotNo
+phase3_query.bind(cust_key);                     // CustomerKey (from PNMAST)
+```
+
+**Type Safety (Critical for Tiberius)**:
+```rust
+pub struct LotAllocationData {
+    pub lot_no: String,
+    pub bin_no: String,
+    pub item_key: String,
+    pub location_key: String,
+    pub date_received: Option<DateTime<Utc>>,            // Nullable DateTime
+    pub date_expiry: Option<DateTime<Utc>>,              // Nullable DateTime
+    pub receipt_doc_no: String,                          // From LotMaster.DocumentNo
+    pub receipt_doc_line_no: i16,                        // ⚠️ SQL Server SMALLINT = i16 (NOT i32)
+    pub vendor_key: String,                              // From LotMaster.VendorKey
+    pub vendor_lot_no: String,                           // From LotMaster.VendorLotNo
+}
+```
+
+**Common Type Errors to Avoid**:
+- ❌ `receipt_doc_line_no: i32` → Tiberius panic: "cannot interpret I16 as i32"
+- ✅ `receipt_doc_line_no: i16` → Correct SQL Server SMALLINT mapping
+
+**Verification Checklist**:
+- ✅ All receipt/vendor fields populated from LotMaster (NOT empty strings or zeros)
+- ✅ PackSize fetched from cust_PartialPicked (NOT hardcoded 0)
+- ✅ DateReceived bound in both Phase 1 AND Phase 3 (NOT NULL)
+- ✅ ReceiptDocLineNo uses i16 type (NOT i32)
+- ✅ Parameter numbering sequential with no gaps (@P1, @P2, @P3, @P4...)
+
+---
+
 ## Constitutional Compliance Checklist
 
 Before implementing ANY database or workflow feature, verify:
