@@ -528,11 +528,15 @@ export function PartialPickingPage() {
             queryKey: ['run-details', currentRun?.runNo]
           })
 
-          // Re-calculate pending items with updated data
-          const refreshedBatchItems = currentBatchItems
+          // Re-fetch current batch to get FRESH data (not stale state)
+          // This ensures currentBatchItems is updated with the latest picked status
+          if (currentRun && currentBatchRowNum) {
+            await selectBatch(currentBatchRowNum)
+          }
 
+          // Now currentBatchItems has fresh data from context
           // Apply same sorting logic as grid display (lines 816-823)
-          const sortedItems = [...refreshedBatchItems].sort((a, b) => {
+          const sortedItems = [...currentBatchItems].sort((a, b) => {
             // Primary: Sort by totalNeeded (Partial KG) descending (largest first)
             const qtyCompare = b.totalNeeded - a.totalNeeded
             if (qtyCompare !== 0) return qtyCompare
