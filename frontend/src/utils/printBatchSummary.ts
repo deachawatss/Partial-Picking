@@ -82,6 +82,7 @@ function generateBatchSummaryHTML(summary: BatchSummaryResponse): string {
       line-height: 1.0;
       color: #000;
       background: #fff;
+      font-weight: bold;
     }
 
     /* Each batch on separate page */
@@ -145,6 +146,7 @@ function generateBatchSummaryHTML(summary: BatchSummaryResponse): string {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      font-weight: bold;
     }
 
     .items-table thead tr {
