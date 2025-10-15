@@ -81,78 +81,38 @@ pub async fn complete_run(pool: &DbPool, run_no: i32, workstation_id: &str) -> A
         .map_err(|e| AppError::TransactionFailed(format!("BEGIN TRAN failed: {}", e)))?;
 
     // ========================================================================
-    // INSERT PALLET RECORD
+    // INSERT PALLET RECORDS (one per item)
     // ========================================================================
-    // Get run metadata for pallet record
-    let run_metadata_sql = r#"
-        SELECT TOP 1
-            FormulaId,
-            FormulaDesc,
-            RecDate
-        FROM Cust_PartialRun
-        WHERE RunNo = @P1
-    "#;
-
-    let mut run_metadata_query = Query::new(run_metadata_sql);
-    run_metadata_query.bind(run_no);
-
-    // Execute query and consume stream - use ? operator and handle cleanup separately
-    // to avoid borrow checker issues with nested match statements
-    let run_row_opt = run_metadata_query
-        .query(&mut *conn)
-        .await
-        .map_err(|e| AppError::DatabaseError(format!("Failed to query run metadata: {}", e)))?
-        .into_row()
-        .await
-        .map_err(|e| AppError::DatabaseError(format!("Failed to fetch run metadata: {}", e)))?;
-
-    let run_row = run_row_opt
-        .ok_or_else(|| AppError::RecordNotFound(format!("Run {} metadata not found", run_no)))?;
-
-    let formula_id: &str = run_row.get(0).unwrap_or("");
-    let formula_desc: &str = run_row.get(1).unwrap_or("");
-    let rec_date: Option<chrono::NaiveDateTime> = run_row.get(2);
-
-    // Insert pallet record
+    // Bulk INSERT from cust_PartialPicked
+    // Schema: Primary key (RunNo, RowNum, LineId)
+    // Production pattern: All User/CUSTOM/ESG fields are NULL (verified from run 6000028)
     let insert_pallet_sql = r#"
         INSERT INTO Cust_PartialPalletLotPicked (
-            PalletID,
-            RunNo,
-            ItemKey,
-            ItemDescription,
-            RecUserid,
-            RecDate,
-            ModifiedBy,
-            ModifiedDate,
-            Status,
-            ProductionDate
+            RunNo, RowNum, BatchNo, LineId, PalletID,
+            RecUserid, RecDate, ModifiedBy, ModifiedDate,
+            User1, User2, User3, User4, User5, User6, User7, User8, User9, User10, User11, User12,
+            CUSTOM1, CUSTOM2, CUSTOM3, CUSTOM4, CUSTOM5, CUSTOM6, CUSTOM7, CUSTOM8, CUSTOM9, CUSTOM10,
+            ESG_REASON, ESG_APPROVER
         )
-        VALUES (
-            @P1,
-            @P2,
-            @P3,
-            @P4,
-            @P5,
-            GETDATE(),
-            @P5,
-            GETDATE(),
-            'PRINT',
-            @P6
-        )
+        SELECT
+            cpp.RunNo, cpp.RowNum, cpp.BatchNo, cpp.LineId, @P1,
+            @P2, GETDATE(), '', GETDATE(),
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+            NULL, NULL
+        FROM cust_PartialPicked cpp
+        WHERE cpp.RunNo = @P3
     "#;
 
     let mut insert_pallet_query = Query::new(insert_pallet_sql);
-    insert_pallet_query.bind(pallet_id_str.as_str());
-    insert_pallet_query.bind(run_no);
-    insert_pallet_query.bind(formula_id);
-    insert_pallet_query.bind(formula_desc);
-    insert_pallet_query.bind(workstation_id);
-    insert_pallet_query.bind(rec_date);
+    insert_pallet_query.bind(pallet_id_str.as_str()); // @P1 - PalletID
+    insert_pallet_query.bind(workstation_id); // @P2 - RecUserid
+    insert_pallet_query.bind(run_no); // @P3 - RunNo filter
 
     if let Err(e) = insert_pallet_query.execute(&mut *conn).await {
         let _ = conn.simple_query("ROLLBACK").await;
         return Err(AppError::TransactionFailed(format!(
-            "Failed to insert pallet record: {}",
+            "Failed to insert pallet records: {}",
             e
         )));
     }
@@ -204,7 +164,7 @@ pub async fn complete_run(pool: &DbPool, run_no: i32, workstation_id: &str) -> A
         pallet_id = %pallet_id_str,
         total_items = %total_items,
         workstation = %workstation_id,
-        "Run completed successfully"
+        "Run completed successfully - pallet records created and status updated to PRINT"
     );
 
     Ok(pallet_id_str)
