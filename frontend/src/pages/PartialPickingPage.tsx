@@ -1308,8 +1308,10 @@ export function PartialPickingPage() {
         open={showViewLotsModal}
         onOpenChange={setShowViewLotsModal}
         runNo={currentRun?.runNo || null}
+        runStatus={currentRun?.status || null}
         onDelete={handleDeleteLot}
         onDeleteAll={handleDeleteAllLots}
+        onRefreshRun={currentRun ? () => selectRun(currentRun.runNo) : undefined}
       />
     </div>
   )

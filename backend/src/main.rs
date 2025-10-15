@@ -99,6 +99,10 @@ async fn main() {
             get(api::runs::get_batch_summary_endpoint),
         )
         .route(
+            "/runs/:runNo/revert-status",
+            post(api::runs::revert_run_status_endpoint),
+        )
+        .route(
             "/runs/:runNo/batches/:rowNum/items",
             get(api::runs::get_batch_items_endpoint),
         )

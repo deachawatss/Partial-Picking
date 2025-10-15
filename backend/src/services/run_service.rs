@@ -730,3 +730,105 @@ pub async fn get_batch_summary(pool: &DbPool, run_no: i32) -> AppResult<BatchSum
 
     Ok(BatchSummaryResponse { batches })
 }
+
+/// Revert run status from PRINT to NEW
+///
+/// Allows users to make changes after run completion by reverting status.
+/// Deletes pallet records and updates status in atomic transaction.
+/// Only reverts if current status is PRINT.
+///
+/// # Arguments
+/// * `pool` - Database connection pool
+/// * `run_no` - Production run number
+///
+/// # Returns
+/// * RunDetailsResponse with updated status='NEW'
+/// * 400 if run status is not PRINT
+/// * 404 if run not found
+///
+/// # Constitutional Compliance
+/// * ✅ Atomic transaction (DELETE pallet records + UPDATE status)
+/// * ✅ Rollback on any failure
+/// * ✅ Allows run re-completion without PRIMARY KEY violations
+/// * ✅ Returns updated run details via get_run_details
+pub async fn revert_run_status(pool: &DbPool, run_no: i32) -> AppResult<RunDetailsResponse> {
+    let mut conn = pool.get().await?;
+
+    // Begin transaction for atomic revert (pallet cleanup + status update)
+    conn.simple_query("BEGIN TRAN")
+        .await
+        .map_err(|e| AppError::TransactionFailed(format!("BEGIN TRAN failed: {}", e)))?;
+
+    // STEP 1: Delete pallet records for this run
+    // This allows the run to be completed again after changes without PRIMARY KEY violations
+    let delete_pallet_sql = r#"
+        DELETE FROM Cust_PartialPalletLotPicked
+        WHERE RunNo = @P1
+    "#;
+
+    let mut delete_pallet_query = Query::new(delete_pallet_sql);
+    delete_pallet_query.bind(run_no);
+
+    let delete_result = match delete_pallet_query.execute(&mut *conn).await {
+        Ok(result) => result,
+        Err(e) => {
+            let _ = conn.simple_query("ROLLBACK").await;
+            return Err(AppError::TransactionFailed(format!(
+                "Failed to delete pallet records: {}",
+                e
+            )));
+        }
+    };
+
+    let deleted_rows = delete_result.rows_affected()[0];
+    tracing::info!(
+        run_no = run_no,
+        deleted_pallet_records = deleted_rows,
+        "Deleted pallet records for run revert"
+    );
+
+    // STEP 2: Update run status from PRINT to NEW
+    let update_status_sql = r#"
+        UPDATE Cust_PartialRun
+        SET Status = 'NEW'
+        WHERE RunNo = @P1
+          AND Status = 'PRINT'
+    "#;
+
+    let mut update_query = Query::new(update_status_sql);
+    update_query.bind(run_no);
+
+    let result = match update_query.execute(&mut *conn).await {
+        Ok(result) => result,
+        Err(e) => {
+            let _ = conn.simple_query("ROLLBACK").await;
+            return Err(AppError::TransactionFailed(format!(
+                "Failed to update run status: {}",
+                e
+            )));
+        }
+    };
+
+    let rows_affected = result.rows_affected()[0];
+
+    if rows_affected == 0 {
+        let _ = conn.simple_query("ROLLBACK").await;
+        return Err(AppError::ValidationError(
+            format!("Run {} status is not PRINT or run not found", run_no)
+        ));
+    }
+
+    // Commit transaction
+    conn.simple_query("COMMIT")
+        .await
+        .map_err(|e| AppError::TransactionFailed(format!("COMMIT failed: {}", e)))?;
+
+    tracing::info!(
+        run_no = run_no,
+        rows_affected = rows_affected,
+        "Reverted run status from PRINT to NEW (with pallet cleanup)"
+    );
+
+    // Return updated run details
+    get_run_details(pool, run_no).await
+}

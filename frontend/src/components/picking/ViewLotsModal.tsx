@@ -3,25 +3,31 @@ import { usePickedLots, usePendingItems } from '@/hooks/usePickedLotsQuery'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/use-auth'
 import { printLabels, type LabelData } from '@/utils/printLabel'
+import { revertRunStatus } from '@/services/api/runs'
 
 interface ViewLotsModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   runNo: number | null
+  runStatus?: string | null  // Current run status (NEW|PRINT)
   onDelete?: (lotTranNo: number, rowNum: number, lineId: number) => void
   onDeleteAll?: () => void
+  onRefreshRun?: () => Promise<void>  // Callback to refetch run details after status change
 }
 
 export function ViewLotsModal({
   open,
   onOpenChange,
   runNo,
+  runStatus,
   onDelete,
   onDeleteAll,
+  onRefreshRun,
 }: ViewLotsModalProps) {
   const [activeTab, setActiveTab] = useState<'picked' | 'pending'>('picked')
   const [selectedLots, setSelectedLots] = useState<Set<number>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isReverting, setIsReverting] = useState(false)
   const queryClient = useQueryClient()
   const { user } = useAuth()
 
@@ -134,6 +140,42 @@ export function ViewLotsModal({
 
     // Print individual labels for selected lots
     printLabels(labelData)
+  }
+
+  const handleRevertStatus = async () => {
+    if (!runNo) return
+
+    const confirmed = window.confirm(
+      `Are you sure you want to revert Run ${runNo} status from PRINT back to NEW?\n\n` +
+      `This will allow you to delete lots and make changes.\n\n` +
+      `Click OK to proceed, or Cancel to abort.`
+    )
+
+    if (!confirmed) return
+
+    setIsReverting(true)
+    try {
+      await revertRunStatus(runNo)
+
+      // Invalidate queries to refresh data
+      await queryClient.invalidateQueries({ queryKey: ['run-details', runNo] })
+      await queryClient.invalidateQueries({ queryKey: ['picks', 'run', runNo, 'lots'] })
+
+      // Refetch run details in PickingContext to update currentRun state
+      if (onRefreshRun) {
+        await onRefreshRun()
+      }
+
+      alert(`✅ Run ${runNo} status successfully reverted from PRINT to NEW!\n\nYou can now delete lots if needed.`)
+
+      // Close modal after successful revert
+      handleClose()
+    } catch (error) {
+      console.error('[ViewLotsModal] Revert status failed:', error)
+      alert('Failed to revert run status. Please try again.')
+    } finally {
+      setIsReverting(false)
+    }
   }
 
   if (!open) return null
@@ -319,9 +361,28 @@ export function ViewLotsModal({
 
         {/* Modal Footer - 3 Section Layout */}
         <div className="modal-footer">
-          {/* LEFT: Delete All Lots Button */}
+          {/* LEFT: Revert To NEW + Delete All Lots Buttons */}
           <div className="modal-footer-left">
-            {data && data.pickedLots.length > 0 && (
+            {runStatus === 'PRINT' && !isReverting && (
+              <button
+                type="button"
+                onClick={handleRevertStatus}
+                className="modal-btn-warning"
+                title="Revert run status from PRINT back to NEW to enable deletion"
+              >
+                ⚠️ Revert To NEW
+              </button>
+            )}
+            {isReverting && (
+              <button
+                type="button"
+                disabled
+                className="modal-btn-warning"
+              >
+                ⏳ Reverting...
+              </button>
+            )}
+            {data && data.pickedLots.length > 0 && runStatus !== 'PRINT' && (
               <button
                 type="button"
                 onClick={handleDeleteAll}
@@ -349,8 +410,9 @@ export function ViewLotsModal({
             <button
               type="button"
               onClick={handleDelete}
-              disabled={selectedLots.size === 0 || isDeleting}
+              disabled={selectedLots.size === 0 || isDeleting || runStatus === 'PRINT'}
               className="modal-btn-danger"
+              title={runStatus === 'PRINT' ? 'Cannot delete when status is PRINT. Revert to NEW first.' : undefined}
             >
               {isDeleting ? '⏳ Deleting...' : '🗑️ Delete'}
             </button>

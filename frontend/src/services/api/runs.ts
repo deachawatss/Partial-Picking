@@ -223,6 +223,25 @@ export async function getBatchSummary(runNo: number): Promise<BatchSummaryRespon
 }
 
 /**
+ * Revert run status from PRINT to NEW
+ *
+ * OpenAPI Operation: POST /api/runs/{runNo}/revert-status
+ *
+ * Allows users to make changes after run completion by reverting status.
+ * Only succeeds if current status is PRINT.
+ *
+ * No offline cache support - always executes via API
+ *
+ * @param runNo - Production run number
+ * @returns Promise<RunDetailsResponse> - Updated run details with status='NEW'
+ * @throws ErrorResponse - On validation error (400 if status not PRINT) or not found (404)
+ */
+export async function revertRunStatus(runNo: number): Promise<RunDetailsResponse> {
+  const response = await apiClient.post<RunDetailsResponse>(`/runs/${runNo}/revert-status`, {})
+  return response.data
+}
+
+/**
  * Runs API Service Object
  * Provides all run-related API methods
  */
@@ -233,6 +252,7 @@ export const runsApi = {
   getAllRunItems,
   getBatchSummary,
   completeRun,
+  revertRunStatus,
 }
 
 export default runsApi

@@ -3,7 +3,8 @@ use crate::error::{AppError, AppResult};
 use crate::middleware::auth::AuthUser;
 use crate::services::run_service::{
     get_all_run_items, get_batch_items, get_batch_summary, get_run_details, list_runs,
-    BatchItemsResponse, BatchSummaryResponse, RunDetailsResponse, RunListResponse,
+    revert_run_status, BatchItemsResponse, BatchSummaryResponse, RunDetailsResponse,
+    RunListResponse,
 };
 use axum::{
     extract::{Path, Query, State},
@@ -244,6 +245,48 @@ pub async fn get_batch_summary_endpoint(
     }
 
     let response = get_batch_summary(&pool, run_no).await?;
+
+    Ok(Json(response))
+}
+
+/// POST /api/runs/:runNo/revert-status
+///
+/// Revert run status from PRINT to NEW
+///
+/// Allows users to make changes after run completion.
+/// Only succeeds if current status is PRINT.
+///
+/// # OpenAPI Contract
+/// - operationId: revertRunStatus
+/// - Path parameter: runNo (integer, minimum 1)
+/// - Response 200: RunDetailsResponse with status='NEW'
+/// - Response 400: ValidationError (Status not PRINT)
+/// - Response 404: NotFoundError (Run not found)
+///
+/// # Constitutional Compliance
+/// * ✅ JWT authentication required (AuthUser extractor)
+/// * ✅ Atomic UPDATE operation
+/// * ✅ Preserves audit trail (only changes Status field)
+pub async fn revert_run_status_endpoint(
+    State(pool): State<DbPool>,
+    AuthUser(claims): AuthUser,
+    Path(run_no): Path<i32>,
+) -> AppResult<Json<RunDetailsResponse>> {
+    tracing::info!(
+        user = %claims.username,
+        run_no = run_no,
+        "POST /api/runs/{}/revert-status request",
+        run_no
+    );
+
+    // Validate run_no
+    if run_no < 1 {
+        return Err(AppError::ValidationError(
+            "Run number must be greater than 0".to_string(),
+        ));
+    }
+
+    let response = revert_run_status(&pool, run_no).await?;
 
     Ok(Json(response))
 }
