@@ -111,45 +111,41 @@ if exist ".env" (
 echo.
 
 REM Start the backend server with logging
-echo Starting server: %BACKEND_EXE%
-echo Current directory: %CD%
+set RUST_LOG=info,partial_picking_backend=debug
+if not exist logs mkdir logs
+
+echo Starting backend server on port 7075...
+start "Partial Picking - Backend" powershell -NoExit -Command "cd '%~dp0backend'; $env:RUST_LOG='info,partial_picking_backend=debug'; .\target\release\partial-picking-backend.exe"
+
+echo Waiting 3 seconds for backend to initialize...
+timeout /t 3 /nobreak >nul
+
+echo Starting frontend server on port 6060...
+cd /d "%~dp0frontend"
+start "Partial Picking - Frontend" powershell -NoExit -Command "cd '%~dp0frontend'; npm run preview"
+
 echo.
-echo If you see this message and the window closes immediately,
-echo the server may have crashed or failed to start.
+echo ========================================
+echo Both servers are starting in separate windows:
+echo - Backend:  http://192.168.0.10:7075/api
+echo - Frontend: http://192.168.0.10:6060/
+echo ========================================
+echo.
+echo IMPORTANT:
+echo - Two PowerShell windows will open (one for each service)
+echo - Check each window for startup status
+echo - To stop a service, close its respective window
+echo - Or press Ctrl+C in the service window
+echo.
 echo Common issues:
-echo - Missing .env file
+echo - Missing .env file in backend directory
 echo - Database connection problems (check TFCPILOT3 @ 192.168.0.86:49381)
-echo - Port 7075 already in use
+echo - Port 7075 already in use (backend)
+echo - Port 6060 already in use (frontend)
 echo - LDAP connection issues (check 192.168.0.1)
 echo.
-echo Starting server with real-time logs...
-echo Logs will be saved to: logs\server.log
-if not exist logs mkdir logs
-set RUST_LOG=info,partial_picking_backend=debug
+echo You can close this window after verifying both servers started successfully.
+echo The services will continue running in their own windows.
 echo.
-echo ======== SERVER OUTPUT ========
-%BACKEND_EXE%
-echo.
-echo ======== SERVER STOPPED ========
-echo Exit code: %errorlevel%
-
-REM If the server exits, show a message
-echo.
-echo ========================================
-echo Server has stopped or failed to start.
-echo Check the error message above.
-echo ========================================
-echo.
-if %errorlevel% neq 0 (
-    echo ERROR: Server failed with exit code %errorlevel%
-    echo Common solutions:
-    echo 1. Check if .env file exists in backend directory
-    echo 2. Verify database connection: 192.168.0.86:49381 (TFCPILOT3)
-    echo 3. Check if port 7075 is available: netstat -ano ^| findstr :7075
-    echo 4. Verify LDAP connection: 192.168.0.1
-    echo 5. Check database credentials: NSW / B3sp0k3
-    echo 6. Run: cargo check in backend directory for compilation errors
-    echo.
-)
-echo Press any key to close this window...
+echo Press any key to close this launcher window...
 pause >nul

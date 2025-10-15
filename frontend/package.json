@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --host --port 6060",
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "test": "vitest",
