@@ -4,7 +4,7 @@ use crate::models::{
     ItemPickedStatus, LotAllocationData, PendingItemDTO, PendingItemsResponse, PickRequest,
     PickResponse, PickedLotDTO, PickedLotsResponse, ToleranceValidation, UnpickResponse,
 };
-use crate::services::sequence_service;
+use crate::services::{pallet_service, sequence_service};
 use chrono::{DateTime, Utc};
 use tiberius::Query;
 
@@ -654,6 +654,58 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
         custom1 = ?custom1_value,
         "Pick saved successfully (4-phase atomic transaction with CUSTOM1 audit)"
     );
+
+    // ========================================================================
+    // AUTO-COMPLETE RUN IF ALL ITEMS PICKED
+    // ========================================================================
+    // Check if this was the last item and automatically complete run
+    let check_completion_sql = r#"
+        SELECT
+            COUNT(*) AS TotalItems,
+            SUM(CASE WHEN ItemBatchStatus = 'Allocated' AND PickedPartialQty > 0 THEN 1 ELSE 0 END) AS PickedItems
+        FROM cust_PartialPicked
+        WHERE RunNo = @P1
+    "#;
+
+    // Use a new connection to avoid transaction conflicts
+    if let Ok(mut check_conn) = pool.get().await {
+        let mut check_query = Query::new(check_completion_sql);
+        check_query.bind(request.run_no);
+
+        if let Ok(check_stream) = check_query.query(&mut *check_conn).await {
+            if let Ok(Some(check_row)) = check_stream.into_row().await {
+                let total_items: i32 = check_row.get(0).unwrap_or(0);
+                let picked_items: i32 = check_row.get(1).unwrap_or(0);
+
+                // If all items are now picked, complete the run
+                if total_items > 0 && picked_items == total_items {
+                    tracing::info!(
+                        run_no = %request.run_no,
+                        total_items = %total_items,
+                        "All items picked - auto-completing run"
+                    );
+
+                    // Call complete_run (non-blocking - don't fail pick if this fails)
+                    match pallet_service::complete_run(pool, request.run_no, &request.workstation_id).await {
+                        Ok(pallet_id) => {
+                            tracing::info!(
+                                run_no = %request.run_no,
+                                pallet_id = %pallet_id,
+                                "Run auto-completed successfully - status updated to PRINT"
+                            );
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                run_no = %request.run_no,
+                                error = %e,
+                                "Failed to auto-complete run (pick was successful)"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // Build response
     Ok(PickResponse {
