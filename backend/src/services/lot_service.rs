@@ -90,7 +90,7 @@ pub async fn get_available_lots(
     // INNER JOIN with BINMaster to enforce PARTIAL bin filtering (DB-Flow.md requirement)
     let sql = if let Some(_qty) = min_qty {
         r#"
-        SELECT TOP 1
+        SELECT
             l.LotNo,
             l.BinNo,
             l.DateExpiry,

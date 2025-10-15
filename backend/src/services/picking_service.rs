@@ -243,6 +243,7 @@ pub async fn validate_item_not_picked(
 }
 
 /// Get lot allocation data from LotMaster for Phase 1 and Phase 3
+/// Includes receipt/vendor fields for LotTransaction audit trail
 async fn get_lot_allocation_data(
     conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
     lot_no: &str,
@@ -256,7 +257,11 @@ async fn get_lot_allocation_data(
             ItemKey,
             LocationKey,
             DateReceived,
-            DateExpiry
+            DateExpiry,
+            ISNULL(DocumentNo, '') AS ReceiptDocNo,
+            ISNULL(DocumentLineNo, 0) AS ReceiptDocLineNo,
+            ISNULL(VendorKey, '') AS Vendorkey,
+            ISNULL(VendorLotNo, '') AS VendorlotNo
         FROM LotMaster
         WHERE LotNo = @P1 AND ItemKey = @P2 AND BinNo = @P3 AND LocationKey = 'TFC1'
     "#;
@@ -281,6 +286,11 @@ async fn get_lot_allocation_data(
         // Use try_get for DateTime columns that may have invalid SQL Server dates
         date_received: row.try_get(4).ok().flatten(),
         date_expiry: row.try_get(5).ok().flatten(),
+        // Receipt/Vendor fields from LotMaster (for LotTransaction audit trail)
+        receipt_doc_no: row.get::<&str, _>(6).unwrap_or("").to_string(),
+        receipt_doc_line_no: row.get::<i32, _>(7).unwrap_or(0),
+        vendor_key: row.get::<&str, _>(8).unwrap_or("").to_string(),
+        vendor_lot_no: row.get::<&str, _>(9).unwrap_or("").to_string(),
     })
 }
 
@@ -300,6 +310,26 @@ async fn get_batch_no(
         AppError::RecordNotFound(format!(
             "Batch not found for RunNo={}, RowNum={}",
             run_no, row_num
+        ))
+    })?;
+
+    Ok(row.get::<&str, _>(0).unwrap_or("").to_string())
+}
+
+/// Get customer key from PNMAST for Phase 3 LotTransaction audit trail
+async fn get_customer_key(
+    conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
+    batch_no: &str,
+) -> AppResult<String> {
+    let sql = "SELECT CustKey FROM PNMAST WHERE BatchNo = @P1";
+
+    let mut query = Query::new(sql);
+    query.bind(batch_no);
+
+    let row = query.query(conn).await?.into_row().await?.ok_or_else(|| {
+        AppError::RecordNotFound(format!(
+            "Customer key not found for BatchNo={}",
+            batch_no
         ))
     })?;
 
@@ -372,6 +402,15 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
     // Get batch number
     let batch_no = match get_batch_no(&mut *conn, request.run_no, request.row_num).await {
         Ok(batch) => batch,
+        Err(e) => {
+            let _ = conn.simple_query("ROLLBACK").await;
+            return Err(e);
+        }
+    };
+
+    // Get customer key from PNMAST for Phase 3 audit trail
+    let cust_key = match get_customer_key(&mut *conn, &batch_no).await {
+        Ok(key) => key,
         Err(e) => {
             let _ = conn.simple_query("ROLLBACK").await;
             return Err(e);
@@ -463,11 +502,13 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
     }
 
     // ========================================================================
-    // PHASE 3: TRANSACTION RECORDING
+    // PHASE 3: TRANSACTION RECORDING (with audit trail fields)
     // ========================================================================
     // SQL from: phase3_transaction_record.sql
     // CRITICAL: LotTransaction.LotTranNo is IDENTITY column (auto-generated), do NOT insert explicitly
-    // NOTE: The lot_tran_no from sequence service is NOT used in Phase 3
+    // Audit trail fields populated from LotMaster and PNMAST:
+    // - ReceiptDocNo, ReceiptDocLineNo, Vendorkey, VendorlotNo from LotMaster
+    // - CustomerKey from PNMAST.CustKey
     let phase3_sql = r#"
         INSERT INTO LotTransaction (
             LotNo, ItemKey, LocationKey, DateReceived, DateExpiry, TransactionType,
@@ -479,7 +520,7 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
             CUSTOM1, CUSTOM2, CUSTOM3, CUSTOM4, CUSTOM5, CUSTOM6, CUSTOM7, CUSTOM8, CUSTOM9, CUSTOM10
         )
         VALUES (
-            @P1, @P2, @P3, NULL, @P4, 5, '', 0, 0, '', '', @P5, @P6, GETDATE(), @P7, '',
+            @P1, @P2, @P3, NULL, @P4, 5, @P10, @P11, 0, @P12, @P13, @P5, @P6, GETDATE(), @P7, @P14,
             @P8, GETDATE(), 'N', 0, 0, @P9, 0, NULL, '', '', '', '', 'Picking Customization',
             NULL, 0, 0, 0, 0, 0, 0, '', '', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         )
@@ -495,6 +536,11 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
     phase3_query.bind(request.weight); // @P7 - QtyIssued
     phase3_query.bind(request.workstation_id.as_str()); // @P8 - RecUserid
     phase3_query.bind(lot_data.bin_no.as_str()); // @P9 - BinNo
+    phase3_query.bind(lot_data.receipt_doc_no.as_str()); // @P10 - ReceiptDocNo (from LotMaster)
+    phase3_query.bind(lot_data.receipt_doc_line_no); // @P11 - ReceiptDocLineNo (from LotMaster)
+    phase3_query.bind(lot_data.vendor_key.as_str()); // @P12 - Vendorkey (from LotMaster)
+    phase3_query.bind(lot_data.vendor_lot_no.as_str()); // @P13 - VendorlotNo (from LotMaster)
+    phase3_query.bind(cust_key.as_str()); // @P14 - CustomerKey (from PNMAST)
 
     // Execute Phase 3
     if let Err(e) = phase3_query.execute(&mut *conn).await {
@@ -570,7 +616,7 @@ pub async fn save_pick(pool: &DbPool, request: PickRequest) -> AppResult<PickRes
 /// # Reversal Phases
 /// 1. Reset weight (UPDATE cust_PartialPicked.PickedPartialQty = 0)
 /// 2. Delete lot allocation (DELETE FROM Cust_PartialLotPicked)
-/// 3. SKIP: Do NOT delete from LotTransaction (append-only audit trail)
+/// 3. Delete transaction records (DELETE FROM LotTransaction WHERE IssueDocNo = batch AND IssueDocLineNo = line)
 /// 4. Decrement inventory commitment (UPDATE LotMaster.QtyCommitSales)
 ///
 /// # Arguments
@@ -684,9 +730,35 @@ pub async fn unpick_item(
     }
 
     // ========================================================================
-    // UNPICK PHASE 3: SKIP (Audit Trail Preservation)
+    // UNPICK PHASE 3: DELETE LOT TRANSACTION RECORDS
     // ========================================================================
-    // LotTransaction is append-only - DO NOT DELETE
+    // SQL from: unpick_phase3_delete_lot_transaction.sql
+    // Production behavior: DELETE LotTransaction records matching IssueDocNo (batch) and IssueDocLineNo (line ID)
+    // Reference: PickingFlow.md lines 416-421, 543-554
+
+    // Get batch number for LotTransaction deletion
+    let batch_no = match get_batch_no(&mut *conn, run_no, row_num).await {
+        Ok(batch) => batch,
+        Err(e) => {
+            let _ = conn.simple_query("ROLLBACK").await;
+            return Err(AppError::TransactionFailed(format!("Failed to get batch number for Phase 3: {}", e)));
+        }
+    };
+
+    let unpick_phase3_sql = r#"
+        DELETE FROM LotTransaction
+        WHERE IssueDocNo = @P1 AND IssueDocLineNo = @P2
+    "#;
+
+    let mut unpick_phase3_query = Query::new(unpick_phase3_sql);
+    unpick_phase3_query.bind(batch_no.as_str());
+    unpick_phase3_query.bind(line_id as i16);
+
+    // Execute Unpick Phase 3
+    if let Err(e) = unpick_phase3_query.execute(&mut *conn).await {
+        let _ = conn.simple_query("ROLLBACK").await;
+        return Err(AppError::TransactionFailed(format!("Unpick Phase 3 failed: {}", e)));
+    }
 
     // ========================================================================
     // UNPICK PHASE 4: DECREMENT INVENTORY COMMITMENT

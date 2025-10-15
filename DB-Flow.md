@@ -240,9 +240,41 @@ BinNo           VARCHAR(50)
 Reference       VARCHAR(100)                -- "Run 213972 Batch 2"
 ```
 
+**⚠️ CRITICAL AUDIT TRAIL FIELDS** (Must be populated from source tables):
+```sql
+-- Receipt/Vendor Information (from LotMaster):
+ReceiptDocNo        VARCHAR(50)             -- LotMaster.DocumentNo (e.g., "BT-25268022")
+ReceiptDocLineNo    INT                     -- LotMaster.DocumentLineNo (e.g., 1)
+Vendorkey           VARCHAR(50)             -- LotMaster.VendorKey (e.g., "ADP")
+VendorlotNo         VARCHAR(50)             -- LotMaster.VendorLotNo (e.g., "21-04-25")
+
+-- Customer Information (from PNMAST):
+CustomerKey         VARCHAR(50)             -- PNMAST.CustKey (e.g., "PTB03", "SVT01")
+
+-- Issue/Transaction Information (from picking transaction):
+IssueDocNo          VARCHAR(50)             -- Batch number (from cust_PartialPicked.BatchNo)
+IssueDocLineNo      INT                     -- Line ID (from cust_PartialPicked.LineId)
+```
+
+**Data Source Mapping**:
+```
+LotMaster Fields → LotTransaction:
+  DocumentNo        → ReceiptDocNo
+  DocumentLineNo    → ReceiptDocLineNo
+  VendorKey         → Vendorkey
+  VendorLotNo       → VendorlotNo
+
+PNMAST Fields → LotTransaction:
+  CustKey           → CustomerKey
+
+Picking Data → LotTransaction:
+  BatchNo           → IssueDocNo
+  LineId            → IssueDocLineNo
+```
+
 **SequenceNo Format**: `"PT" + Seqnum.NextValue` (e.g., "PT000123")
 
-**Real Example**:
+**Real Production Example**:
 ```
 LotTranNo: 789012
 ItemKey: "INSALT02"
@@ -255,6 +287,35 @@ TransBy: "deachawat"
 Location: "TFC1"
 BinNo: "PWBB-12"
 Reference: "Run 213972 Batch 2"
+
+-- Audit Trail Fields (populated from source tables):
+ReceiptDocNo: "BT-25268022"        (from LotMaster.DocumentNo)
+ReceiptDocLineNo: 1                (from LotMaster.DocumentLineNo)
+Vendorkey: "ADP"                   (from LotMaster.VendorKey)
+VendorlotNo: "21-04-25"            (from LotMaster.VendorLotNo)
+CustomerKey: "PTB03"               (from PNMAST.CustKey via BatchNo)
+IssueDocNo: "850417"               (from cust_PartialPicked.BatchNo)
+IssueDocLineNo: 2                  (from cust_PartialPicked.LineId)
+```
+
+**Implementation Queries**:
+```sql
+-- Get receipt/vendor data from LotMaster
+SELECT
+    ISNULL(DocumentNo, '') AS ReceiptDocNo,
+    ISNULL(DocumentLineNo, 0) AS ReceiptDocLineNo,
+    ISNULL(VendorKey, '') AS Vendorkey,
+    ISNULL(VendorLotNo, '') AS VendorlotNo
+FROM LotMaster
+WHERE LotNo = @lotNo
+  AND ItemKey = @itemKey
+  AND BinNo = @binNo
+  AND LocationKey = 'TFC1'
+
+-- Get customer key from PNMAST
+SELECT CustKey
+FROM PNMAST
+WHERE BatchNo = @batchNo
 ```
 
 ---
@@ -937,6 +998,60 @@ SET QtyCommitSales = QtyCommitSales - @pickedQty  -- ❌ Wrong direction
 UPDATE LotMaster
 SET QtyCommitSales = QtyCommitSales + @pickedQty  -- ✅ Correct
 ```
+
+---
+
+### ❌ Pitfall 7: Empty LotTransaction Audit Trail Fields
+```sql
+-- ❌ WRONG (Loses traceability and audit compliance)
+INSERT INTO LotTransaction (
+    LotNo, ItemKey, LocationKey, DateExpiry, TransactionType,
+    ReceiptDocNo, ReceiptDocLineNo, Vendorkey, VendorlotNo,
+    CustomerKey, IssueDocNo, IssueDocLineNo, ...
+) VALUES (
+    @lotNo, @itemKey, 'TFC1', @expiry, 5,
+    '',  -- ❌ Should be from LotMaster.DocumentNo
+    0,   -- ❌ Should be from LotMaster.DocumentLineNo
+    '',  -- ❌ Should be from LotMaster.VendorKey
+    '',  -- ❌ Should be from LotMaster.VendorLotNo
+    '',  -- ❌ Should be from PNMAST.CustKey
+    @batchNo, @lineId, ...
+)
+
+-- ✅ CORRECT (Complete audit trail with source data)
+-- Step 1: Get receipt/vendor data from LotMaster
+SELECT
+    ISNULL(DocumentNo, '') AS ReceiptDocNo,
+    ISNULL(DocumentLineNo, 0) AS ReceiptDocLineNo,
+    ISNULL(VendorKey, '') AS Vendorkey,
+    ISNULL(VendorLotNo, '') AS VendorlotNo
+FROM LotMaster
+WHERE LotNo = @lotNo AND ItemKey = @itemKey AND BinNo = @binNo AND LocationKey = 'TFC1'
+
+-- Step 2: Get customer key from PNMAST
+SELECT CustKey FROM PNMAST WHERE BatchNo = @batchNo
+
+-- Step 3: Insert with complete audit trail
+INSERT INTO LotTransaction (
+    LotNo, ItemKey, LocationKey, DateExpiry, TransactionType,
+    ReceiptDocNo, ReceiptDocLineNo, Vendorkey, VendorlotNo,
+    CustomerKey, IssueDocNo, IssueDocLineNo, ...
+) VALUES (
+    @lotNo, @itemKey, 'TFC1', @expiry, 5,
+    @receiptDocNo,      -- From LotMaster.DocumentNo (e.g., "BT-25268022")
+    @receiptDocLineNo,  -- From LotMaster.DocumentLineNo (e.g., 1)
+    @vendorKey,         -- From LotMaster.VendorKey (e.g., "ADP")
+    @vendorLotNo,       -- From LotMaster.VendorLotNo (e.g., "21-04-25")
+    @customerKey,       -- From PNMAST.CustKey (e.g., "PTB03")
+    @batchNo, @lineId, ...
+)
+```
+
+**Why This Matters**:
+- ReceiptDocNo traces back to original goods receipt (GRN) for supply chain audit
+- CustomerKey links to production customer for quality tracking and recalls
+- Vendorkey/VendorlotNo enable vendor traceability for ingredient sourcing compliance
+- Empty fields = broken audit trail = failed regulatory compliance (FDA, HACCP, ISO 22000)
 
 ---
 

@@ -123,7 +123,7 @@ pub struct ItemPickedStatus {
     pub was_unpicked: bool,
 }
 
-/// Internal DTO for lot allocation data needed for Phase 1
+/// Internal DTO for lot allocation data needed for Phase 1 and Phase 3
 #[derive(Debug, Clone)]
 pub struct LotAllocationData {
     pub lot_no: String,
@@ -132,6 +132,11 @@ pub struct LotAllocationData {
     pub location_key: String,
     pub date_received: Option<DateTime<Utc>>,
     pub date_expiry: Option<DateTime<Utc>>,
+    // Receipt/Vendor fields from LotMaster (for LotTransaction audit trail)
+    pub receipt_doc_no: String,        // DocumentNo -> ReceiptDocNo
+    pub receipt_doc_line_no: i32,      // DocumentLineNo -> ReceiptDocLineNo
+    pub vendor_key: String,            // VendorKey -> Vendorkey
+    pub vendor_lot_no: String,         // VendorLotNo -> VendorlotNo
 }
 
 /// Response DTO for picked lot details

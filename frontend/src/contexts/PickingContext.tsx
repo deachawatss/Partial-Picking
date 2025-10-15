@@ -338,7 +338,6 @@ export function PickingProvider({ children }: PickingProviderProps) {
       } else {
         console.warn('[Picking] No available lots found for item:', itemKey)
         setSelectedLot(null)
-        setErrorMessage(`No available lots found for ${itemKey} with sufficient quantity`)
       }
     } catch (error) {
       const message = getErrorMessage(error)
