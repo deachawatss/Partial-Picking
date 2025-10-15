@@ -101,6 +101,9 @@ export function PartialPickingPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [gridFilter, setGridFilter] = useState<'pending' | 'picked'>('pending')
 
+  // Auto-selection trigger flag (avoids stale closure data)
+  const [shouldAutoSelect, setShouldAutoSelect] = useState(false)
+
   // Fetch picked lots for delete all and re-print operations
   const { data: pickedLotsData } = usePickedLots(currentRun?.runNo || null, {
     enabled: !!currentRun?.runNo,
@@ -150,6 +153,32 @@ export function PartialPickingPage() {
       setBinInputValue('')
     }
   }, [selectedLot?.binNo])
+
+  // Auto-selection after successful pick (uses FRESH context data, not stale closure)
+  useEffect(() => {
+    if (!shouldAutoSelect) return
+
+    // Reset flag immediately to prevent re-trigger
+    setShouldAutoSelect(false)
+
+    // Apply same sorting logic as grid display
+    const sortedItems = [...currentBatchItems].sort((a, b) => {
+      // Primary: Sort by totalNeeded (Partial KG) descending (largest first)
+      const qtyCompare = b.totalNeeded - a.totalNeeded
+      if (qtyCompare !== 0) return qtyCompare
+
+      // Secondary: Sort by BatchNo descending (850417 before 850416)
+      return b.batchNo.localeCompare(a.batchNo)
+    })
+
+    // Find first unpicked item (pickedQty === 0)
+    const nextPendingItem = sortedItems.find(item => item.pickedQty === 0)
+
+    if (nextPendingItem) {
+      // Auto-select next item (switches to "Pending to Picked" tab automatically)
+      handleItemSelect(nextPendingItem.itemKey, nextPendingItem.batchNo)
+    }
+  }, [shouldAutoSelect, currentBatchItems])
 
   /**
    * Handle Run field click - clear for manual input/scanning
@@ -520,39 +549,9 @@ export function PartialPickingPage() {
       setTimeout(() => setSuccessMessage(null), 3000)
       setManualWeight(null)
 
-      // Auto-select next pending item for seamless picking workflow
-      setTimeout(async () => {
-        try {
-          // Wait for queries to refetch after invalidation
-          await queryClient.refetchQueries({
-            queryKey: ['run-details', currentRun?.runNo]
-          })
-
-          // currentBatchItems already has fresh data from savePick() → selectRun()
-          // which loads items from ALL batches (not just current batch)
-          // DO NOT call selectBatch() here - it would overwrite multi-batch data with single-batch data
-
-          // Apply same sorting logic as grid display (lines 816-823)
-          const sortedItems = [...currentBatchItems].sort((a, b) => {
-            // Primary: Sort by totalNeeded (Partial KG) descending (largest first)
-            const qtyCompare = b.totalNeeded - a.totalNeeded
-            if (qtyCompare !== 0) return qtyCompare
-
-            // Secondary: Sort by BatchNo descending (850417 before 850416)
-            return b.batchNo.localeCompare(a.batchNo)
-          })
-
-          // Find first unpicked item (pickedQty === 0)
-          const nextPendingItem = sortedItems.find(item => item.pickedQty === 0)
-
-          if (nextPendingItem) {
-            // Auto-select next item (switches to "Pending to Picked" tab automatically)
-            await handleItemSelect(nextPendingItem.itemKey, nextPendingItem.batchNo)
-          }
-        } catch (error) {
-          // Silent failure - don't disrupt picking workflow if auto-selection fails
-        }
-      }, 300) // 300ms delay for query refetch
+      // Trigger auto-selection using useEffect (avoids stale closure data)
+      // The useEffect will run with FRESH currentBatchItems from context
+      setShouldAutoSelect(true)
     } catch (error) {
       console.error('[PartialPickingPage] Save pick failed:', error)
     }
