@@ -519,6 +519,39 @@ export function PartialPickingPage() {
       setSuccessMessage('Pick saved and label printed!')
       setTimeout(() => setSuccessMessage(null), 3000)
       setManualWeight(null)
+
+      // Auto-select next pending item for seamless picking workflow
+      setTimeout(async () => {
+        try {
+          // Wait for queries to refetch after invalidation
+          await queryClient.refetchQueries({
+            queryKey: ['run-details', currentRun?.runNo]
+          })
+
+          // Re-calculate pending items with updated data
+          const refreshedBatchItems = currentBatchItems
+
+          // Apply same sorting logic as grid display (lines 816-823)
+          const sortedItems = [...refreshedBatchItems].sort((a, b) => {
+            // Primary: Sort by totalNeeded (Partial KG) descending (largest first)
+            const qtyCompare = b.totalNeeded - a.totalNeeded
+            if (qtyCompare !== 0) return qtyCompare
+
+            // Secondary: Sort by BatchNo descending (850417 before 850416)
+            return b.batchNo.localeCompare(a.batchNo)
+          })
+
+          // Find first unpicked item (pickedQty === 0)
+          const nextPendingItem = sortedItems.find(item => item.pickedQty === 0)
+
+          if (nextPendingItem) {
+            // Auto-select next item (switches to "Pending to Picked" tab automatically)
+            await handleItemSelect(nextPendingItem.itemKey, nextPendingItem.batchNo)
+          }
+        } catch (error) {
+          // Silent failure - don't disrupt picking workflow if auto-selection fails
+        }
+      }, 300) // 300ms delay for query refetch
     } catch (error) {
       console.error('[PartialPickingPage] Save pick failed:', error)
     }
