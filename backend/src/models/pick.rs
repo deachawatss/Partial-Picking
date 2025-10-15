@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Request DTO for picking operation
@@ -130,11 +130,14 @@ pub struct LotAllocationData {
     pub bin_no: String,
     pub item_key: String,
     pub location_key: String,
-    pub date_received: Option<DateTime<Utc>>,
-    pub date_expiry: Option<DateTime<Utc>>,
+    // CRITICAL: Use NaiveDateTime for SQL Server datetime columns (timezone-naive)
+    // DateReceived and DateExpiry are datetime columns, NOT datetimeoffset
+    // DateTime<Utc> is for datetimeoffset columns only
+    pub date_received: Option<NaiveDateTime>,
+    pub date_expiry: Option<NaiveDateTime>,
     // Receipt/Vendor fields from LotMaster (for LotTransaction audit trail)
     pub receipt_doc_no: String,        // DocumentNo -> ReceiptDocNo
-    pub receipt_doc_line_no: i32,      // DocumentLineNo -> ReceiptDocLineNo
+    pub receipt_doc_line_no: i16,      // DocumentLineNo -> ReceiptDocLineNo (SQL Server SMALLINT)
     pub vendor_key: String,            // VendorKey -> Vendorkey
     pub vendor_lot_no: String,         // VendorLotNo -> VendorlotNo
 }
