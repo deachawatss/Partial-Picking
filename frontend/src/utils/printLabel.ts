@@ -1,6 +1,7 @@
 import React from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
 import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
 
 export interface LabelData {
   itemKey: string
@@ -15,6 +16,7 @@ export interface LabelData {
 /**
  * Generate QR code as data URL
  * Renders QR code in main document, converts to base64 image
+ * Uses flushSync to force synchronous rendering for React 19
  */
 async function generateQRCodeDataURL(value: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -26,31 +28,37 @@ async function generateQRCodeDataURL(value: string): Promise<string> {
       container.style.top = '0'
       document.body.appendChild(container)
 
-      // Render QR code using React
+      // Render QR code using React with synchronous rendering
       const root = createRoot(container)
-      root.render(
-        React.createElement(QRCodeCanvas, {
-          value,
-          size: 150,
-          level: 'M', // Medium error correction (15% recovery)
-          marginSize: 4, // Quiet zone
-        })
-      )
 
-      // Wait for React to render, then extract data URL
-      setTimeout(() => {
-        const canvas = container.querySelector('canvas')
-        if (canvas) {
-          const dataURL = canvas.toDataURL('image/png')
-          root.unmount()
-          document.body.removeChild(container)
-          resolve(dataURL)
-        } else {
-          root.unmount()
-          document.body.removeChild(container)
-          reject(new Error('Canvas element not found after rendering'))
-        }
-      }, 100)
+      // Force synchronous rendering to ensure canvas is created immediately
+      flushSync(() => {
+        root.render(
+          React.createElement(QRCodeCanvas, {
+            value,
+            size: 150,
+            level: 'M', // Medium error correction (15% recovery)
+            marginSize: 4, // Quiet zone
+          })
+        )
+      })
+
+      // Use requestAnimationFrame to wait for canvas painting
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const canvas = container.querySelector('canvas')
+          if (canvas) {
+            const dataURL = canvas.toDataURL('image/png')
+            root.unmount()
+            document.body.removeChild(container)
+            resolve(dataURL)
+          } else {
+            root.unmount()
+            document.body.removeChild(container)
+            reject(new Error('Canvas element not found after rendering'))
+          }
+        })
+      })
     } catch (error) {
       reject(error)
     }
