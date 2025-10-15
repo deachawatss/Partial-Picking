@@ -48,7 +48,6 @@ export function useOnlineStatus(): boolean {
      * Fired when browser gains network connection
      */
     const handleOnline = () => {
-      console.log('[Network] Connection restored - Online')
       setIsOnline(true)
     }
 
@@ -57,7 +56,6 @@ export function useOnlineStatus(): boolean {
      * Fired when browser loses network connection
      */
     const handleOffline = () => {
-      console.log('[Network] Connection lost - Offline')
       setIsOnline(false)
     }
 

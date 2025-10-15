@@ -47,8 +47,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Logout - Clear authentication state and redirect to login
    */
   const logout = useCallback(() => {
-    console.log('[Auth] Logging out user:', user?.username)
-
     // Clear state (React 19 concurrent update)
     startTransition(() => {
       setToken(null)
@@ -68,12 +66,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const performTokenRefresh = useCallback(async (): Promise<void> => {
     setIsLoading(true)
     try {
-      console.log('[Auth] Refreshing token...')
-
       // Call backend refresh API (uses old token in Authorization header)
       const response = await authApi.refreshToken()
-
-      console.log('[Auth] Token refreshed successfully')
 
       // Update token in localStorage
       localStorage.setItem(TOKEN_KEY, response.token)
@@ -122,7 +116,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const twentyFourHours = 24 * 60 * 60 * 1000
 
             if (timeUntilExpiry < twentyFourHours) {
-              console.log('[Auth] Token expiring soon, auto-refreshing...')
               try {
                 await performTokenRefresh()
               } catch (error) {
@@ -132,7 +125,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
           } else {
             // Token expired, clear storage
-            console.warn('[Auth] Stored token expired, clearing authentication')
             clearAuthStorage()
           }
         } catch (error) {
@@ -154,15 +146,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (username: string, password: string): Promise<void> => {
     setIsLoading(true)
     try {
-      console.log('[Auth] Attempting login for user:', username)
-
       // Call backend login API
       const response = await authApi.login(username, password)
-
-      console.log('[Auth] Login successful:', {
-        username: response.user.username,
-        authSource: response.user.authSource,
-      })
 
       // Store token and user in localStorage
       localStorage.setItem(TOKEN_KEY, response.token)

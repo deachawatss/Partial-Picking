@@ -82,7 +82,7 @@ export async function getRunDetails(runNo: number): Promise<RunDetailsResponse> 
         const items = await getBatchItems(runNo, batchNum)
         batchItems.push(...items)
       } catch (error) {
-        console.warn(`[API] Failed to fetch batch ${batchNum} items for caching:`, error)
+        // Failed to fetch batch items for caching
       }
     }
 
@@ -95,12 +95,9 @@ export async function getRunDetails(runNo: number): Promise<RunDetailsResponse> 
   } catch (error) {
     // Check if offline (no network connection)
     if (!navigator.onLine) {
-      console.warn(`[API] Offline - attempting to use cached data for run ${runNo}`)
-
       // Try to retrieve cached data
       const cached = await getCachedRun(runNo)
       if (cached) {
-        console.log(`[API] Using cached run data for run ${runNo}`)
         return cached.runData
       } else {
         console.error(`[API] No cached data available for run ${runNo}`)
@@ -109,10 +106,8 @@ export async function getRunDetails(runNo: number): Promise<RunDetailsResponse> 
     }
 
     // Online but API error - try cache as fallback
-    console.warn(`[API] API error - attempting cache fallback for run ${runNo}:`, error)
     const cached = await getCachedRun(runNo)
     if (cached) {
-      console.log(`[API] Using cached run data as fallback for run ${runNo}`)
       return cached.runData
     }
 
@@ -148,15 +143,12 @@ export async function getBatchItems(runNo: number, rowNum: number): Promise<Batc
   } catch (error) {
     // Check if offline or API error
     if (!navigator.onLine || error) {
-      console.warn(`[API] Attempting to use cached batch items for run ${runNo}, batch ${rowNum}`)
-
       // Try to retrieve cached run data
       const cached = await getCachedRun(runNo)
       if (cached) {
         // Filter cached batch items by rowNum
         // Note: Batch items don't have rowNum field, so we return all cached items
         // The UI should filter by selected batch
-        console.log(`[API] Using cached batch items for run ${runNo}`)
         return cached.batchItems
       } else {
         console.error(`[API] No cached data available for run ${runNo}`)

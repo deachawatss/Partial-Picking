@@ -128,13 +128,11 @@ export function useWeightScale(
   const mountedRef = useRef<boolean>(true)
 
   /**
-   * Log debug messages
+   * Log debug messages (disabled for production)
    */
   const log = useCallback(
     (...args: unknown[]) => {
-      if (debug) {
-        console.log(`[useWeightScale:${scaleType}]`, ...args)
-      }
+      // Debug logging disabled for production performance
     },
     [debug, scaleType]
   )
@@ -228,18 +226,6 @@ export function useWeightScale(
             case 'weight': {
               const weightMsg = message as WeightMessage
 
-              // Calculate latency for performance monitoring
-              const receiveTime = Date.now()
-              const latency = receiveTime - weightMsg.data.timestamp
-
-              // Only warn about high latency for recent messages (< 5 seconds old)
-              // Initial cached messages may have old timestamps
-              if (latency > 200 && latency < 5000) {
-                console.warn(
-                  `[useWeightScale:${scaleType}] High latency detected: ${latency}ms (threshold: 200ms)`
-                )
-              }
-
               // React 19: Use startTransition for concurrent, non-blocking update
               // This ensures <200ms latency even with 10+ updates/second
               startTransition(() => {
@@ -247,17 +233,6 @@ export function useWeightScale(
                 setStable(weightMsg.data.stable)
               })
 
-              // Only log unstable weights to reduce console spam
-              if (!weightMsg.data.stable) {
-                log(
-                  'Weight update (unstable):',
-                  weightMsg.data.weight,
-                  weightMsg.data.unit,
-                  'latency:',
-                  latency,
-                  'ms'
-                )
-              }
               break
             }
 

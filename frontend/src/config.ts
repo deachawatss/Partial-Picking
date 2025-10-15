@@ -73,7 +73,7 @@ try {
     resolvedBridgePort = resolvedBridgeProtocol === 'wss' ? 443 : 80
   }
 } catch (error) {
-  console.warn('[config] Failed to parse bridge URL, using defaults:', error)
+  // Failed to parse bridge URL, using defaults
 }
 
 export const config = {

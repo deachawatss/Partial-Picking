@@ -86,10 +86,8 @@ export function PickingProvider({ children }: PickingProviderProps) {
     if (user?.username) {
       const truncatedUsername = user.username.substring(0, 8)
       setWorkstationId(truncatedUsername)
-      console.log('[Picking] Workstation ID updated to:', truncatedUsername)
     } else {
       setWorkstationId('ERROR')
-      console.log('[Picking] Workstation ID reset to: ERROR (no user)')
     }
   }, [user])
 
@@ -107,24 +105,14 @@ export function PickingProvider({ children }: PickingProviderProps) {
     setCurrentBatchItems([])
 
     try {
-      console.log('[Picking] Loading run details:', runNo)
-
       // Call API to get run details
       const runDetails = await runsApi.getRunDetails(runNo)
-
-      console.log('[Picking] Run loaded:', {
-        runNo: runDetails.runNo,
-        fgItemKey: runDetails.fgItemKey,
-        batches: runDetails.batches,
-      })
 
       // Update state
       setCurrentRun(runDetails)
 
       // Load items from ALL batches in the run
       if (runDetails.batches.length > 0) {
-        console.log('[Picking] Loading items from all batches:', runDetails.batches)
-
         try {
           // Load items from all batches and combine them
           const allItemsPromises = runDetails.batches.map(batchRowNum =>
@@ -133,12 +121,6 @@ export function PickingProvider({ children }: PickingProviderProps) {
 
           const allBatchItems = await Promise.all(allItemsPromises)
           const combinedItems = allBatchItems.flat()
-
-          console.log('[Picking] All batch items loaded:', {
-            batchCount: runDetails.batches.length,
-            totalItemCount: combinedItems.length,
-            items: combinedItems.map(i => `${i.batchNo}:${i.itemKey}`),
-          })
 
           // Sort items by quantity descending (pick largest first), then BatchNo descending
           // This matches official app behavior for efficient warehouse picking
@@ -160,7 +142,6 @@ export function PickingProvider({ children }: PickingProviderProps) {
           // Auto-select first fully unpicked item (highest quantity that needs picking)
           if (unpickedItems.length > 0) {
             const firstUnpickedItem = unpickedItems[0]
-            console.log('[Picking] Auto-selecting first unpicked item:', firstUnpickedItem.itemKey, 'from batch:', firstUnpickedItem.batchNo, 'totalNeeded:', firstUnpickedItem.totalNeeded)
 
             try {
               // Load FEFO lots for first unpicked item
@@ -172,11 +153,6 @@ export function PickingProvider({ children }: PickingProviderProps) {
                 firstUnpickedItem.remainingQty
               )
 
-              console.log('[Picking] FEFO lots loaded for first unpicked item:', {
-                count: lots.length,
-                firstLot: lots[0]?.lotNo,
-              })
-
               // Set current item
               setCurrentItem(firstUnpickedItem)
 
@@ -187,19 +163,16 @@ export function PickingProvider({ children }: PickingProviderProps) {
                 setSelectedLot(null)
               }
             } catch (lotError) {
-              console.warn('[Picking] Failed to load lots for first unpicked item:', lotError)
               // Still set the item even if lot loading fails
               setCurrentItem(firstUnpickedItem)
               setSelectedLot(null)
             }
           } else {
-            console.log('[Picking] No unpicked items to auto-select (all items have been picked)')
             // Don't auto-select anything when all items are picked
             setCurrentItem(null)
             setSelectedLot(null)
           }
         } catch (batchError) {
-          console.warn('[Picking] Failed to load batch items:', batchError)
           // Don't fail the entire run selection if batch loading fails
           setCurrentBatchRowNum(null)
           setCurrentBatchItems([])
@@ -239,15 +212,8 @@ export function PickingProvider({ children }: PickingProviderProps) {
     setErrorMessage(null)
 
     try {
-      console.log('[Picking] Loading batch items:', { runNo: currentRun.runNo, rowNum })
-
       // Call API to get batch items
       const items = await runsApi.getBatchItems(currentRun.runNo, rowNum)
-
-      console.log('[Picking] Batch items loaded:', {
-        count: items.length,
-        items: items.map(i => i.itemKey),
-      })
 
       // Update state
       setCurrentBatchRowNum(rowNum)
@@ -274,30 +240,10 @@ export function PickingProvider({ children }: PickingProviderProps) {
    * Calls GET /api/lots/available?itemKey={itemKey}&minQty={remainingQty}
    */
   const selectItem = useCallback(async (itemKey: string, batchNo?: string): Promise<void> => {
-    // DEFENSIVE VALIDATION: Log all parameters received
-    console.log('[Picking] selectItem called with:', {
-      itemKey,
-      batchNo,
-      batchNoType: typeof batchNo,
-      batchNoIsTruthy: !!batchNo,
-    })
-
     if (!currentRun) {
       setErrorMessage('Please select a run first')
       return
     }
-
-    // DEFENSIVE VALIDATION: Log current batch items to see what's available
-    console.log('[Picking] Available items in currentBatchItems:',
-      currentBatchItems.map(i => ({
-        itemKey: i.itemKey,
-        batchNo: i.batchNo,
-        rowNum: i.rowNum,
-        lineId: i.lineId,
-        pickedQty: i.pickedQty,
-        remainingQty: i.remainingQty,
-      }))
-    )
 
     // Find specific item by itemKey AND batchNo (for individual row selection)
     // If batchNo not provided, find first item with matching itemKey (for modal compatibility)
@@ -305,28 +251,16 @@ export function PickingProvider({ children }: PickingProviderProps) {
       i.itemKey === itemKey && (!batchNo || i.batchNo === batchNo)
     )
 
-    // DEFENSIVE VALIDATION: Log which item was found (or not found)
     if (!item) {
       console.error('[Picking] Item NOT FOUND! Search criteria:', { itemKey, batchNo })
       setErrorMessage(`Item ${itemKey} ${batchNo ? `(batch ${batchNo})` : ''} not found in current batch`)
       return
     }
 
-    console.log('[Picking] Found item:', {
-      itemKey: item.itemKey,
-      batchNo: item.batchNo,
-      rowNum: item.rowNum,
-      lineId: item.lineId,
-      pickedQty: item.pickedQty,
-      remainingQty: item.remainingQty,
-    })
-
     setIsLoading(true)
     setErrorMessage(null)
 
     try {
-      console.log('[Picking] Loading FEFO lots for item:', itemKey, 'from batch:', item.batchNo, 'rowNum:', item.rowNum)
-
       // Use the item's actual rowNum (batch row number from database)
       const itemBatchRowNum = item.rowNum
 
@@ -339,28 +273,14 @@ export function PickingProvider({ children }: PickingProviderProps) {
         item.remainingQty
       )
 
-      console.log('[Picking] FEFO lots loaded:', {
-        count: lots.length,
-        firstLot: lots[0]?.lotNo,
-        firstExpiry: lots[0]?.expiryDate,
-        packSize: lots[0]?.packSize,
-      })
-
       // Update state
       setCurrentItem(item)
 
       // Auto-select first FEFO lot if available
       if (lots.length > 0) {
         const fefoLot = lots[0]
-        console.log('[Picking] Auto-selected FEFO lot:', {
-          lotNo: fefoLot.lotNo,
-          binNo: fefoLot.binNo,
-          expiryDate: fefoLot.expiryDate,
-          availableQty: fefoLot.availableQty,
-        })
         setSelectedLot(fefoLot)
       } else {
-        console.warn('[Picking] No available lots found for item:', itemKey)
         setSelectedLot(null)
       }
     } catch (error) {
@@ -380,11 +300,6 @@ export function PickingProvider({ children }: PickingProviderProps) {
    * T068: Manually select a lot (override FEFO)
    */
   const selectLot = useCallback((lot: LotAvailabilityDTO): void => {
-    console.log('[Picking] Manually selected lot:', {
-      lotNo: lot.lotNo,
-      binNo: lot.binNo,
-      expiryDate: lot.expiryDate,
-    })
     setSelectedLot(lot)
     setErrorMessage(null)
   }, [])
@@ -393,7 +308,6 @@ export function PickingProvider({ children }: PickingProviderProps) {
    * T068: Set workstation ID
    */
   const setWorkstation = useCallback((id: string): void => {
-    console.log('[Picking] Set workstation:', id)
     setWorkstationId(id)
   }, [])
 
@@ -418,18 +332,6 @@ export function PickingProvider({ children }: PickingProviderProps) {
       // Use the item's actual rowNum (batch row number from database)
       const itemBatchRowNum = currentItem.rowNum
 
-      console.log('[Picking] Saving pick:', {
-        runNo: currentRun.runNo,
-        rowNum: itemBatchRowNum,
-        itemKey: currentItem.itemKey,
-        batchNo: currentItem.batchNo,
-        lotNo: selectedLot.lotNo,
-        binNo: selectedLot.binNo,
-        weight,
-        weightSource,
-        workstationId,
-      })
-
       // Use the item's actual lineId from database (not calculated)
       const lineId = currentItem.lineId
 
@@ -450,14 +352,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
       }
 
       // Call API to save pick (4-phase atomic transaction)
-      const pickResponse = await pickingApi.savePick(pickRequest)
-
-      console.log('[Picking] Pick saved successfully:', {
-        lotTranNo: pickResponse.lotTranNo,
-        pickedQty: pickResponse.pickedQty,
-        status: pickResponse.status,
-        weightSource, // Log for audit
-      })
+      await pickingApi.savePick(pickRequest)
 
       // Refresh all batch items to show updated picked quantities
       await selectRun(currentRun.runNo)
@@ -499,26 +394,13 @@ export function PickingProvider({ children }: PickingProviderProps) {
     setErrorMessage(null)
 
     try {
-      console.log('[Picking] Unpicking item:', {
-        runNo: currentRun.runNo,
-        rowNum: batchRowNum,
-        lineId,
-        workstationId,
-      })
-
       // Call API to unpick item
-      const unpickResponse = await pickingApi.unpickItem(
+      await pickingApi.unpickItem(
         currentRun.runNo,
         batchRowNum,
         lineId,
         workstationId
       )
-
-      console.log('[Picking] Item unpicked successfully:', {
-        itemKey: unpickResponse.itemKey,
-        pickedQty: unpickResponse.pickedQty, // Should be 0
-        status: unpickResponse.status, // Preserved for audit
-      })
 
       // Refresh all batch items to show updated picked quantities
       await selectRun(currentRun.runNo)
@@ -550,19 +432,8 @@ export function PickingProvider({ children }: PickingProviderProps) {
     setErrorMessage(null)
 
     try {
-      console.log('[Picking] Completing run:', {
-        runNo: currentRun.runNo,
-        workstationId,
-      })
-
       // Call API to complete run
-      const completeResponse = await runsApi.completeRun(currentRun.runNo, workstationId)
-
-      console.log('[Picking] Run completed successfully:', {
-        palletId: completeResponse.palletId,
-        status: completeResponse.status,
-        completedAt: completeResponse.completedAt,
-      })
+      await runsApi.completeRun(currentRun.runNo, workstationId)
 
       // Update run status in state
       setCurrentRun({
@@ -583,7 +454,6 @@ export function PickingProvider({ children }: PickingProviderProps) {
    * Clear all selections and reset state
    */
   const clearSelections = useCallback((): void => {
-    console.log('[Picking] Clearing all selections')
     setCurrentRun(null)
     setCurrentBatchRowNum(null)
     setCurrentBatchItems([])
@@ -600,8 +470,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
   }, [])
 
   // Memoize context value to prevent unnecessary re-renders
-  // Note: Only include state values in dependencies, NOT functions
-  // Functions are already stable via useCallback and shouldn't trigger re-memoization
+  // MUST include ALL dependencies (state AND functions) to prevent re-render loops
   const contextValue = useMemo(
     () => ({
       currentRun,
@@ -624,7 +493,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
       clearError,
     }),
     [
-      // Only state values - functions are already memoized with useCallback
+      // State values
       currentRun,
       currentBatchRowNum,
       currentBatchItems,
@@ -633,6 +502,17 @@ export function PickingProvider({ children }: PickingProviderProps) {
       workstationId,
       isLoading,
       errorMessage,
+      // Functions (already memoized with useCallback)
+      selectRun,
+      selectBatch,
+      selectItem,
+      selectLot,
+      setWorkstation,
+      savePick,
+      unpickItem,
+      completeRun,
+      clearSelections,
+      clearError,
     ]
   )
 

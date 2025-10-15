@@ -86,10 +86,10 @@ function getDB(): Promise<IDBPDatabase<CacheDB>> {
         }
       },
       blocked() {
-        console.warn('[Cache] Database upgrade blocked - close all other tabs')
+        // Database upgrade blocked - close all other tabs
       },
       blocking() {
-        console.warn('[Cache] This tab is blocking database upgrade')
+        // This tab is blocking database upgrade
       },
       terminated() {
         console.error('[Cache] Database connection unexpectedly terminated')
@@ -135,8 +135,6 @@ export async function cacheRun(
     // Store in IndexedDB
     await db.put(STORE_NAME, cacheEntry)
 
-    console.log(`[Cache] Cached run ${runNo} with ${batchItems.length} batch items`)
-
     // Evict oldest runs if cache exceeds limit
     await evictOldRuns()
   } catch (error) {
@@ -168,14 +166,6 @@ export async function getCachedRun(runNo: number): Promise<CachedRun | undefined
     const db = await getDB()
     const cached = await db.get(STORE_NAME, runNo)
 
-    if (cached) {
-      console.log(
-        `[Cache] Retrieved cached run ${runNo} (cached at ${new Date(cached.cachedAt).toLocaleString()})`
-      )
-    } else {
-      console.log(`[Cache] No cached data for run ${runNo}`)
-    }
-
     return cached
   } catch (error) {
     console.error('[Cache] Failed to retrieve cached run:', error)
@@ -204,7 +194,6 @@ export async function listCachedRuns(): Promise<CachedRun[]> {
     // Sort newest first
     runs.sort((a, b) => b.cachedAt - a.cachedAt)
 
-    console.log(`[Cache] Found ${runs.length} cached runs`)
     return runs
   } catch (error) {
     console.error('[Cache] Failed to list cached runs:', error)
@@ -237,7 +226,6 @@ async function evictOldRuns(): Promise<void> {
       for (let i = 0; i < toDelete; i++) {
         const runToDelete = allRuns[i]
         await db.delete(STORE_NAME, runToDelete.runNo)
-        console.log(`[Cache] Evicted old run ${runToDelete.runNo} (FIFO eviction)`)
       }
     }
   } catch (error) {
@@ -261,7 +249,6 @@ export async function clearCache(): Promise<void> {
   try {
     const db = await getDB()
     await db.clear(STORE_NAME)
-    console.log('[Cache] Cleared all cached runs')
   } catch (error) {
     console.error('[Cache] Failed to clear cache:', error)
     throw error

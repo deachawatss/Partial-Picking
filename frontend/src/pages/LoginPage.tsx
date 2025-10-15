@@ -116,7 +116,6 @@ export function LoginPage() {
       await login(username.trim(), password)
 
       // Navigation will happen via useEffect when isAuthenticated changes
-      console.log('[LoginPage] Login successful, redirecting to /picking')
     } catch (error) {
       // Extract error message (already user-friendly from AuthContext)
       const errorMessage = error instanceof Error ? error.message : 'Login failed. Please try again.'

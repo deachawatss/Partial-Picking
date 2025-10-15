@@ -41,14 +41,6 @@ apiClient.interceptors.request.use(
       requestConfig.headers.Authorization = `Bearer ${token}`
     }
 
-    // Log request in development
-    if (config.isDevelopment) {
-      console.log(`[API] ${requestConfig.method?.toUpperCase()} ${requestConfig.url}`, {
-        params: requestConfig.params,
-        data: requestConfig.data,
-      })
-    }
-
     return requestConfig
   },
   (error: AxiosError) => {
@@ -63,10 +55,6 @@ apiClient.interceptors.request.use(
  */
 apiClient.interceptors.response.use(
   response => {
-    // Log successful response in development
-    if (config.isDevelopment) {
-      console.log(`[API] Response ${response.status}:`, response.data)
-    }
     return response
   },
   async (error: AxiosError<ErrorResponse>) => {
@@ -74,8 +62,6 @@ apiClient.interceptors.response.use(
 
     // Handle 401 Unauthorized errors
     if (error.response?.status === 401) {
-      console.warn('[API] 401 Unauthorized - Token expired or invalid')
-
       // Clear authentication data
       localStorage.removeItem(config.auth.tokenKey)
       localStorage.removeItem(config.auth.userDataKey)
@@ -112,11 +98,6 @@ apiClient.interceptors.response.use(
     // Handle 500+ server errors
     if (error.response?.status >= 500) {
       console.error('[API] Server error:', error.response.status, error.response.data)
-    }
-
-    // Handle 400-499 client errors (except 401 handled above)
-    if (error.response?.status >= 400 && error.response?.status < 500) {
-      console.warn('[API] Client error:', error.response.status, error.response.data)
     }
 
     // Return API error response (already in ErrorResponse format from backend)

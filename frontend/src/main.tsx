@@ -29,8 +29,6 @@ const updateSW = registerSW({
   },
   onOfflineReady() {
     // App is ready for offline use
-    console.log('[PWA] App ready for offline use')
-
     // Show user-friendly notification
     const offlineReady = document.createElement('div')
     offlineReady.className =
@@ -45,19 +43,12 @@ const updateSW = registerSW({
   },
   onRegistered(registration) {
     // Service worker registered successfully
-    console.log('[PWA] Service worker registered:', registration)
   },
   onRegisterError(error) {
     // Service worker registration failed
     console.error('[PWA] Service worker registration error:', error)
   },
 })
-
-// Log PWA status in development
-if (import.meta.env.DEV) {
-  console.log('[PWA] Development mode - Service worker enabled')
-  console.log('[PWA] Update handler registered')
-}
 
 // Create QueryClient for TanStack Query
 const queryClient = new QueryClient({

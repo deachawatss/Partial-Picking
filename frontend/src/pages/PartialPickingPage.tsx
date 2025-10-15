@@ -37,6 +37,7 @@ import { getLotByNumber } from '@/services/api/lots'
 import { getBinByNumber } from '@/services/api/bins'
 import { getBatchSummary } from '@/services/api/runs'
 import { getErrorMessage } from '@/services/api/client'
+import type { RunDetailsResponse } from '@/types/api'
 
 export function PartialPickingPage() {
   // Navigation and auth
@@ -486,12 +487,6 @@ export function PartialPickingPage() {
       // Determine weight source based on whether weight was manually entered
       const weightSource: 'automatic' | 'manual' = manualWeight !== null ? 'manual' : 'automatic'
 
-      console.log('[PartialPickingPage] Saving pick with weight source:', {
-        weight: currentWeight,
-        weightSource,
-        isManualEntry: manualWeight !== null,
-      })
-
       // Capture values BEFORE savePick() clears them
       const capturedItem = currentItem
       const capturedLot = selectedLot
@@ -617,38 +612,6 @@ export function PartialPickingPage() {
   }
 
   /**
-   * Handle Re-Print from View Lots modal
-   */
-  const handleRePrint = async () => {
-    if (!pickedLotsData || pickedLotsData.pickedLots.length === 0) {
-      alert('No picked lots to print')
-      return
-    }
-
-    try {
-      // Format picked lots data for labels
-      const labelData = pickedLotsData.pickedLots.map((lot) => ({
-        itemKey: lot.itemKey,
-        qtyReceived: lot.qtyReceived,
-        batchNo: lot.batchNo,
-        lotNo: lot.lotNo,
-        picker: workstationId || 'UNKNOWN',
-        date: lot.recDate ? new Date(lot.recDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'),
-        time: lot.recDate ? new Date(lot.recDate).toLocaleTimeString('en-US') : new Date().toLocaleTimeString('en-US'),
-      }))
-
-      // Print all labels
-      await printLabels(labelData)
-
-      setSuccessMessage(`Printing ${labelData.length} label(s)...`)
-      setTimeout(() => setSuccessMessage(null), 3000)
-    } catch (error) {
-      console.error('[PartialPickingPage] Re-print failed:', error)
-      alert('Failed to print labels. Please try again.')
-    }
-  }
-
-  /**
    * Handle Print button
    * Fetches batch summary data and prints 4×4" thermal labels
    * Only enabled when run status is 'PRINT' (all items picked)
@@ -729,14 +692,6 @@ export function PartialPickingPage() {
    * Always switches to "Pending to Picked" tab when selecting an item
    */
   const handleItemSelect = async (itemKey: string, batchNo?: string) => {
-    // DEFENSIVE LOGGING: Verify parameters received from grid click
-    console.log('[PartialPickingPage] handleItemSelect called with:', {
-      itemKey,
-      batchNo,
-      batchNoType: typeof batchNo,
-      batchNoIsTruthy: !!batchNo,
-    })
-
     // Always switch to "Pending to Picked" tab when selecting an item
     // This ensures users can see and pick the selected item
     setGridFilter('pending')
@@ -1313,7 +1268,6 @@ export function PartialPickingPage() {
           setManualWeight(weight)
           setIsManualEntryActive(false)  // Clear manual entry mode after confirming
         }}
-        currentValue={0}  // Always start blank for easy entry
         minValue={weightRangeLow}
         maxValue={weightRangeHigh}
       />
@@ -1323,7 +1277,6 @@ export function PartialPickingPage() {
         runNo={currentRun?.runNo || null}
         onDelete={handleDeleteLot}
         onDeleteAll={handleDeleteAllLots}
-        onRePrint={handleRePrint}
       />
     </div>
   )
