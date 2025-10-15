@@ -112,12 +112,19 @@ echo.
 
 REM Start both services in single window
 set RUST_LOG=info,partial_picking_backend=debug
-if not exist logs mkdir logs
+
+REM Set absolute paths for backend
+set BACKEND_DIR=%~dp0backend
+set BACKEND_EXE_FULL=%BACKEND_DIR%target\release\partial-picking-backend.exe
+set LOG_FILE=%~dp0logs\backend.log
+
+REM Create logs directory at project root
+if not exist "%~dp0logs" mkdir "%~dp0logs"
 
 echo Starting backend server in background (port 7075)...
 echo Backend logs will be saved to: logs\backend.log
-cd /d "%~dp0backend"
-start /B %BACKEND_EXE% > ..\logs\backend.log 2>&1
+cd /d "%BACKEND_DIR%"
+start "" /B "%BACKEND_EXE_FULL%" > "%LOG_FILE%" 2>&1
 
 echo Waiting 5 seconds for backend to initialize...
 timeout /t 5 /nobreak >nul
