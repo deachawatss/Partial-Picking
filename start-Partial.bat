@@ -110,42 +110,33 @@ if exist ".env" (
 )
 echo.
 
-REM Start the backend server with logging
+REM Start both services in single window
 set RUST_LOG=info,partial_picking_backend=debug
 if not exist logs mkdir logs
 
-echo Starting backend server on port 7075...
-start "Partial Picking - Backend" powershell -NoExit -Command "cd '%~dp0backend'; $env:RUST_LOG='info,partial_picking_backend=debug'; .\target\release\partial-picking-backend.exe"
+echo Starting backend server in background (port 7075)...
+echo Backend logs will be saved to: logs\backend.log
+cd /d "%~dp0backend"
+start /B %BACKEND_EXE% > ..\logs\backend.log 2>&1
 
-echo Waiting 3 seconds for backend to initialize...
-timeout /t 3 /nobreak >nul
+echo Waiting 5 seconds for backend to initialize...
+timeout /t 5 /nobreak >nul
 
-echo Starting frontend server on port 6060...
+echo Starting frontend server (port 6060)...
 cd /d "%~dp0frontend"
-start "Partial Picking - Frontend" powershell -NoExit -Command "cd '%~dp0frontend'; npm run preview"
+echo.
+echo ========================================
+echo Both services running in this window:
+echo - Backend:  http://192.168.0.10:7075/api (background)
+echo - Frontend: http://192.168.0.10:6060/ (foreground)
+echo ========================================
+echo.
+echo Backend logs: logs\backend.log
+echo Frontend output shown below:
+echo.
+echo Press Ctrl+C to stop both services
+echo ========================================
+echo.
 
-echo.
-echo ========================================
-echo Both servers are starting in separate windows:
-echo - Backend:  http://192.168.0.10:7075/api
-echo - Frontend: http://192.168.0.10:6060/
-echo ========================================
-echo.
-echo IMPORTANT:
-echo - Two PowerShell windows will open (one for each service)
-echo - Check each window for startup status
-echo - To stop a service, close its respective window
-echo - Or press Ctrl+C in the service window
-echo.
-echo Common issues:
-echo - Missing .env file in backend directory
-echo - Database connection problems (check TFCPILOT3 @ 192.168.0.86:49381)
-echo - Port 7075 already in use (backend)
-echo - Port 6060 already in use (frontend)
-echo - LDAP connection issues (check 192.168.0.1)
-echo.
-echo You can close this window after verifying both servers started successfully.
-echo The services will continue running in their own windows.
-echo.
-echo Press any key to close this launcher window...
-pause >nul
+REM Run frontend in foreground (this will show output)
+npm run preview
