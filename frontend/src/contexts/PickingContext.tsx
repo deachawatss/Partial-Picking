@@ -150,7 +150,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
                 firstUnpickedItem.itemKey,
                 runDetails.runNo,
                 itemBatchRowNum,
-                firstUnpickedItem.remainingQty
+                firstUnpickedItem.totalNeeded
               )
 
               // Set current item
@@ -237,7 +237,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
 
   /**
    * T068: Select item and auto-load FEFO lots
-   * Calls GET /api/lots/available?itemKey={itemKey}&minQty={remainingQty}
+   * Calls GET /api/lots/available?itemKey={itemKey}&minQty={totalNeeded}
    */
   const selectItem = useCallback(async (itemKey: string, batchNo?: string): Promise<void> => {
     if (!currentRun) {
@@ -270,7 +270,7 @@ export function PickingProvider({ children }: PickingProviderProps) {
         itemKey,
         currentRun.runNo,
         itemBatchRowNum,
-        item.remainingQty
+        item.totalNeeded
       )
 
       // Update state
