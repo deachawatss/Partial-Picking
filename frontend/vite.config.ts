@@ -75,8 +75,9 @@ export default defineConfig(({ mode }) => ({
         // Runtime caching strategies
         runtimeCaching: [
           // API calls: Network-first (fresh data when online, cache fallback)
+          // Pattern matches any host on port 7075 (localhost, IP addresses, domain names)
           {
-            urlPattern: /^https?:\/\/localhost:7075\/api\/.*/i,
+            urlPattern: /^https?:\/\/[^/]+:7075\/api\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
@@ -93,8 +94,9 @@ export default defineConfig(({ mode }) => ({
 
           // Run details: Cache-first (last 5 runs in IndexedDB - handled by API layer)
           // This is a fallback cache for when IndexedDB is not available
+          // Pattern matches any host on port 7075 (localhost, IP addresses, domain names)
           {
-            urlPattern: /^https?:\/\/localhost:7075\/api\/runs\/\d+$/i,
+            urlPattern: /^https?:\/\/[^/]+:7075\/api\/runs\/\d+$/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'runs-cache',

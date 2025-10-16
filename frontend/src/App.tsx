@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { LoginPage } from '@/pages/LoginPage'
 import { PartialPickingPage } from '@/pages/PartialPickingPage'
+import { PwaInstallPrompt } from '@/components/shared/PwaInstallPrompt'
 import { useAuth } from '@/hooks/use-auth'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -44,6 +45,8 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      {/* PWA Install Prompt - Shows globally when app is installable */}
+      <PwaInstallPrompt />
     </BrowserRouter>
   )
 }
